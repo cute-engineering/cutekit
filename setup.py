@@ -15,5 +15,7 @@ setup(
         "console_scripts": [
             "osdk = osdk:main",
         ],
-    }
+    },
+    license="MIT",
+    platforms="any",
 )

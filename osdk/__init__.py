@@ -1,7 +1,9 @@
+import importlib
 import shutil
 import sys
 import os
 import random
+from types import ModuleType
 
 import osdk.build as build
 import osdk.utils as utils
@@ -39,58 +41,6 @@ def runCmd(opts: dict, args: list[str]) -> None:
 
     print(f"{utils.Colors.BOLD}Running: {args[0]}{utils.Colors.RESET}")
     utils.runCmd(out, *args[1:])
-
-
-def kvmAvailable() -> bool:
-    if os.path.exists("/dev/kvm") and \
-            os.access("/dev/kvm", os.R_OK):
-        return True
-    return False
-
-
-BOOTAGENT = "loader"
-
-
-def bootCmd(opts: dict, args: list[str]) -> None:
-    imageDir = utils.mkdirP(".build/image")
-    efiBootDir = utils.mkdirP(".build/image/EFI/BOOT")
-    bootDir = utils.mkdirP(".build/image/boot")
-
-    ovmf = utils.downloadFile(
-        "https://retrage.github.io/edk2-nightly/bin/DEBUGX64_OVMF.fd")
-    hjert = build.buildOne("kernel-x86_64", "hjert")
-    shutil.copy(hjert, f"{bootDir}/kernel.elf")
-
-    if BOOTAGENT == "loader":
-        loader = build.buildOne("efi-x86_64", "loader")
-        shutil.copy(loader, f"{efiBootDir}/BOOTX64.EFI")
-    elif BOOTAGENT == "limine":
-        limine = utils.downloadFile(
-            "https://github.com/limine-bootloader/limine/raw/v3.0-branch-binary/BOOTX64.EFI")
-        limineSys = utils.downloadFile(
-            "https://github.com/limine-bootloader/limine/raw/v3.0-branch-binary/limine.sys")
-        shutil.copy(limineSys, f"{bootDir}/limine.sys")
-        shutil.copy('meta/images/limine-x86_64/limine.cfg',
-                    f"{bootDir}/limine.cfg")
-        shutil.copy(limine, f"{efiBootDir}/BOOTX64.EFI")
-
-    qemuCmd = [
-        "qemu-system-x86_64",
-        "-no-reboot",
-        "-d", "guest_errors",
-        "-serial", "mon:stdio",
-        "-bios", ovmf,
-        "-m", "256M",
-        "-smp", "4",
-        "-drive", f"file=fat:rw:{imageDir},media=disk,format=raw",
-    ]
-
-    if kvmAvailable():
-        qemuCmd += ["-enable-kvm"]
-    else:
-        print("KVM not available, using QEMU-TCG")
-
-    utils.runCmd(*qemuCmd)
 
 
 def buildCmd(opts: dict, args: list[str]) -> None:
@@ -151,10 +101,6 @@ CMDS = {
         "func": runCmd,
         "desc": "Run a component on the host",
     },
-    "boot": {
-        "func": bootCmd,
-        "desc": "Boot a component in a QEMU instance",
-    },
     "build": {
         "func": buildCmd,
         "desc": "Build one or more components",
@@ -167,15 +113,25 @@ CMDS = {
         "func": nukeCmd,
         "desc": "Clean the build directory and cache",
     },
-    "id": {
-        "func": idCmd,
-        "desc": "Generate a 64bit random id",
-    },
     "help": {
         "func": helpCmd,
         "desc": "Show this help message",
     },
 }
+
+
+def loadPlugin(path: str) -> ModuleType:
+    """Load a plugin from a path"""
+    spec = importlib.util.spec_from_file_location("plugin", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+for files in utils.tryListDir("meta/plugins"):
+    if files.endswith(".py"):
+        plugin = loadPlugin(f"meta/plugins/{files}")
+        CMDS[plugin.__plugin__["name"]] = plugin.__plugin__
 
 
 def main():
