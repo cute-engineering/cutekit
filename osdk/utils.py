@@ -77,6 +77,7 @@ def hashFile(filename: str) -> str:
 
 def objSha256(obj: dict, keys: list[str] = []) -> str:
     toHash = {}
+
     if len(keys) == 0:
         toHash = obj
     else:
@@ -88,15 +89,24 @@ def objSha256(obj: dict, keys: list[str] = []) -> str:
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
-def objKey(obj: dict, keys: list[str]) -> str:
+def objKey(obj: dict, keys: list[str] = []) -> str:
     toKey = []
-    for key in keys:
-        if key in obj:
+
+    if len(keys) == 0:
+        for key in obj:
             if isinstance(obj[key], bool):
                 if obj[key]:
                     toKey.append(key)
             else:
                 toKey.append(obj[key])
+    else:
+        for key in keys:
+            if key in obj:
+                if isinstance(obj[key], bool):
+                    if obj[key]:
+                        toKey.append(key)
+                else:
+                    toKey.append(obj[key])
 
     return "-".join(toKey)
 

@@ -23,7 +23,7 @@ def loadJsons(basedir: str) -> dict:
     return result
 
 
-def filter(manifests: dict, env: dict) -> dict:
+def filter(manifests: dict, target: dict) -> dict:
     result = {}
     for id in manifests:
         manifest = manifests[id]
@@ -31,7 +31,7 @@ def filter(manifests: dict, env: dict) -> dict:
 
         if "requires" in manifest:
             for req in manifest["requires"]:
-                if not env[req] in manifest["requires"][req]:
+                if not target["props"][req] in manifest["requires"][req]:
                     accepted = False
                     break
 
@@ -109,19 +109,19 @@ def prepareTests(manifests: dict) -> dict:
     return manifests
 
 
-def prepareInOut(manifests: dict, env: dict) -> dict:
+def prepareInOut(manifests: dict, target: dict) -> dict:
     manifests = copy.deepcopy(manifests)
     for key in manifests:
         item = manifests[key]
         basedir = os.path.dirname(item["dir"])
 
-        item["objs"] = [(x.replace(basedir, env["objdir"] + "/") + ".o", x)
+        item["objs"] = [(x.replace(basedir, target["objdir"]) + ".o", x)
                         for x in item["srcs"]]
 
         if item["type"] == "lib":
-            item["out"] = env["bindir"] + "/" + key + ".a"
+            item["out"] = target["bindir"] + "/" + key + ".a"
         elif item["type"] == "exe":
-            item["out"] = env["bindir"] + "/" + key
+            item["out"] = target["bindir"] + "/" + key
         else:
             raise utils.CliException("Unknown type: " + item["type"])
 
@@ -149,18 +149,18 @@ def cincludes(manifests: dict) -> str:
 cache: dict = {}
 
 
-def loadAll(basedir: str, env: dict) -> dict:
-    cacheKey = basedir + ":" + env["id"]
+def loadAll(basedir: str, target: dict) -> dict:
+    cacheKey = basedir + ":" + target["id"]
     if cacheKey in cache:
         return cache[cacheKey]
 
     manifests = loadJsons(basedir)
-    manifests = filter(manifests, env)
+    manifests = filter(manifests, target)
     manifests = doInjects(manifests)
     manifests = resolveDeps(manifests)
     manifests = findFiles(manifests)
     manifests = prepareTests(manifests)
-    manifests = prepareInOut(manifests, env)
+    manifests = prepareInOut(manifests, target)
 
     cache[cacheKey] = manifests
     return manifests

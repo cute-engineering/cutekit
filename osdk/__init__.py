@@ -1,13 +1,12 @@
 import importlib
 import shutil
 import sys
-import os
 import random
 from types import ModuleType
 
 import osdk.build as build
 import osdk.utils as utils
-import osdk.environments as environments
+import osdk.targets as targets
 
 
 CMDS = {}
@@ -37,20 +36,20 @@ def runCmd(opts: dict, args: list[str]) -> None:
         print(f"Usage: {args[0]} run <component>")
         sys.exit(1)
 
-    out = build.buildOne(opts.get('env', 'host-clang'), args[0])
+    out = build.buildOne(opts.get('target', 'host-clang'), args[0])
 
     print(f"{utils.Colors.BOLD}Running: {args[0]}{utils.Colors.RESET}")
     utils.runCmd(out, *args[1:])
 
 
 def buildCmd(opts: dict, args: list[str]) -> None:
-    env = opts.get('env', 'host-clang')
+    targetName = opts.get('target', 'host-clang')
 
     if len(args) == 0:
-        build.buildAll(env)
+        build.buildAll(targetName)
     else:
         for component in args:
-            build.buildOne(env, component)
+            build.buildOne(targetName, component)
 
 
 def cleanCmd(opts: dict, args: list[str]) -> None:
@@ -81,17 +80,17 @@ def helpCmd(opts: dict, args: list[str]) -> None:
         print("  " + cmd + " - " + CMDS[cmd]["desc"])
     print("")
 
-    print("Enviroments:")
-    availableToolchains = environments.available()
-    if len(availableToolchains) == 0:
-        print("   No environments available")
+    print("Targets:")
+    availableTargets = targets.available()
+    if len(availableTargets) == 0:
+        print("   No targets available")
     else:
-        for env in environments.available():
-            print("  " + env)
+        for targetName in targets.available():
+            print("  " + targetName)
     print("")
 
     print("Variants:")
-    for var in environments.VARIANTS:
+    for var in targets.VARIANTS:
         print("  " + var)
     print("")
 
