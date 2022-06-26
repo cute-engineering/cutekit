@@ -1,12 +1,12 @@
 import importlib
 import shutil
 import sys
-import random
 from types import ModuleType
 
 import osdk.build as build
 import osdk.utils as utils
 import osdk.targets as targets
+import osdk.manifests as manifests
 
 
 CMDS = {}
@@ -52,6 +52,19 @@ def buildCmd(opts: dict, args: list[str]) -> None:
             build.buildOne(targetName, component)
 
 
+def listCmd(opts: dict, args: list[str]) -> None:
+    targetName = opts.get('target', 'host-clang')
+    target = targets.load(targetName)
+    components = manifests.loadAll("src", target)
+
+    print(f"Available components for target '{targetName}':")
+    componentsNames = list(components.keys())
+    componentsNames.sort()
+    for component in componentsNames:
+        print("  " + component)
+    print("")
+
+
 def cleanCmd(opts: dict, args: list[str]) -> None:
     shutil.rmtree(".build", ignore_errors=True)
 
@@ -59,12 +72,6 @@ def cleanCmd(opts: dict, args: list[str]) -> None:
 def nukeCmd(opts: dict, args: list[str]) -> None:
     shutil.rmtree(".build", ignore_errors=True)
     shutil.rmtree(".cache", ignore_errors=True)
-
-
-def idCmd(opts: dict, args: list[str]) -> None:
-    i = hex(random.randint(0, 2**64))
-    print("64bit: " + i)
-    print("32bit: " + i[:10])
 
 
 def helpCmd(opts: dict, args: list[str]) -> None:
@@ -103,6 +110,10 @@ CMDS = {
     "build": {
         "func": buildCmd,
         "desc": "Build one or more components",
+    },
+    "list": {
+        "func": listCmd,
+        "desc": "List available components",
     },
     "clean": {
         "func": cleanCmd,
