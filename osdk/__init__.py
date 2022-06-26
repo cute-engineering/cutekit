@@ -3,11 +3,9 @@ import sys
 import os
 import random
 
-
-import build
-import utils
-from utils import Colors
-import environments
+import osdk.build as build
+import osdk.utils as utils
+import osdk.environments as environments
 
 
 CMDS = {}
@@ -34,12 +32,12 @@ def parseOptions(args: list[str]) -> dict:
 
 def runCmd(opts: dict, args: list[str]) -> None:
     if len(args) == 0:
-        print(f"Usage: {sys.argv[0]} run <component>")
+        print(f"Usage: {args[0]} run <component>")
         sys.exit(1)
 
     out = build.buildOne(opts.get('env', 'host-clang'), args[0])
 
-    print(f"{Colors.BOLD}Running: {args[0]}{Colors.RESET}")
+    print(f"{utils.Colors.BOLD}Running: {args[0]}{utils.Colors.RESET}")
     utils.runCmd(out, *args[1:])
 
 
@@ -97,7 +95,7 @@ def bootCmd(opts: dict, args: list[str]) -> None:
 
 def buildCmd(opts: dict, args: list[str]) -> None:
     env = opts.get('env', 'host-clang')
-    
+
     if len(args) == 0:
         build.buildAll(env)
     else:
@@ -121,11 +119,11 @@ def idCmd(opts: dict, args: list[str]) -> None:
 
 
 def helpCmd(opts: dict, args: list[str]) -> None:
-    print(f"Usage: {sys.argv[0]} <command> [options...] [<args...>]")
+    print(f"Usage: osdk <command> [options...] [<args...>]")
     print("")
 
     print("Description:")
-    print("   The skift operating system build system.")
+    print("   Operating System Development Kit.")
     print("")
 
     print("Commands:")
@@ -134,8 +132,12 @@ def helpCmd(opts: dict, args: list[str]) -> None:
     print("")
 
     print("Enviroments:")
-    for env in environments.available():
-        print("  " + env)
+    availableToolchains = environments.available()
+    if len(availableToolchains) == 0:
+        print("   No environments available")
+    else:
+        for env in environments.available():
+            print("  " + env)
     print("")
 
     print("Variants:")
@@ -175,20 +177,22 @@ CMDS = {
     },
 }
 
-if __name__ == "__main__":
+
+def main():
+    argv = sys.argv
     try:
-        if len(sys.argv) < 2:
+        if len(argv) < 2:
             helpCmd({}, [])
         else:
-            o = parseOptions(sys.argv[2:])
-            if not sys.argv[1] in CMDS:
-                print(f"Unknown command: {sys.argv[1]}")
+            o = parseOptions(argv[2:])
+            if not argv[1] in CMDS:
+                print(f"Unknown command: {argv[1]}")
                 print("")
-                print(f"Use '{sys.argv[0]} help' for a list of commands")
-                sys.exit(1)
-            CMDS[sys.argv[1]]["func"](o['opts'], o['args'])
-            sys.exit(0)
+                print(f"Use '{argv[0]} help' for a list of commands")
+                return 1
+            CMDS[argv[1]]["func"](o['opts'], o['args'])
+            return 0
     except utils.CliException as e:
         print()
-        print(f"{Colors.RED}{e.msg}{Colors.RESET}")
-        sys.exit(1)
+        print(f"{utils.Colors.RED}{e.msg}{utils.Colors.RESET}")
+        return 1

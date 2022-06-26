@@ -1,13 +1,12 @@
 from os import environ
 from typing import TextIO, Tuple
 import json
-
-import ninja
-import manifests as m
-import environments as e
 import copy
-import utils
-from utils import Colors
+
+from . import ninja
+from . import manifests as m
+from . import environments as e
+from . import utils
 
 
 def genNinja(out: TextIO, manifests: dict, env: dict) -> None:
@@ -92,7 +91,7 @@ def prepare(envName: str) -> Tuple[dict, dict]:
 
 def buildAll(envName: str) -> None:
     environment, _ = prepare(envName)
-    print(f"{Colors.BOLD}Building all targets for {envName}{Colors.RESET}")
+    print(f"{utils.Colors.BOLD}Building all targets for {envName}{utils.Colors.RESET}")
     try:
         utils.runCmd("ninja", "-j", "1", "-f", environment["ninjafile"])
     except:
@@ -101,7 +100,7 @@ def buildAll(envName: str) -> None:
 
 
 def buildOne(envName: str, target: str) -> str:
-    print(f"{Colors.BOLD}Building {target} for {envName}{Colors.RESET}")
+    print(f"{utils.Colors.BOLD}Building {target} for {envName}{utils.Colors.RESET}")
     environment, manifests = prepare(envName)
 
     if not target in manifests:

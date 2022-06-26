@@ -7,7 +7,6 @@ import requests
 import subprocess
 import json
 import copy
-from types import SimpleNamespace
 
 
 class Colors:
@@ -187,3 +186,10 @@ def loadJson(filename: str) -> dict:
 
     result = copy.deepcopy(result)
     return result
+
+
+def tryListDir(path: str) -> list[str]:
+    try:
+        return os.listdir(path)
+    except FileNotFoundError:
+        return []

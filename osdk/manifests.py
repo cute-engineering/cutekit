@@ -2,7 +2,7 @@ import os
 import json
 import copy
 
-import utils
+from . import utils
 
 
 def loadJsons(basedir: str) -> dict:

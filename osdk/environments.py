@@ -2,7 +2,7 @@
 import copy
 import os
 
-import utils
+from . import utils
 
 
 PASSED_TO_BUILD = [
@@ -46,7 +46,8 @@ def enableOptimizer(env: dict, level: str) -> dict:
 
 
 def available() -> list:
-    return [file.removesuffix(".json") for file in os.listdir("meta/toolchains") if file.endswith(".json")]
+    return [file.removesuffix(".json") for file in utils.tryListDir("meta/toolchains")
+            if file.endswith(".json")]
 
 
 VARIANTS = ["debug", "devel", "release", "sanatize"]
