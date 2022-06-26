@@ -88,7 +88,7 @@ def findFiles(manifests: dict) -> dict:
         assetsPath = os.path.join(path, "assets")
 
         item["tests"] = utils.findFiles(testsPath, [".c", ".cpp"])
-        item["srcs"] = utils.findFiles(path, [".c", ".cpp", ".s"])
+        item["srcs"] = utils.findFiles(path, [".c", ".cpp", ".s", ".asm"])
         item["assets"] = utils.findFiles(assetsPath)
 
     return manifests

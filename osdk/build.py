@@ -58,7 +58,7 @@ def genNinja(out: TextIO, manifests: dict, target: dict) -> None:
             elif obj[1].endswith(".cpp"):
                 writer.build(
                     obj[0], "cxx", obj[1], order_only=target["tools"]["cxx"].get("files", ""))
-            elif obj[1].endswith(".s"):
+            elif obj[1].endswith(".s") or obj[1].endswith(".asm"):
                 writer.build(
                     obj[0], "as", obj[1], order_only=target["tools"]["as"].get("files", ""))
 

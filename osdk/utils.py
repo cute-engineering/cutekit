@@ -187,11 +187,10 @@ def loadJson(filename: str) -> dict:
         result = CACHE[filename]
     else:
         with open(filename) as f:
-            result = json.load(f)
+            result = processJson(json.load(f))
 
             result["dir"] = os.path.dirname(filename)
             result["json"] = filename
-            result = processJson(result)
             CACHE[filename] = result
 
     result = copy.deepcopy(result)

@@ -36,14 +36,14 @@ def runCmd(opts: dict, args: list[str]) -> None:
         print(f"Usage: {args[0]} run <component>")
         sys.exit(1)
 
-    out = build.buildOne(opts.get('target', 'host-clang'), args[0])
+    out = build.buildOne(opts.get('target', 'default'), args[0])
 
     print(f"{utils.Colors.BOLD}Running: {args[0]}{utils.Colors.RESET}")
     utils.runCmd(out, *args[1:])
 
 
 def buildCmd(opts: dict, args: list[str]) -> None:
-    targetName = opts.get('target', 'host-clang')
+    targetName = opts.get('target', 'default')
 
     if len(args) == 0:
         build.buildAll(targetName)
@@ -53,7 +53,7 @@ def buildCmd(opts: dict, args: list[str]) -> None:
 
 
 def listCmd(opts: dict, args: list[str]) -> None:
-    targetName = opts.get('target', 'host-clang')
+    targetName = opts.get('target', 'default')
     target = targets.load(targetName)
     components = manifests.loadAll("src", target)
 
