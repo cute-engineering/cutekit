@@ -70,11 +70,11 @@ def load(env: str) -> dict:
     for key in PASSED_TO_BUILD:
         if isinstance(result[key], bool):
             if result[key]:
-                result["cflags"] += [f"-D__sdk_{key}__"]
-                result["cxxflags"] += [f"-D__sdk_{key}__"]
+                result["cflags"] += [f"-D__osdk_{key}__"]
+                result["cxxflags"] += [f"-D__osdk_{key}__"]
         else:
-            result["cflags"] += [f"-D__sdk_{key}_{result[key]}__"]
-            result["cxxflags"] += [f"-D__sdk_{key}_{result[key]}__"]
+            result["cflags"] += [f"-D__osdk_{key}_{result[key]}__"]
+            result["cxxflags"] += [f"-D__osdk_{key}_{result[key]}__"]
 
     result["cflags"] += [
         "-std=gnu2x",
