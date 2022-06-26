@@ -29,12 +29,19 @@ def genNinja(out: TextIO, manifests: dict, target: dict) -> None:
 
     writer.comment("Rules:")
     writer.rule(
-        "cc", "$cc -c -o $out $in -MD -MF $out.d $ccflags", depfile="$out.d")
+        "cc", "$cc -c -o $out $in -MD -MF $out.d $ccflags",
+        depfile="$out.d")
+
     writer.rule(
-        "cxx", "$cxx -c -o $out $in -MD -MF $out.d $cxxflags", depfile="$out.d")
+        "cxx", "$cxx -c -o $out $in -MD -MF $out.d $cxxflags",
+        depfile="$out.d")
+
     writer.rule("ld", "$ld -o $out $in $ldflags")
+
     writer.rule("ar", "$ar crs $out $in")
+
     writer.rule("as", "$as -o $out $in $asflags")
+
     writer.newline()
 
     writer.comment("Build:")
@@ -46,21 +53,26 @@ def genNinja(out: TextIO, manifests: dict, target: dict) -> None:
 
         for obj in item["objs"]:
             if obj[1].endswith(".c"):
-                writer.build(obj[0], "cc", obj[1])
+                writer.build(
+                    obj[0], "cc", obj[1], order_only=target["tools"]["cc"].get("files", ""))
             elif obj[1].endswith(".cpp"):
-                writer.build(obj[0], "cxx", obj[1])
+                writer.build(
+                    obj[0], "cxx", obj[1], order_only=target["tools"]["cxx"].get("files", ""))
             elif obj[1].endswith(".s"):
-                writer.build(obj[0], "as", obj[1])
+                writer.build(
+                    obj[0], "as", obj[1], order_only=target["tools"]["as"].get("files", ""))
 
         writer.newline()
 
         objs = [x[0] for x in item["objs"]]
 
         if item["type"] == "lib":
-            writer.build(item["out"], "ar", objs)
+            writer.build(item["out"], "ar", objs,
+                         order_only=target["tools"]["ar"].get("files", ""))
         else:
             objs = objs + item["libs"]
-            writer.build(item["out"], "ld", objs)
+            writer.build(item["out"], "ld", objs,
+                         order_only=target["tools"]["ld"].get("files", ""))
 
         all.append(item["out"])
 
