@@ -107,7 +107,7 @@ def buildAll(targetId: str) -> None:
     target, _ = prepare(targetId)
     print(f"{utils.Colors.BOLD}Building all components for target '{targetId}{utils.Colors.RESET}'")
     try:
-        utils.runCmd("ninja", "-j", "1", "-f", target["ninjafile"])
+        utils.runCmd("ninja", "-v", "-j", "1", "-f",  target["ninjafile"])
     except:
         raise utils.CliException(
             "Failed to build all for " + target["key"])
@@ -121,7 +121,7 @@ def buildOne(targetId: str, componentId: str) -> str:
         raise utils.CliException("Unknown component: " + componentId)
 
     try:
-        utils.runCmd("ninja", "-j", "1", "-f",
+        utils.runCmd("ninja", "-v", "-j", "1", "-f",
                      target["ninjafile"], manifests[componentId]["out"])
     except:
         raise utils.CliException(

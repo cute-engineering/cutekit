@@ -43,13 +43,22 @@ def runCmd(opts: dict, args: list[str]) -> None:
 
 
 def buildCmd(opts: dict, args: list[str]) -> None:
+    allTargets = opts.get('all-targets', False)
     targetName = opts.get('target', 'default')
 
-    if len(args) == 0:
-        build.buildAll(targetName)
+    if allTargets:
+        for target in targets.available():
+            if len(args) == 0:
+                build.buildAll(target)
+            else:
+                for component in args:
+                    build.buildOne(target, component)
     else:
-        for component in args:
-            build.buildOne(targetName, component)
+        if len(args) == 0:
+            build.buildAll(targetName)
+        else:
+            for component in args:
+                build.buildOne(targetName, component)
 
 
 def listCmd(opts: dict, args: list[str]) -> None:

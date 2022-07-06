@@ -173,9 +173,10 @@ def processJson(e: any) -> any:
         for i in range(len(e)):
             e[i] = processJson(e[i])
     elif isinstance(e, str):
-        if e == "@sysname":
-            e = os.uname().sysname.lower()
-        elif e.startswith("@include("):
+        e = e.replace("@uname(sysname)", os.uname().sysname.lower())
+        e = e.replace("@uname(machine)", os.uname().machine.lower())
+
+        if e.startswith("@include("):
             e = loadJson(e[9:-1])
 
     return e

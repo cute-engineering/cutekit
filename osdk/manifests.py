@@ -55,8 +55,26 @@ def doInjects(manifests: dict) -> dict:
 def resolveDeps(manifests: dict) -> dict:
     manifests = copy.deepcopy(manifests)
 
+    def findProvide(key: str) -> str:
+        if key in manifests:
+            return key
+
+        result = []
+        for pkg in manifests:
+            if key in manifests[pkg].get("provide", []):
+                result.append(pkg)
+
+        if len(result) == 0:
+            raise utils.CliException(f"Failed to resolve dependency {key}")
+
+        if len(result) == 1:
+            return result[0]
+
+        raise utils.CliException(f"Multiple providers for {key}: {result}")
+
     def resolve(key: str, stack: list[str] = []) -> list[str]:
         result: list[str] = []
+
         if key in stack:
             raise utils.CliException("Circular dependency detected: " +
                                      str(stack) + " -> " + key)
@@ -66,10 +84,14 @@ def resolveDeps(manifests: dict) -> dict:
 
         if "deps" in manifests[key]:
             stack.append(key)
-            result.extend(manifests[key]["deps"])
+
             for dep in manifests[key]["deps"]:
+                dep = findProvide(dep)
+                result.append(dep)
                 result += resolve(dep, stack)
+
             stack.pop()
+
         return result
 
     for key in manifests:

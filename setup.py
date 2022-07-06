@@ -2,7 +2,8 @@ from setuptools import setup
 
 setup(
     name="osdk",
-    version="0.0.1",
+    version="0.1.0",
+    python_requires='>=3.10',
     description="Operating System Development Kit",
     author="The DEVSE Community",
     author_email="contact@devse.wiki",
