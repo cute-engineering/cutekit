@@ -165,19 +165,27 @@ def runCmd(*args: str) -> bool:
 CACHE = {}
 
 
+MACROS = {
+    "uname": lambda what: getattr(os.uname(), what),
+    "include": lambda *path: loadJson(''.join(path)),
+    "merge": lambda lhs, rhs: {**lhs, **rhs},
+}
+
+
 def processJson(e: any) -> any:
     if isinstance(e, dict):
         for k in e:
             e[processJson(k)] = processJson(e[k])
+    elif isinstance(e, list) and len(e) > 0 and isinstance(e[0], str) and e[0].startswith("@"):
+        macro = e[0][1:]
+
+        if not macro in MACROS:
+            raise CliException(f"Unknown macro {macro}")
+
+        return MACROS[macro](*list(map((lambda x: processJson(x)), e[1:])))
     elif isinstance(e, list):
         for i in range(len(e)):
             e[i] = processJson(e[i])
-    elif isinstance(e, str):
-        e = e.replace("@uname(sysname)", os.uname().sysname.lower())
-        e = e.replace("@uname(machine)", os.uname().machine.lower())
-
-        if e.startswith("@include("):
-            e = loadJson(e[9:-1])
 
     return e
 
