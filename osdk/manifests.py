@@ -31,7 +31,8 @@ def filter(manifests: dict, target: dict) -> dict:
 
         if "requires" in manifest:
             for req in manifest["requires"]:
-                if not target["props"][req] in manifest["requires"][req]:
+                if not req in target["props"] or \
+                   not target["props"][req] in manifest["requires"][req]:
                     accepted = False
                     break
 
