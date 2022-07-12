@@ -84,7 +84,8 @@ def listCmd(opts: dict, args: list[str]) -> None:
     componentsNames = list(components.keys())
     componentsNames.sort()
     for component in componentsNames:
-        print("  " + component)
+        if components[component]["enabled"]:
+            print("  " + component)
     print("")
 
 

@@ -1,7 +1,5 @@
 import os
-import json
 import copy
-
 from . import utils
 
 
@@ -18,7 +16,7 @@ def loadJsons(basedir: str) -> dict:
 
 
 def filter(manifests: dict, target: dict) -> dict:
-    result = {}
+    manifests = copy.deepcopy(manifests)
     for id in manifests:
         manifest = manifests[id]
         accepted = True
@@ -30,67 +28,73 @@ def filter(manifests: dict, target: dict) -> dict:
                     accepted = False
                     break
 
-        if accepted:
-            result[id] = manifest
+        manifest["enabled"] = accepted
 
-    return result
+    return manifests
 
 
 def doInjects(manifests: dict) -> dict:
     manifests = copy.deepcopy(manifests)
     for key in manifests:
         item = manifests[key]
-        if "inject" in item:
+        if item["enabled"] and "inject" in item:
             for inject in item["inject"]:
                 if inject in manifests:
                     manifests[inject]["deps"].append(key)
     return manifests
 
 
+def providersFor(key: str, manifests: dict) -> dict:
+    result = []
+    for k in manifests:
+        if manifests[k]["enabled"] and key in manifests[k].get("provide", []):
+            result.append(k)
+    return result
+
+
 def resolveDeps(manifests: dict) -> dict:
     manifests = copy.deepcopy(manifests)
 
-    def findProvide(key: str) -> str:
-        if key in manifests:
-            return key
-
-        result = []
-        for pkg in manifests:
-            if key in manifests[pkg].get("provide", []):
-                result.append(pkg)
-
-        if len(result) == 0:
-            raise utils.CliException(f"Failed to resolve dependency {key}")
-
-        if len(result) == 1:
-            return result[0]
-
-        raise utils.CliException(f"Multiple providers for {key}: {result}")
-
     def resolve(key: str, stack: list[str] = []) -> list[str]:
         result: list[str] = []
+
+        if not key in manifests:
+            providers = providersFor(key, manifests)
+
+            if len(providers) == 0:
+                return False, "", []
+
+            if len(providers) > 1:
+                raise utils.CliException(
+                    f"Multiple providers for {key}: {providers}")
+
+            key = providers[0]
 
         if key in stack:
             raise utils.CliException("Circular dependency detected: " +
                                      str(stack) + " -> " + key)
 
-        if not key in manifests:
-            raise utils.CliException("Unknown dependency: " + key)
+        stack.append(key)
 
         if "deps" in manifests[key]:
-            stack.append(key)
-
             for dep in manifests[key]["deps"]:
-                dep = findProvide(dep)
+                keep, dep, res = resolve(dep, stack)
+                if not keep:
+                    stack.pop()
+                    return False, "", []
                 result.append(dep)
-                result += resolve(dep, stack)
+                result += res
 
-            stack.pop()
-
-        return result
+        stack.pop()
+        return True, key, result
 
     for key in manifests:
-        manifests[key]["deps"] = utils.stripDups(resolve(key))
+        keep, _, deps = resolve(key)
+        if not keep:
+            print(f"Disabling {key} because we are missing a deps")
+            manifests[key]["enabled"] = False
+
+        manifests[key]["deps"] = utils.stripDups(deps)
 
     return manifests
 
@@ -154,7 +158,7 @@ def cincludes(manifests: dict) -> str:
 
     for key in manifests:
         item = manifests[key]
-        if "root-include" in item:
+        if item["enabled"] and "root-include" in item:
             include_paths.append(item["dir"])
 
     if len(include_paths) == 0:

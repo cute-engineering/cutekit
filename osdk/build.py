@@ -11,6 +11,9 @@ from . import utils
 def mergeToolsArgs(tool, layers):
     args = []
     for layer in layers:
+        if not layer.get("enabled", True):
+            continue
+
         args.extend(layer
                     .get("tools", {})
                     .get(tool, {})
@@ -59,6 +62,9 @@ def genNinja(out: TextIO, manifests: dict, target: dict) -> None:
     all = []
     for key in manifests:
         item = manifests[key]
+
+        if not item["enabled"]:
+            continue
 
         writer.comment("Project: " + item["id"])
 
@@ -132,6 +138,10 @@ def buildOne(targetId: str, componentId: str, props: dict = {}) -> str:
 
     if not componentId in manifests:
         raise utils.CliException("Unknown component: " + componentId)
+
+    if not manifests[componentId]["enabled"]:
+        raise utils.CliException(
+            f"{componentId} is not enabled for the {targetId} target")
 
     try:
         utils.runCmd("ninja", "-v", "-j", "1", "-f",
