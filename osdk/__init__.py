@@ -31,39 +31,53 @@ def parseOptions(args: list[str]) -> dict:
     return result
 
 
+def propsFromOptions(opt: dict) -> dict:
+    result = {}
+    for key in opt:
+        if key.startswith("prop:"):
+            result[key[5:]] = opt[key]
+    return result
+
+
 def runCmd(opts: dict, args: list[str]) -> None:
+    props = propsFromOptions(opts)
+
     if len(args) == 0:
         print(f"Usage: {args[0]} run <component>")
         sys.exit(1)
 
-    out = build.buildOne(opts.get('target', 'default'), args[0])
+    out = build.buildOne(opts.get('target', 'default'), args[0], props)
 
     print(f"{utils.Colors.BOLD}Running: {args[0]}{utils.Colors.RESET}")
     utils.runCmd(out, *args[1:])
+    print()
+    print(f"{utils.Colors.GREEN}Process exited with success{utils.Colors.RESET}")
 
 
 def buildCmd(opts: dict, args: list[str]) -> None:
+    props = propsFromOptions(opts)
     allTargets = opts.get('all-targets', False)
     targetName = opts.get('target', 'default')
 
     if allTargets:
         for target in targets.available():
             if len(args) == 0:
-                build.buildAll(target)
+                build.buildAll(target, props)
             else:
                 for component in args:
-                    build.buildOne(target, component)
+                    build.buildOne(target, component, props)
     else:
         if len(args) == 0:
-            build.buildAll(targetName)
+            build.buildAll(targetName, props)
         else:
             for component in args:
-                build.buildOne(targetName, component)
+                build.buildOne(targetName, component, props)
 
 
 def listCmd(opts: dict, args: list[str]) -> None:
+    props = propsFromOptions(opts)
     targetName = opts.get('target', 'default')
-    target = targets.load(targetName)
+    target = targets.load(targetName, props)
     components = manifests.loadAll("src", target)
 
     print(f"Available components for target '{targetName}':")
@@ -75,12 +89,11 @@ def listCmd(opts: dict, args: list[str]) -> None:
 
 
 def cleanCmd(opts: dict, args: list[str]) -> None:
-    shutil.rmtree(".build", ignore_errors=True)
+    shutil.rmtree(".osdk/build", ignore_errors=True)
 
 
 def nukeCmd(opts: dict, args: list[str]) -> None:
-    shutil.rmtree(".build", ignore_errors=True)
-    shutil.rmtree(".cache", ignore_errors=True)
+    shutil.rmtree(".osdk", ignore_errors=True)
 
 
 def helpCmd(opts: dict, args: list[str]) -> None:

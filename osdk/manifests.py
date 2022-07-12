@@ -11,14 +11,8 @@ def loadJsons(basedir: str) -> dict:
         for filename in files:
             if filename == 'manifest.json':
                 filename = os.path.join(root, filename)
-                try:
-                    with open(filename) as f:
-                        manifest = json.load(f)
-                        manifest["dir"] = os.path.dirname(filename)
-                        result[manifest["id"]] = manifest
-                except Exception as e:
-                    raise utils.CliException(
-                        f"Failed to load manifest {filename}: {e}")
+                manifest = utils.loadJson(filename)
+                result[manifest["id"]] = manifest
 
     return result
 

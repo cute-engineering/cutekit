@@ -76,7 +76,7 @@ def available() -> list:
 VARIANTS = ["debug", "devel", "release", "sanitize"]
 
 
-def load(targetId: str) -> dict:
+def load(targetId: str, props: dict) -> dict:
     targetName = targetId
     targetVariant = "devel"
     if ":" in targetName:
@@ -90,16 +90,19 @@ def load(targetId: str) -> dict:
 
     target = utils.loadJson(f"meta/targets/{targetName}.json")
     target["props"]["variant"] = targetVariant
+    target["props"] = {**target["props"], **props}
 
     defines = []
 
     for key in target["props"]:
+        macroname = key.lower().replace("-", "_")
         prop = target["props"][key]
+        macrovalue = str(prop).lower().replace(" ", "_").replace("-", "_")
         if isinstance(prop, bool):
             if prop:
-                defines += [f"-D__osdk_{key}__"]
+                defines += [f"-D__osdk_{macroname}__"]
         else:
-            defines += [f"-D__osdk_{key}_{prop}__"]
+            defines += [f"-D__osdk_{macroname}_{macrovalue}__"]
 
     target = patchToolArgs(target, "cc", [
         "-std=gnu2x",
@@ -123,7 +126,7 @@ def load(targetId: str) -> dict:
 
     target["hash"] = utils.objSha256(target, ["props", "tools"])
     target["key"] = utils.objKey(target["props"])
-    target["dir"] = f".build/{target['hash'][:8]}"
+    target["dir"] = f".osdk/build/{target['hash'][:8]}"
     target["bindir"] = f"{target['dir']}/bin"
     target["objdir"] = f"{target['dir']}/obj"
     target["ninjafile"] = target["dir"] + "/build.ninja"

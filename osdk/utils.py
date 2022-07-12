@@ -89,24 +89,26 @@ def objSha256(obj: dict, keys: list[str] = []) -> str:
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
+def toCamelCase(s: str) -> str:
+    s = ''.join(x for x in s.title() if x != '_' and x != '-')
+    s = s[0].lower() + s[1:]
+    return s
+
+
 def objKey(obj: dict, keys: list[str] = []) -> str:
     toKey = []
 
     if len(keys) == 0:
-        for key in obj:
+        keys = list(obj.keys())
+        keys.sort()
+
+    for key in keys:
+        if key in obj:
             if isinstance(obj[key], bool):
                 if obj[key]:
                     toKey.append(key)
             else:
-                toKey.append(obj[key])
-    else:
-        for key in keys:
-            if key in obj:
-                if isinstance(obj[key], bool):
-                    if obj[key]:
-                        toKey.append(key)
-                else:
-                    toKey.append(obj[key])
+                toKey.append(f"{toCamelCase(key)}({obj[key]})")
 
     return "-".join(toKey)
 
@@ -123,7 +125,7 @@ def mkdirP(path: str) -> str:
 
 
 def downloadFile(url: str) -> str:
-    dest = ".cache/remote/" + hashlib.sha256(url.encode('utf-8')).hexdigest()
+    dest = ".osdk/cache/" + hashlib.sha256(url.encode('utf-8')).hexdigest()
     tmp = dest + ".tmp"
 
     if os.path.isfile(dest):
@@ -162,48 +164,74 @@ def runCmd(*args: str) -> bool:
     return True
 
 
+def getCmdOutput(*args: str) -> str:
+    try:
+        proc = subprocess.run(args, stdout=subprocess.PIPE)
+    except FileNotFoundError:
+        raise CliException(f"Failed to run {args[0]}: command not found")
+
+    if proc.returncode == -signal.SIGSEGV:
+        raise CliException("Segmentation fault")
+
+    if proc.returncode != 0:
+        raise CliException(
+            f"Failed to run {' '.join(args)}: process exited with code {proc.returncode}")
+
+    return proc.stdout.decode('utf-8')
+
+
 CACHE = {}
 
 
 MACROS = {
-    "uname": lambda what: getattr(os.uname(), what),
+    "uname": lambda what: getattr(os.uname(), what).lower(),
     "include": lambda *path: loadJson(''.join(path)),
-    "merge": lambda lhs, rhs: {**lhs, **rhs},
+    "join": lambda lhs, rhs: {**lhs, **rhs} if isinstance(lhs, dict) else lhs + rhs,
+    "concat": lambda *args: ''.join(args),
+    "exec": lambda *args: getCmdOutput(*args).splitlines(),
 }
 
 
-def processJson(e: any) -> any:
+def isJexpr(jexpr: list) -> bool:
+    return isinstance(jexpr, list) and len(jexpr) > 0 and isinstance(jexpr[0], str) and jexpr[0].startswith("@")
+
+
+def jsonEval(jexpr: list) -> any:
+    macro = jexpr[0][1:]
+    if not macro in MACROS:
+        raise CliException(f"Unknown macro {macro}")
+    return MACROS[macro](*list(map((lambda x: jsonWalk(x)), jexpr[1:])))
+
+
+def jsonWalk(e: any) -> any:
     if isinstance(e, dict):
         for k in e:
-            e[processJson(k)] = processJson(e[k])
-    elif isinstance(e, list) and len(e) > 0 and isinstance(e[0], str) and e[0].startswith("@"):
-        macro = e[0][1:]
-
-        if not macro in MACROS:
-            raise CliException(f"Unknown macro {macro}")
-
-        return MACROS[macro](*list(map((lambda x: processJson(x)), e[1:])))
+            e[jsonWalk(k)] = jsonWalk(e[k])
+    elif isJexpr(e):
+        return jsonEval(e)
     elif isinstance(e, list):
         for i in range(len(e)):
-            e[i] = processJson(e[i])
+            e[i] = jsonWalk(e[i])
 
     return e
 
 
 def loadJson(filename: str) -> dict:
-    result = {}
-    if filename in CACHE:
-        result = CACHE[filename]
-    else:
-        with open(filename) as f:
-            result = processJson(json.load(f))
+    try:
+        result = {}
+        if filename in CACHE:
+            result = CACHE[filename]
+        else:
+            with open(filename) as f:
+                result = jsonWalk(json.load(f))
+                result["dir"] = os.path.dirname(filename)
+                result["json"] = filename
+                CACHE[filename] = result
 
-            result["dir"] = os.path.dirname(filename)
-            result["json"] = filename
-            CACHE[filename] = result
-
-    result = copy.deepcopy(result)
-    return result
+        result = copy.deepcopy(result)
+        return result
+    except Exception as e:
+        raise CliException(f"Failed to load json {filename}: {e}")
 
 
 def tryListDir(path: str) -> list[str]:
