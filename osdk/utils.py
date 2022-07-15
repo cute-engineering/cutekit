@@ -153,6 +153,8 @@ def runCmd(*args: str) -> bool:
         proc = subprocess.run(args)
     except FileNotFoundError:
         raise CliException(f"Failed to run {args[0]}: command not found")
+    except KeyboardInterrupt:
+        raise CliException("Interrupted")
 
     if proc.returncode == -signal.SIGSEGV:
         raise CliException("Segmentation fault")
