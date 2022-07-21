@@ -31,7 +31,7 @@ def enableCache(target: dict) -> dict:
 
 
 def enableSan(target: dict) -> dict:
-    if (target["freestanding"]):
+    if (target["props"]["freestanding"]):
         return target
 
     target = copy.deepcopy(target)
@@ -73,7 +73,7 @@ def available() -> list:
             if file.endswith(".json")]
 
 
-VARIANTS = ["debug", "devel", "release", "sanitize"]
+VARIANTS = ["debug", "devel", "release", "sanatize"]
 
 
 def load(targetId: str, props: dict) -> dict:

@@ -43,7 +43,7 @@ def runCmd(opts: dict, args: list[str]) -> None:
     props = propsFromOptions(opts)
 
     if len(args) == 0:
-        print(f"Usage: {args[0]} run <component>")
+        print(f"Usage: osdk run <component>")
         sys.exit(1)
 
     out = build.buildOne(opts.get('target', 'default'), args[0], props)
