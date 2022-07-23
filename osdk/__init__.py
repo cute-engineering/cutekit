@@ -48,6 +48,7 @@ def runCmd(opts: dict, args: list[str]) -> None:
 
     out = build.buildOne(opts.get('target', 'default'), args[0], props)
 
+    print()
     print(f"{utils.Colors.BOLD}Running: {args[0]}{utils.Colors.RESET}")
     utils.runCmd(out, *args[1:])
     print()

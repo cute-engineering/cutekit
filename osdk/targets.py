@@ -32,6 +32,7 @@ def enableCache(target: dict) -> dict:
 
 def enableSan(target: dict) -> dict:
     if (target["props"]["freestanding"]):
+        print("Sanitization not supported for freestanding targets")
         return target
 
     target = copy.deepcopy(target)
@@ -139,7 +140,7 @@ def load(targetId: str, props: dict) -> dict:
         target = enableOptimizer(target, "2")
     elif targetVariant == "release":
         target = enableOptimizer(target, "3")
-    elif targetVariant == "sanatize":
+    elif targetVariant == "sanitize":
         target = enableOptimizer(target, "g")
         target = enableSan(target)
 

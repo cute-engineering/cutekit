@@ -125,7 +125,7 @@ def buildAll(targetId: str, props: dict = {}) -> None:
     print(f"{utils.Colors.BOLD}Building all components for target '{targetId}{utils.Colors.RESET}'")
 
     try:
-        utils.runCmd("ninja", "-v", "-j", "1", "-f",  target["ninjafile"])
+        utils.runCmd("ninja", "-v",  "-f",  target["ninjafile"])
     except:
         raise utils.CliException(
             "Failed to build all for " + target["key"])
@@ -144,7 +144,7 @@ def buildOne(targetId: str, componentId: str, props: dict = {}) -> str:
             f"{componentId} is not enabled for the {targetId} target")
 
     try:
-        utils.runCmd("ninja", "-v", "-j", "1", "-f",
+        utils.runCmd("ninja", "-v", "-f",
                      target["ninjafile"], manifests[componentId]["out"])
     except:
         raise utils.CliException(
