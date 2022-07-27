@@ -26,6 +26,8 @@ def filter(manifests: dict, target: dict) -> dict:
                 if not req in target["props"] or \
                    not target["props"][req] in manifest["requires"][req]:
                     accepted = False
+                    print(
+                        f"Disabling {id} because it requires {req}: {manifest['requires'][req]}")
                     break
 
         manifest["enabled"] = accepted

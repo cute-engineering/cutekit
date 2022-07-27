@@ -57,6 +57,21 @@ def runCmd(opts: dict, args: list[str]) -> None:
     print(f"{utils.Colors.GREEN}Process exited with success{utils.Colors.RESET}")
 
 
+def debugCmd(opts: dict, args: list[str]) -> None:
+    props = propsFromOptions(opts)
+    if len(args) == 0:
+        print(f"Usage: osdk debug <component>")
+        sys.exit(1)
+
+    out = build.buildOne(opts.get('target', 'default:debug'), args[0], props)
+
+    print()
+    print(f"{utils.Colors.BOLD}Debugging: {args[0]}{utils.Colors.RESET}")
+    utils.runCmd("/usr/bin/lldb",  out, *args[1:])
+    print()
+    print(f"{utils.Colors.GREEN}Process exited with success{utils.Colors.RESET}")
+
+
 def buildCmd(opts: dict, args: list[str]) -> None:
     props = propsFromOptions(opts)
     allTargets = opts.get('all-targets', False)
@@ -136,6 +151,10 @@ CMDS = {
     "run": {
         "func": runCmd,
         "desc": "Run a component on the host",
+    },
+    "debug": {
+        "func": debugCmd,
+        "desc": "Run a component on the host in debug mode",
     },
     "build": {
         "func": buildCmd,
