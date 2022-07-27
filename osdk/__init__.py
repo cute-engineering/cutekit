@@ -9,6 +9,8 @@ import osdk.targets as targets
 import osdk.manifests as manifests
 
 
+__version__="0.2.1"
+
 CMDS = {}
 
 
@@ -126,6 +128,10 @@ def helpCmd(opts: dict, args: list[str]) -> None:
     print("")
 
 
+def versionCmd(opts: dict, args: list[str]) -> None:
+    print("OSDK v" + __version__)
+
+
 CMDS = {
     "run": {
         "func": runCmd,
@@ -150,6 +156,10 @@ CMDS = {
     "help": {
         "func": helpCmd,
         "desc": "Show this help message",
+    },
+    "version": {
+        "func": versionCmd,
+        "desc": "Show current version",
     },
 }
 

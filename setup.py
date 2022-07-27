@@ -1,8 +1,9 @@
 from setuptools import setup
+from osdk import __version__
 
 setup(
     name="osdk",
-    version="0.2.0",
+    version=__version__,
     python_requires='>=3.10',
     description="Operating System Development Kit",
     author="The DEVSE Community",
