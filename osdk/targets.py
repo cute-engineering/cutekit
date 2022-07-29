@@ -48,8 +48,6 @@ def enableSan(target: dict) -> dict:
 
 
 def enableColors(target: dict) -> dict:
-    target = copy.deepcopy(target)
-
     if (target["props"]["toolchain"] == "clang"):
         target = patchToolArgs(target, "cc", ["-fcolor-diagnostics"])
         target = patchToolArgs(target, "cxx", ["-fcolor-diagnostics"])
@@ -61,10 +59,15 @@ def enableColors(target: dict) -> dict:
 
 
 def enableOptimizer(target: dict, level: str) -> dict:
-    target = copy.deepcopy(target)
-
     target = patchToolArgs(target, "cc", ["-O" + level])
     target = patchToolArgs(target, "cxx", ["-O" + level])
+
+    return target
+
+
+def enableDebug(target: dict) -> dict:
+    target = patchToolArgs(target, "cc", ["-g"])
+    target = patchToolArgs(target, "cxx", ["-g"])
 
     return target
 
@@ -74,7 +77,7 @@ def available() -> list:
             if file.endswith(".json")]
 
 
-VARIANTS = ["debug", "devel", "release", "sanatize"]
+VARIANTS = ["debug", "devel", "fast", "san"]
 
 
 def load(targetId: str, props: dict) -> dict:
@@ -135,13 +138,15 @@ def load(targetId: str, props: dict) -> dict:
     target = enableColors(target)
 
     if targetVariant == "debug":
-        target = enableOptimizer(target, "g")
+        target = enableDebug(target)
+        target = enableOptimizer(target, "0")
     elif targetVariant == "devel":
         target = enableOptimizer(target, "2")
-    elif targetVariant == "release":
+    elif targetVariant == "fast":
         target = enableOptimizer(target, "3")
-    elif targetVariant == "sanitize":
+    elif targetVariant == "san":
         target = enableOptimizer(target, "g")
+        target = enableDebug(target)
         target = enableSan(target)
 
     return target
