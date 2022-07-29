@@ -8,11 +8,9 @@ import osdk.utils as utils
 import osdk.targets as targets
 import osdk.manifests as manifests
 
-
 __version__="0.2.1"
 
 CMDS = {}
-
 
 def parseOptions(args: list[str]) -> dict:
     result = {

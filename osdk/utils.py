@@ -144,8 +144,8 @@ def downloadFile(url: str) -> str:
 
         os.rename(tmp, dest)
         return dest
-    except:
-        raise CliException(f"Failed to download {url}")
+    except requests.exceptions.RequestException as e:
+        raise CliException(f"Failed to download {url}: {e}")
 
 
 def runCmd(*args: str) -> bool:

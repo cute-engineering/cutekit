@@ -126,9 +126,9 @@ def buildAll(targetId: str, props: dict = {}) -> None:
 
     try:
         utils.runCmd("ninja", "-v",  "-f",  target["ninjafile"])
-    except:
+    except Exception as e:
         raise utils.CliException(
-            "Failed to build all for " + target["key"])
+            "Failed to build all for " + target["key"] + ": " + e)
 
 
 def buildOne(targetId: str, componentId: str, props: dict = {}) -> str:
@@ -146,8 +146,7 @@ def buildOne(targetId: str, componentId: str, props: dict = {}) -> str:
     try:
         utils.runCmd("ninja", "-v", "-f",
                      target["ninjafile"], manifests[componentId]["out"])
-    except:
+    except Exception as e:
         raise utils.CliException(
-            f"Failed to build {componentId} for target '{target['key']}'")
-
+            f"Failed to build {componentId} for target '{target['key']}': {e}")
     return manifests[componentId]["out"]
