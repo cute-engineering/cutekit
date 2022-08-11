@@ -1,5 +1,6 @@
 import os
 import copy
+from pathlib import Path
 from . import utils
 
 
@@ -160,11 +161,17 @@ def cincludes(manifests: dict) -> str:
 
     for key in manifests:
         item = manifests[key]
-        if item["enabled"] and "root-include" in item:
-            include_paths.append(item["dir"])
+        if item["enabled"]:
+            if "root-include" in item:
+                include_paths.append(item["dir"])
+            else:
+                include_paths.append(str(Path(item["dir"]).parent))
 
     if len(include_paths) == 0:
         return ""
+
+    # remove duplicates
+    include_paths = utils.stripDups(include_paths)
 
     return " -I" + " -I".join(include_paths)
 
