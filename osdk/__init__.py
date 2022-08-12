@@ -8,9 +8,10 @@ import osdk.utils as utils
 import osdk.targets as targets
 import osdk.manifests as manifests
 
-__version__="0.2.1"
+__version__ = "0.2.1"
 
 CMDS = {}
+
 
 def parseOptions(args: list[str]) -> dict:
     result = {
@@ -65,7 +66,7 @@ def debugCmd(opts: dict, args: list[str]) -> None:
 
     print()
     print(f"{utils.Colors.BOLD}Debugging: {args[0]}{utils.Colors.RESET}")
-    utils.runCmd("/usr/bin/lldb",  out, *args[1:])
+    utils.runCmd("/usr/bin/lldb", "-o", "run",  out, *args[1:])
     print()
     print(f"{utils.Colors.GREEN}Process exited with success{utils.Colors.RESET}")
 
