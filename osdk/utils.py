@@ -7,6 +7,7 @@ import requests
 import subprocess
 import json
 import copy
+import re
 
 
 class Colors:
@@ -181,16 +182,51 @@ def getCmdOutput(*args: str) -> str:
 
     return proc.stdout.decode('utf-8')
 
+def sanitizedUname():
+    un = os.uname()
+    if un.machine == "aarch64":
+        un.machine = "arm64"
+    return un
+
+def findLatest(command) -> str:
+    """
+    Find the latest version of a command
+
+    Exemples
+    clang -> clang-15
+    clang++ -> clang++-15
+    gcc -> gcc10
+    """
+    print("Searching for latest version of " + command)
+
+    regex = re.compile(r"^" + re.escape(command) + r"(-.[0-9]+)?$")
+
+    versions = []
+    for path in os.environ["PATH"].split(os.pathsep):
+        if os.path.isdir(path):
+            for f in os.listdir(path):
+                if regex.match(f):
+                    versions.append(f)
+    
+    if len(versions) == 0:
+        raise CliException(f"Failed to find {command}")
+
+    versions.sort()
+    chosen = versions[-1]
+
+    print(f"Using {chosen} as {command}")
+    return chosen
+
 
 CACHE = {}
 
-
 MACROS = {
-    "uname": lambda what: getattr(os.uname(), what).lower(),
+    "uname": lambda what: getattr(sanitizedUname(), what).lower(),
     "include": lambda *path: loadJson(''.join(path)),
     "join": lambda lhs, rhs: {**lhs, **rhs} if isinstance(lhs, dict) else lhs + rhs,
     "concat": lambda *args: ''.join(args),
     "exec": lambda *args: getCmdOutput(*args).splitlines(),
+    "latest": findLatest,
 }
 
 
