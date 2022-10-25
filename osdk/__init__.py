@@ -8,7 +8,7 @@ import osdk.utils as utils
 import osdk.targets as targets
 import osdk.manifests as manifests
 
-__version__ = "0.3.0"
+__version__ = "0.3.2"
 
 CMDS = {}
 
