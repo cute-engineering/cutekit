@@ -182,11 +182,13 @@ def getCmdOutput(*args: str) -> str:
 
     return proc.stdout.decode('utf-8')
 
+
 def sanitizedUname():
     un = os.uname()
     if un.machine == "aarch64":
         un.machine = "arm64"
     return un
+
 
 def findLatest(command) -> str:
     """
@@ -207,7 +209,7 @@ def findLatest(command) -> str:
             for f in os.listdir(path):
                 if regex.match(f):
                     versions.append(f)
-    
+
     if len(versions) == 0:
         raise CliException(f"Failed to find {command}")
 
