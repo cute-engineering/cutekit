@@ -95,7 +95,7 @@ def listCmd(opts: dict, args: list[str]) -> None:
     props = propsFromOptions(opts)
     targetName = opts.get('target', 'default')
     target = targets.load(targetName, props)
-    components = manifests.loadAll("src", target)
+    components = manifests.loadAll(["src"], target)
 
     print(f"Available components for target '{targetName}':")
     componentsNames = list(components.keys())

@@ -1,6 +1,7 @@
 from typing import TextIO, Tuple
 import json
 import copy
+import os
 
 from . import ninja
 from . import manifests as m
@@ -101,7 +102,17 @@ def genNinja(out: TextIO, manifests: dict, target: dict) -> None:
 
 def prepare(targetId: str, props: dict) -> Tuple[dict, dict]:
     target = targets.load(targetId, props)
-    manifests = m.loadAll("src", target)
+    
+    includes = ["src"]
+
+    if os.path.exists("osdk.json"):
+        with open("osdk.json", "r") as f:
+            osdk = json.load(f)
+            includes = osdk["includes"]
+            print("includes: ", includes)
+    
+    manifests = m.loadAll(includes, target)
+
     utils.mkdirP(target["dir"])
     genNinja(open(target["ninjafile"], "w"), manifests, target)
 

@@ -4,14 +4,15 @@ from pathlib import Path
 from . import utils
 
 
-def loadJsons(basedir: str) -> dict:
+def loadJsons(basedirs: list[str]) -> dict:
     result = {}
-    for root, dirs, files in os.walk(basedir):
-        for filename in files:
-            if filename == 'manifest.json':
-                filename = os.path.join(root, filename)
-                manifest = utils.loadJson(filename)
-                result[manifest["id"]] = manifest
+    for basedir in basedirs:
+        for root, dirs, files in os.walk(basedir):
+            for filename in files:
+                if filename == 'manifest.json':
+                    filename = os.path.join(root, filename)
+                    manifest = utils.loadJson(filename)
+                    result[manifest["id"]] = manifest
 
     return result
 
@@ -48,8 +49,10 @@ def doInjects(manifests: dict) -> dict:
 
 
 def providersFor(key: str, manifests: dict) -> dict:
+    print("providersFor: " + key)
     result = []
     for k in manifests:
+        print("  " + k)
         if manifests[k]["enabled"] and key in manifests[k].get("provide", []):
             result.append(k)
     return result
@@ -65,6 +68,7 @@ def resolveDeps(manifests: dict) -> dict:
             providers = providersFor(key, manifests)
 
             if len(providers) == 0:
+                print("No providers for " + key)
                 return False, "", []
 
             if len(providers) > 1:
@@ -176,15 +180,10 @@ def cincludes(manifests: dict) -> str:
     return " -I" + " -I".join(include_paths)
 
 
-cache: dict = {}
 
 
-def loadAll(basedir: str, target: dict) -> dict:
-    cacheKey = basedir + ":" + target["id"]
-    if cacheKey in cache:
-        return cache[cacheKey]
-
-    manifests = loadJsons(basedir)
+def loadAll(basedirs: list[str], target: dict) -> dict:
+    manifests = loadJsons(basedirs)
     manifests = filter(manifests, target)
     manifests = doInjects(manifests)
     manifests = resolveDeps(manifests)
@@ -192,5 +191,4 @@ def loadAll(basedir: str, target: dict) -> dict:
     manifests = prepareTests(manifests)
     manifests = prepareInOut(manifests, target)
 
-    cache[cacheKey] = manifests
     return manifests
