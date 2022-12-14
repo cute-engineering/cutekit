@@ -49,10 +49,8 @@ def doInjects(manifests: dict) -> dict:
 
 
 def providersFor(key: str, manifests: dict) -> dict:
-    print("providersFor: " + key)
     result = []
     for k in manifests:
-        print("  " + k)
         if manifests[k]["enabled"] and key in manifests[k].get("provide", []):
             result.append(k)
     return result
@@ -178,8 +176,6 @@ def cincludes(manifests: dict) -> str:
     include_paths = utils.stripDups(include_paths)
 
     return " -I" + " -I".join(include_paths)
-
-
 
 
 def loadAll(basedirs: list[str], target: dict) -> dict:
