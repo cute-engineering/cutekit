@@ -22,12 +22,13 @@ just a helpful utility for build-file-generation systems that already
 use Python.
 """
 
-import re
 import textwrap
-from typing import Any, TextIO, Union
+from typing import TextIO, Union
+
+from osdk.utils import asList
 
 
-def escape_path(word: str) -> str:
+def escapePath(word: str) -> str:
     return word.replace('$ ', '$$ ').replace(' ', '$ ').replace(':', '$:')
 
 
@@ -47,6 +48,10 @@ class Writer(object):
         for line in textwrap.wrap(text, self.width - 2, break_long_words=False,
                                   break_on_hyphens=False):
             self.output.write('# ' + line + '\n')
+
+    def separator(self, text) -> None:
+        self.output.write(f"# --- {text} ---" + '-' *
+                          (self.width - 10 - len(text)) + " #\n\n")
 
     def variable(self, key: str, value: VarValue, indent: int = 0) -> None:
         if value is None:
@@ -99,21 +104,21 @@ class Writer(object):
               implicit_outputs: VarPath = None,
               pool: Union[str, None] = None,
               dyndep: Union[str, None] = None) -> list[str]:
-        outputs = as_list(outputs)
-        out_outputs = [escape_path(x) for x in outputs]
-        all_inputs = [escape_path(x) for x in as_list(inputs)]
+        outputs = asList(outputs)
+        out_outputs = [escapePath(x) for x in outputs]
+        all_inputs = [escapePath(x) for x in asList(inputs)]
 
         if implicit:
-            implicit = [escape_path(x) for x in as_list(implicit)]
+            implicit = [escapePath(x) for x in asList(implicit)]
             all_inputs.append('|')
             all_inputs.extend(implicit)
         if order_only:
-            order_only = [escape_path(x) for x in as_list(order_only)]
+            order_only = [escapePath(x) for x in asList(order_only)]
             all_inputs.append('||')
             all_inputs.extend(order_only)
         if implicit_outputs:
-            implicit_outputs = [escape_path(x)
-                                for x in as_list(implicit_outputs)]
+            implicit_outputs = [escapePath(x)
+                                for x in asList(implicit_outputs)]
             out_outputs.append('|')
             out_outputs.extend(implicit_outputs)
 
@@ -139,7 +144,7 @@ class Writer(object):
         self._line('subninja %s' % path)
 
     def default(self, paths: VarPath) -> None:
-        self._line('default %s' % ' '.join(as_list(paths)))
+        self._line('default %s' % ' '.join(asList(paths)))
 
     def _count_dollars_before_index(self, s: str, i: int) -> int:
         """Returns the number of '$' characters right in front of s[i]."""
@@ -190,31 +195,9 @@ class Writer(object):
         self.output.close()
 
 
-def as_list(input: Any) -> list:
-    if input is None:
-        return []
-    if isinstance(input, list):
-        return input
-    return [input]
-
-
 def escape(string: str) -> str:
     """Escape a string such that it can be embedded into a Ninja file without
     further interpretation."""
     assert '\n' not in string, 'Ninja syntax does not allow newlines'
     # We only have one special metacharacter: '$'.
     return string.replace('$', '$$')
-
-
-def expand(string: str, vars: dict[str, str], local_vars: dict[str, str] = {}) -> str:
-    """Expand a string containing $vars as Ninja would.
-
-    Note: doesn't handle the full Ninja variable syntax, but it's enough
-    to make configure.py's use of it work.
-    """
-    def exp(m: Any) -> Any:
-        var = m.group(1)
-        if var == '$':
-            return '$'
-        return local_vars.get(var, vars.get(var, ''))
-    return re.sub(r'\$(\$|\w*)', exp, string)

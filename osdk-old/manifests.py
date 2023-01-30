@@ -86,6 +86,7 @@ def resolveDeps(manifests: dict) -> dict:
                 keep, dep, res = resolve(dep, stack)
                 if not keep:
                     stack.pop()
+                    print(f"Disabling {key} because we are missing a deps")
                     return False, "", []
                 result.append(dep)
                 result += res

@@ -1,8 +1,9 @@
 from setuptools import setup
+from osdk.const import VERSION
 
 setup(
     name="osdk",
-    version="0.3.2",
+    version=VERSION,
     python_requires='>=3.10',
     description="Operating System Development Kit",
     author="The DEVSE Community",
@@ -11,6 +12,7 @@ setup(
     packages=["osdk"],
     install_requires=[
         "requests",
+        "graphviz",
     ],
     entry_points={
         "console_scripts": [
