@@ -1,3 +1,5 @@
+from typing import cast
+
 from osdk.model import TargetManifest, ComponentManifest, Props
 from osdk.logger import Logger
 from osdk import const, shell, jexpr
@@ -22,17 +24,21 @@ class ComponentInstance:
         self.sources = sources
         self.resolved = resolved
 
+    def isLib(self):
+        return self.manifest.type == "lib"
+
     def binfile(self) -> str:
         return f"{self.target.builddir()}/bin/{self.manifest.id}.out"
 
     def objdir(self) -> str:
         return f"{self.target.builddir()}/obj/{self.manifest.id}"
 
-    def objsfiles(self) -> list[str]:
+    def objsfiles(self) -> list[tuple[str, str]]:
         return list(
             map(
-                lambda s: f"{self.objdir()}/{s}.o",
-                self.sources.remplace(self.manifest.dirname(), "")))
+                lambda s: (
+                    s, f"{self.objdir()}/{s.replace(self.manifest.dirname() + '/', '')}.o"),
+                self.sources))
 
     def libfile(self) -> str:
         return f"{self.target.builddir()}/lib/{self.manifest.id}.a"
@@ -124,11 +130,14 @@ def resolveDeps(componentSpec: str, components: list[ComponentManifest], target:
     return enabled, resolved[1:]
 
 
-def instanciate(componentSpec: str, components: list[ComponentManifest], target: TargetManifest) -> ComponentInstance:
+def instanciate(componentSpec: str, components: list[ComponentManifest], target: TargetManifest) -> ComponentInstance | None:
     manifest = next(filter(lambda c: c.id == componentSpec, components))
     sources = shell.find(
-        manifest.path, ["*.c", "*.cpp", "*.s", "*.asm"])
+        manifest.dirname(), ["*.c", "*.cpp", "*.s", "*.asm"])
     enabled, resolved = resolveDeps(componentSpec, components, target)
+
+    if not enabled:
+        return None
 
     return ComponentInstance(target, manifest, sources, resolved)
 
@@ -140,8 +149,8 @@ def contextFor(targetSpec: str, props: Props) -> Context:
     components = loadAllComponents()
 
     components = filterDisabled(components, target)
-    instances = list(map(lambda c: instanciate(
-        c.id, components, target), components))
+    instances = cast(list[ComponentInstance], list(filter(lambda e: e != None, map(lambda c: instanciate(
+        c.id, components, target), components))))
 
     return Context(
         target,

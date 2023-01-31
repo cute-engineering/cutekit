@@ -141,10 +141,17 @@ class ComponentManifest(Manifest):
 
     def isEnabled(self, target: TargetManifest):
         for k, v in self.enableIf.items():
-            if k in target.props and target.props[k] in v:
-                return True
+            if not k in target.props:
+                logger.log(
+                    f"Component {self.id} disabled by missing {k} in target")
+                return False
 
-        return False
+            if not target.props[k] in v:
+                logger.log(
+                    f"Component {self.id} disabled by {k}={target.props[k]} not in {v}")
+                return False
+
+        return True
 
 
 class ModelEncoder(JSONEncoder):

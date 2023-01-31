@@ -2,6 +2,8 @@ from typing import Any, TypeVar, cast
 import json
 import hashlib
 
+T = TypeVar('T')
+
 
 def uniq(l: list[str]) -> list[str]:
     result: list[str] = []
@@ -46,9 +48,6 @@ def key(obj: Any, keys: list[str] = []) -> str:
                 k.append(f"{camelCase(key)}({obj[key]})")
 
     return "-".join(k)
-
-
-T = TypeVar('T')
 
 
 def asList(i: T | list[T] | None) -> list[T]:

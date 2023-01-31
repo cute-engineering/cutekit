@@ -4,7 +4,7 @@ from osdk.model import ComponentManifest, TargetManifest, Props
 from osdk.ninja import Writer
 from osdk.logger import Logger
 from osdk.context import Context, contextFor
-from osdk import shell
+from osdk import shell, rules
 
 logger = Logger("builder")
 
@@ -18,14 +18,45 @@ def gen(out: TextIO, context: Context):
     writer.newline()
 
     writer.separator("Tools")
-    for key in target.tools:
-        tool = target.tools[key]
-        writer.variable(key, tool.cmd)
+    for i in target.tools:
+        tool = target.tools[i]
+        writer.variable(i, tool.cmd)
         writer.variable(
-            key + "flags", " ".join(tool.args))
+            i + "flags", " ".join(tool.args))
         writer.newline()
 
     writer.separator("Rules")
+    for i in rules.rules:
+        tool = target.tools[i]
+        rule = rules.rules[i]
+        writer.rule(
+            i, f"{tool.cmd} {rule.rule.replace('$flags',f'${i}flags')}")
+        writer.newline()
+
+    writer.separator("Components")
+
+    for instance in context.instances:
+        objects = instance.objsfiles()
+        writer.comment(f"Component: {instance.manifest.id}")
+
+        writer.newline()
+
+        for obj in objects:
+            r = rules.byFileIn(obj[0])
+            if r is None:
+                raise Exception(f"Unknown rule for file {obj[0]}")
+            writer.build(obj[1], r.id,  obj[0])
+
+        writer.newline()
+
+        if instance.isLib():
+            writer.build(instance.libfile(), "ar",
+                         list(map(lambda o: o[1], objects)))
+        else:
+            writer.build(instance.binfile(), "ld",
+                         list(map(lambda o: o[1], objects)))
+
+        writer.newline()
 
 
 def build(componentSpec: str, targetSpec: str = "default",  props: Props = {}) -> str:
