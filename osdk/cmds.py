@@ -1,7 +1,7 @@
-from typing import Callable
+from typing import Callable, cast
 
 from osdk.args import Args
-from osdk import context, shell, const, vt100, model
+from osdk import context, shell, const, vt100, builder
 
 Callback = Callable[[Args], None]
 
@@ -30,7 +30,15 @@ def append(cmd: Cmd):
 
 
 def runCmd(args: Args):
-    pass
+    targetSpec = cast(str, args.consumeOpt(
+        "target", "host-" + shell.uname().machine))
+
+    componentSpec = args.consumeArg()
+
+    if componentSpec is None:
+        raise Exception("Component not specified")
+
+    builder.build(componentSpec, targetSpec)
 
 
 cmds += [Cmd("r", "run", "Run the target", runCmd)]
@@ -44,7 +52,15 @@ cmds += [Cmd("d", "debug", "Debug the target", debugCmd)]
 
 
 def buildCmd(args: Args):
-    pass
+    targetSpec = cast(str, args.consumeOpt(
+        "target", "host-" + shell.uname().machine))
+
+    componentSpec = args.consumeArg()
+
+    if componentSpec is None:
+        raise Exception("Component not specified")
+
+    builder.build(componentSpec, targetSpec)
 
 
 cmds += [Cmd("b", "build", "Build the target", buildCmd)]

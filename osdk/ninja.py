@@ -49,7 +49,7 @@ class Writer(object):
                                   break_on_hyphens=False):
             self.output.write('# ' + line + '\n')
 
-    def separator(self, text) -> None:
+    def separator(self, text : str) -> None:
         self.output.write(f"# --- {text} ---" + '-' *
                           (self.width - 10 - len(text)) + " #\n\n")
 

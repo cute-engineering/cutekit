@@ -1,4 +1,4 @@
-from typing import Any, TextIO
+from typing import TextIO
 
 from osdk.model import ComponentManifest, TargetManifest, Props
 from osdk.ninja import Writer
@@ -30,7 +30,7 @@ def gen(out: TextIO, context: Context):
         tool = target.tools[i]
         rule = rules.rules[i]
         writer.rule(
-            i, f"{tool.cmd} {rule.rule.replace('$flags',f'${i}flags')}")
+            i, f"{tool.cmd} {rule.rule.replace('$flags',f'${i}flags')}", deps=rule.deps)
         writer.newline()
 
     writer.separator("Components")
@@ -38,14 +38,14 @@ def gen(out: TextIO, context: Context):
     for instance in context.instances:
         objects = instance.objsfiles()
         writer.comment(f"Component: {instance.manifest.id}")
-
-        writer.newline()
+        writer.comment(f"Resolved: {', '.join(instance.resolved)}")
 
         for obj in objects:
             r = rules.byFileIn(obj[0])
             if r is None:
                 raise Exception(f"Unknown rule for file {obj[0]}")
-            writer.build(obj[1], r.id,  obj[0])
+            t = target.tools[r.id]
+            writer.build(obj[1], r.id,  obj[0], order_only=t.files)
 
         writer.newline()
 
@@ -53,13 +53,26 @@ def gen(out: TextIO, context: Context):
             writer.build(instance.libfile(), "ar",
                          list(map(lambda o: o[1], objects)))
         else:
+            libraries: list[str] = []
+
+            for req in instance.resolved:
+                reqInstance = context.componentByName(req)
+
+                if reqInstance is None:
+                    raise Exception(f"Component {req} not found")
+
+                if not reqInstance.isLib():
+                    raise Exception(f"Component {req} is not a library")
+
+                libraries.append(reqInstance.outfile())
+
             writer.build(instance.binfile(), "ld",
-                         list(map(lambda o: o[1], objects)))
+                         list(map(lambda o: o[1], objects)) + libraries)
 
         writer.newline()
 
 
-def build(componentSpec: str, targetSpec: str = "default",  props: Props = {}) -> str:
+def build(componentSpec: str, targetSpec: str,  props: Props = {}) -> str:
     context = contextFor(targetSpec, props)
     target = context.target
 
@@ -69,6 +82,26 @@ def build(componentSpec: str, targetSpec: str = "default",  props: Props = {}) -
     with open(ninjaPath, "w") as f:
         gen(f, context)
 
-    raise NotImplementedError()
+    component = context.componentByName(componentSpec)
 
-    return ""
+    if component is None:
+        raise Exception(f"Component {componentSpec} not found")
+
+    shell.exec(f"ninja", "-v", "-f", ninjaPath, component.outfile())
+
+    return component.outfile()
+
+
+def buildAll(targetSpec: str, props: Props = {}) -> str:
+    context = contextFor(targetSpec, props)
+    target = context.target
+
+    shell.mkdir(target.builddir())
+    ninjaPath = f"{target.builddir()}/build.ninja"
+
+    with open(ninjaPath, "w") as f:
+        gen(f, context)
+
+    shell.exec(f"ninja", "-v", "-f", ninjaPath)
+
+    return target.builddir()

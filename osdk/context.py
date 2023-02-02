@@ -1,6 +1,6 @@
 from typing import cast
 
-from osdk.model import TargetManifest, ComponentManifest, Props
+from osdk.model import TargetManifest, ComponentManifest, Props, Type
 from osdk.logger import Logger
 from osdk import const, shell, jexpr
 
@@ -25,7 +25,7 @@ class ComponentInstance:
         self.resolved = resolved
 
     def isLib(self):
-        return self.manifest.type == "lib"
+        return self.manifest.type == Type.LIB
 
     def binfile(self) -> str:
         return f"{self.target.builddir()}/bin/{self.manifest.id}.out"
@@ -43,6 +43,11 @@ class ComponentInstance:
     def libfile(self) -> str:
         return f"{self.target.builddir()}/lib/{self.manifest.id}.a"
 
+    def outfile(self) -> str:
+        if self.isLib():
+            return self.libfile()
+        return self.binfile()
+
 
 class Context:
     target: TargetManifest
@@ -51,6 +56,12 @@ class Context:
     def __init__(self, target: TargetManifest, instances: list[ComponentInstance]):
         self.target = target
         self.instances = instances
+
+    def componentByName(self, name: str) -> ComponentInstance | None:
+        result = list(filter(lambda x: x.manifest.id == name, self.instances))
+        if len(result) == 0:
+            return None
+        return result[0]
 
 
 def loadAllTargets() -> list[TargetManifest]:
