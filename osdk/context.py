@@ -138,7 +138,7 @@ def resolveDeps(componentSpec: str, components: list[ComponentManifest], target:
 
     enabled, resolved = resolveInner(componentSpec)
 
-    return enabled, resolved[1:]
+    return enabled, resolved
 
 
 def instanciate(componentSpec: str, components: list[ComponentManifest], target: TargetManifest) -> ComponentInstance | None:
@@ -150,7 +150,7 @@ def instanciate(componentSpec: str, components: list[ComponentManifest], target:
     if not enabled:
         return None
 
-    return ComponentInstance(target, manifest, sources, resolved)
+    return ComponentInstance(target, manifest, sources, resolved[:-1])
 
 
 def contextFor(targetSpec: str, props: Props) -> Context:
