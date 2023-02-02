@@ -18,19 +18,19 @@ def gen(out: TextIO, context: Context):
     writer.newline()
 
     writer.separator("Tools")
+
+    writer.variable("cincs", " ".join(
+        map(lambda i: f"-I{i}", context.cincludes())))
+    writer.newline()
+
     for i in target.tools:
         tool = target.tools[i]
+        rule = rules.rules[i]
         writer.variable(i, tool.cmd)
         writer.variable(
-            i + "flags", " ".join(tool.args))
-        writer.newline()
-
-    writer.separator("Rules")
-    for i in rules.rules:
-        tool = target.tools[i]
-        rule = rules.rules[i]
+            i + "flags", " ".join(rule.args + tool.args))
         writer.rule(
-            i, f"{tool.cmd} {rule.rule.replace('$flags',f'${i}flags')}", deps=rule.deps)
+            i, f"{tool.cmd} {rule.rule.replace('$flags',f'${i}flags')}", depfile=rule.deps)
         writer.newline()
 
     writer.separator("Components")

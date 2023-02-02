@@ -108,6 +108,9 @@ class TargetManifest(Manifest):
     def builddir(self) -> str:
         return f"{const.BUILD_DIR}/{self.id}-{self.hashid()[:8]}"
 
+    def patch(self, toolSpec: str, args: list[str]):
+        self.tools[toolSpec].args += args
+
 
 class ComponentManifest(Manifest):
     decription: str

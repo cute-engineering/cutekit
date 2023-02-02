@@ -1,8 +1,10 @@
 from typing import cast
+from pathlib import Path
+
 
 from osdk.model import TargetManifest, ComponentManifest, Props, Type
 from osdk.logger import Logger
-from osdk import const, shell, jexpr
+from osdk import const, shell, jexpr, utils
 
 logger = Logger("context")
 
@@ -48,6 +50,12 @@ class ComponentInstance:
             return self.libfile()
         return self.binfile()
 
+    def cinclude(self) -> str:
+        if "cpp-root-include" in self.manifest.props:
+            return self.manifest.dirname()
+        else:
+            return str(Path(self.manifest.dirname()).parent)
+
 
 class Context:
     target: TargetManifest
@@ -62,6 +70,11 @@ class Context:
         if len(result) == 0:
             return None
         return result[0]
+
+    def cincludes(self) -> list[str]:
+        includes = list(
+            map(lambda x: x.cinclude(), self.instances))
+        return utils.uniq(includes)
 
 
 def loadAllTargets() -> list[TargetManifest]:
