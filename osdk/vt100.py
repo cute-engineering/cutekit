@@ -28,13 +28,13 @@ def title(text: str):
     print(f"{LIGHT_WHITE}{text}{RESET}:")
 
 
-def wordwrap(text: str, width: int = 60) -> str:
+def wordwrap(text: str, width: int = 60, newline="\n") -> str:
     result = ""
     curr = 0
 
     for c in text:
         if c == " " and curr > width:
-            result += "\n"
+            result += newline
             curr = 0
         else:
             result += c
