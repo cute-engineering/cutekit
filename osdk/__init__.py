@@ -1,6 +1,7 @@
 import sys
 
-from osdk import const
+from os.path import isdir
+from osdk import const, shell
 from osdk.args import parse
 from osdk.cmds import exec, usage
 from osdk.plugins import loadAll
@@ -11,6 +12,8 @@ def main() -> int:
     a = parse(sys.argv[1:])
 
     if not a.consumeOpt("verbose", False):
+        if not isdir(const.OSDK_DIR):
+            shell.mkdir(const.OSDK_DIR)
         sys.stderr = open(f"{const.OSDK_DIR}/osdk.log", "w")
 
     try:
