@@ -35,7 +35,7 @@ def sha256sum(path: str) -> str:
         return hashlib.sha256(f.read()).hexdigest()
 
 
-def find(path: str, wildcards: list[str] = []) -> list[str]:
+def find(path: str, wildcards: list[str] = [], recusive: bool = True) -> list[str]:
     logger.log(f"Looking for files in {path} matching {wildcards}")
 
     if not os.path.isdir(path):
@@ -43,14 +43,24 @@ def find(path: str, wildcards: list[str] = []) -> list[str]:
 
     result: list[str] = []
 
-    for root, _, files in os.walk(path):
-        for f in files:
+    if recusive:
+        for root, _, files in os.walk(path):
+            for f in files:
+                if len(wildcards) == 0:
+                    result.append(os.path.join(root, f))
+                else:
+                    for wildcard in wildcards:
+                        if fnmatch.fnmatch(f, wildcard):
+                            result.append(os.path.join(root, f))
+                            break
+    else:
+        for f in os.listdir(path):
             if len(wildcards) == 0:
-                result.append(os.path.join(root, f))
+                result.append(os.path.join(path, f))
             else:
                 for wildcard in wildcards:
                     if fnmatch.fnmatch(f, wildcard):
-                        result.append(os.path.join(root, f))
+                        result.append(os.path.join(path, f))
                         break
 
     return result

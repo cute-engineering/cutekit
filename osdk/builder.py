@@ -20,7 +20,10 @@ def gen(out: TextIO, context: Context):
     writer.separator("Tools")
 
     writer.variable("cincs", " ".join(
-        map(lambda i: f"-I{i}", context.cincludes())))
+        map(lambda i: f"-I{i}", context.cincls())))
+
+    writer.variable("cdefs", " ".join(context.cdefs()))
+
     writer.newline()
 
     for i in target.tools:

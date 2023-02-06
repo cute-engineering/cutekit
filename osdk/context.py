@@ -71,10 +71,13 @@ class Context:
             return None
         return result[0]
 
-    def cincludes(self) -> list[str]:
+    def cincls(self) -> list[str]:
         includes = list(
             map(lambda x: x.cinclude(), self.instances))
         return utils.uniq(includes)
+
+    def cdefs(self) -> list[str]:
+        return self.target.cdefs()
 
 
 def loadAllTargets() -> list[TargetManifest]:
@@ -157,7 +160,7 @@ def resolveDeps(componentSpec: str, components: list[ComponentManifest], target:
 def instanciate(componentSpec: str, components: list[ComponentManifest], target: TargetManifest) -> ComponentInstance | None:
     manifest = next(filter(lambda c: c.id == componentSpec, components))
     sources = shell.find(
-        manifest.dirname(), ["*.c", "*.cpp", "*.s", "*.asm"])
+        manifest.dirname(), ["*.c", "*.cpp", "*.s", "*.asm"], recusive=False)
     enabled, resolved = resolveDeps(componentSpec, components, target)
 
     if not enabled:

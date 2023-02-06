@@ -24,8 +24,8 @@ def mergeToolsArgs(tool, layers):
 
 def genNinja(out: TextIO, manifests: dict, target: dict) -> None:
     target = copy.deepcopy(target)
-    target = targets.patchToolArgs(target, "cc", [m.cincludes(manifests)])
-    target = targets.patchToolArgs(target, "cxx", [m.cincludes(manifests)])
+    target = targets.patchToolArgs(target, "cc", [m.cinc(manifests)])
+    target = targets.patchToolArgs(target, "cxx", [m.cinc(manifests)])
 
     writer = ninja.Writer(out)
 
@@ -102,7 +102,7 @@ def genNinja(out: TextIO, manifests: dict, target: dict) -> None:
 
 def prepare(targetId: str, props: dict) -> Tuple[dict, dict]:
     target = targets.load(targetId, props)
-    
+
     includes = ["src"]
 
     if os.path.exists("osdk.json"):
@@ -110,7 +110,7 @@ def prepare(targetId: str, props: dict) -> Tuple[dict, dict]:
             osdk = json.load(f)
             includes = osdk["includes"]
             print("includes: ", includes)
-    
+
     manifests = m.loadAll(includes, target)
 
     utils.mkdirP(target["dir"])

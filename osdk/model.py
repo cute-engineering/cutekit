@@ -3,9 +3,9 @@ from enum import Enum
 from typing import Any
 from json import JSONEncoder
 
-from osdk.jexpr import Json, evalRead
+from osdk.jexpr import Json
 from osdk.logger import Logger
-from osdk import shell, const, utils
+from osdk import const, utils
 
 
 logger = Logger("model")
@@ -111,6 +111,21 @@ class TargetManifest(Manifest):
     def patch(self, toolSpec: str, args: list[str]):
         self.tools[toolSpec].args += args
 
+    def cdefs(self) -> list[str]:
+        defines: list[str] = []
+
+        for key in self.props:
+            macroname = key.lower().replace("-", "_")
+            prop = self.props[key]
+            macrovalue = str(prop).lower().replace(" ", "_").replace("-", "_")
+            if isinstance(prop, bool):
+                if prop:
+                    defines += [f"-D__osdk_{macroname}__"]
+            else:
+                defines += [f"-D__osdk_{macroname}_{macrovalue}__"]
+
+        return defines
+
 
 class ComponentManifest(Manifest):
     decription: str
@@ -158,7 +173,7 @@ class ComponentManifest(Manifest):
 
 
 class ModelEncoder(JSONEncoder):
-    def default(self, o):
+    def default(self, o: Any):
         if isinstance(o, Manifest):
             return {
                 "id": o.id,

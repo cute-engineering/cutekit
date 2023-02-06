@@ -159,7 +159,7 @@ def prepareInOut(manifests: dict, target: dict) -> dict:
     return manifests
 
 
-def cincludes(manifests: dict) -> str:
+def cinc(manifests: dict) -> str:
     include_paths = []
 
     for key in manifests:

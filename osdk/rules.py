@@ -16,19 +16,19 @@ class Rule:
 
 
 rules: dict[str, Rule] = {
-    "cc": Rule("cc", ["c"], ["o"], "-c -o $out $in -MD -MF $out.d $flags $cincs", ["-std=gnu2x",
-                                                                                   "-Wall",
-                                                                                   "-Wextra",
-                                                                                   "-Werror"], "$out.d"),
-    "cxx": Rule("cxx", ["cpp", "cc", "cxx"], ["o"], "-c -o $out $in -MD -MF $out.d $flags $cincs", ["-std=gnu++2b",
-                                                                                                    "-Wall",
-                                                                                                    "-Wextra",
-                                                                                                    "-Werror",
-                                                                                                    "-fno-exceptions",
-                                                                                                    "-fno-rtti"], "$out.d"),
+    "cc": Rule("cc", ["c"], ["o"], "-c -o $out $in -MD -MF $out.d $flags $cincs $cdefs", ["-std=gnu2x",
+                                                                                          "-Wall",
+                                                                                          "-Wextra",
+                                                                                          "-Werror"], "$out.d"),
+    "cxx": Rule("cxx", ["cpp", "cc", "cxx"], ["o"], "-c -o $out $in -MD -MF $out.d $flags $cincs $cdefs", ["-std=gnu++2b",
+                                                                                                           "-Wall",
+                                                                                                           "-Wextra",
+                                                                                                           "-Werror",
+                                                                                                           "-fno-exceptions",
+                                                                                                           "-fno-rtti"], "$out.d"),
     "as": Rule("as", ["s", "asm", "S"], ["o"], "-o $out $in $flags"),
     "ar": Rule("ar", ["o"], ["a"], "$flags $out $in"),
-    "ld": Rule("ld", ["o", "a"], ["out"], "$flags $out $in"),
+    "ld": Rule("ld", ["o", "a"], ["out"], "-o $out $in $flags"),
 }
 
 
