@@ -12,6 +12,7 @@ setup(
     packages=["osdk"],
     install_requires=[
         "requests",
+        "graphviz"
     ],
     entry_points={
         "console_scripts": [

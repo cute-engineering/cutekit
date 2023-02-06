@@ -1,7 +1,8 @@
 from typing import Callable, cast
 
 from osdk.args import Args
-from osdk import context, shell, const, vt100, builder
+from osdk.context import contextFor
+from osdk import context, shell, const, vt100, builder, graph
 
 Callback = Callable[[Args], None]
 
@@ -134,6 +135,18 @@ def versionCmd(args: Args):
 
 
 cmds += [Cmd("v", "version", "Show current version", versionCmd)]
+
+
+def graphCmd(args: Args):
+    targetSpec = cast(str, args.consumeOpt(
+        "target", "host-" + shell.uname().machine))
+
+    context = contextFor(targetSpec, {})
+
+    graph.view(context)
+
+
+cmds += [Cmd("g", "graph", "Show dependency graph", graphCmd)]
 
 
 def usage():

@@ -79,6 +79,9 @@ class Context:
     def cdefs(self) -> list[str]:
         return self.target.cdefs()
 
+    def builddir(self) -> str:
+        return self.target.builddir()
+
 
 def loadAllTargets() -> list[TargetManifest]:
     files = shell.find(const.TARGETS_DIR, ["*.json"])

@@ -24,6 +24,13 @@ class Args:
             return result
         return default
 
+    def tryConsumeOpt(self, key: str) -> Value | None:
+        if key in self.opts:
+            result = self.opts[key]
+            del self.opts[key]
+            return result
+        return None
+
     def consumeArg(self) -> str | None:
         if len(self.args) == 0:
             return None
