@@ -39,7 +39,9 @@ def runCmd(args: Args):
     if componentSpec is None:
         raise Exception("Component not specified")
 
-    builder.build(componentSpec, targetSpec)
+    exe = builder.build(componentSpec, targetSpec)
+
+    shell.exec(exe)
 
 
 cmds += [Cmd("r", "run", "Run the target", runCmd)]
@@ -141,9 +143,12 @@ def graphCmd(args: Args):
     targetSpec = cast(str, args.consumeOpt(
         "target", "host-" + shell.uname().machine))
 
+    scope: str | None = cast(str | None, args.tryConsumeOpt("scope"))
+    onlyLibs: bool = args.consumeOpt("only-libs", False) == True
+
     context = contextFor(targetSpec, {})
 
-    graph.view(context)
+    graph.view(context, scope=scope, showExe=not onlyLibs)
 
 
 cmds += [Cmd("g", "graph", "Show dependency graph", graphCmd)]
