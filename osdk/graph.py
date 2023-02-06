@@ -3,10 +3,10 @@ from graphviz import Digraph
 from osdk.context import Context
 
 
-def view(context: Context, showExe: bool = False):
+def view(context: Context, showExe: bool = True):
     g = Digraph(context.target.id, filename='graph.gv')
 
-    g.attr('graph',  splines='ortho', concentrate='true')
+    g.attr('graph',  splines='ortho', rankdir='BT')
     g.attr('node', shape='ellipse')
 
     for instance in context.instances:
@@ -20,6 +20,6 @@ def view(context: Context, showExe: bool = False):
             g.edge(instance.manifest.id, req)
 
         for req in instance.manifest.provides:
-            g.edge(req, instance.manifest.id)
+            g.edge(req, instance.manifest.id, arrowhead="none")
 
     g.view(filename=f"{context.builddir()}/graph.gv")

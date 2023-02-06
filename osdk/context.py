@@ -90,7 +90,10 @@ def loadAllTargets() -> list[TargetManifest]:
 
 
 def loadTarget(id: str) -> TargetManifest:
-    return next(filter(lambda t: t.id == id, loadAllTargets()))
+    try:
+        return next(filter(lambda t: t.id == id, loadAllTargets()))
+    except StopIteration:
+        raise Exception(f"Target '{id}' not found")
 
 
 def loadAllComponents() -> list[ComponentManifest]:
