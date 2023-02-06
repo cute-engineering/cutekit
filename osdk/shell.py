@@ -6,6 +6,7 @@ import signal
 import re
 import shutil
 import fnmatch
+import platform
 
 from osdk.logger import Logger
 from osdk import const
@@ -23,10 +24,15 @@ class Uname:
 
 
 def uname() -> Uname:
-    un = os.uname()
-    result = Uname(un.sysname, un.nodename, un.release, un.version, un.machine)
-    if result.machine == "aarch64":
-        result.machine = "arm64"
+    un = platform.uname()
+    result = Uname(un.system, un.node, un.release, un.version, un.machine)
+
+    match result.machine:
+        case "aarch64":
+            result.machine = "arm64"
+        case "AMD64":
+            result.machine = "x86_64"
+
     return result
 
 
@@ -182,7 +188,7 @@ def latest(cmd: str) -> str:
 
     logger.log(f"Finding latest version of {cmd}")
 
-    regex = re.compile(r"^" + re.escape(cmd) + r"(-.[0-9]+)?$")
+    regex = re.compile(r"^" + re.escape(cmd) + r"(-.[0-9]+)?(\.exe)?$")
 
     versions: list[str] = []
     for path in os.environ["PATH"].split(os.pathsep):
