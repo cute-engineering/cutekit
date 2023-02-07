@@ -193,6 +193,8 @@ def contextFor(targetSpec: str, props: Props) -> Context:
 
     target = loadTarget(targetEls[0])
     components = loadAllComponents()
+    components = filterDisabled(components, target)
+
     tools: Tools = {}
 
     for toolSpec in target.tools:
@@ -216,7 +218,6 @@ def contextFor(targetSpec: str, props: Props) -> Context:
 
             tools[toolSpec].args += tool.args
 
-    components = filterDisabled(components, target)
     instances = cast(list[ComponentInstance], list(filter(lambda e: e != None, map(lambda c: instanciate(
         c.id, components, target), components))))
 
