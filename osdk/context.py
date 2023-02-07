@@ -1,27 +1,29 @@
-from typing import cast
+from typing import cast, Protocol
 from pathlib import Path
 
 
-from osdk.model import TargetManifest, ComponentManifest, Props, Type
+from osdk.model import TargetManifest, ComponentManifest, Props, Type, Tool
 from osdk.logger import Logger
-from osdk import const, shell, jexpr, utils
+from osdk import const, shell, jexpr, utils, rules
 
 logger = Logger("context")
 
 
+class IContext(Protocol):
+    def builddir(self) -> str:
+        ...
+
+
 class ComponentInstance:
-    target: TargetManifest
     manifest: ComponentManifest
     sources: list[str] = []
     resolved: list[str] = []
 
     def __init__(
             self,
-            target: TargetManifest,
             manifest: ComponentManifest,
             sources: list[str],
             resolved: list[str]):
-        self.target = target
         self.manifest = manifest
         self.sources = sources
         self.resolved = resolved
@@ -29,26 +31,27 @@ class ComponentInstance:
     def isLib(self):
         return self.manifest.type == Type.LIB
 
-    def binfile(self) -> str:
-        return f"{self.target.builddir()}/bin/{self.manifest.id}.out"
+    def binfile(self, context: IContext) -> str:
+        return f"{context.builddir()}/bin/{self.manifest.id}.out"
 
-    def objdir(self) -> str:
-        return f"{self.target.builddir()}/obj/{self.manifest.id}"
+    def objdir(self, context: IContext) -> str:
+        return f"{context.builddir()}/obj/{self.manifest.id}"
 
-    def objsfiles(self) -> list[tuple[str, str]]:
+    def objsfiles(self, context: IContext) -> list[tuple[str, str]]:
         return list(
             map(
                 lambda s: (
-                    s, f"{self.objdir()}/{s.replace(self.manifest.dirname() + '/', '')}.o"),
+                    s, f"{self.objdir(context)}/{s.replace(self.manifest.dirname() + '/', '')}.o"),
                 self.sources))
 
-    def libfile(self) -> str:
-        return f"{self.target.builddir()}/lib/{self.manifest.id}.a"
+    def libfile(self, context: IContext) -> str:
+        return f"{context.builddir()}/lib/{self.manifest.id}.a"
 
-    def outfile(self) -> str:
+    def outfile(self, context: IContext) -> str:
         if self.isLib():
-            return self.libfile()
-        return self.binfile()
+            return self.libfile(context)
+        else:
+            return self.binfile(context)
 
     def cinclude(self) -> str:
         if "cpp-root-include" in self.manifest.props:
@@ -57,13 +60,15 @@ class ComponentInstance:
             return str(Path(self.manifest.dirname()).parent)
 
 
-class Context:
+class Context(IContext):
     target: TargetManifest
-    instances: list[ComponentInstance] = []
+    instances: list[ComponentInstance]
+    tools: dict[str, Tool]
 
-    def __init__(self, target: TargetManifest, instances: list[ComponentInstance]):
+    def __init__(self, target: TargetManifest, instances: list[ComponentInstance], tools: dict[str, Tool]):
         self.target = target
         self.instances = instances
+        self.tools = tools
 
     def componentByName(self, name: str) -> ComponentInstance | None:
         result = list(filter(lambda x: x.manifest.id == name, self.instances))
@@ -79,8 +84,11 @@ class Context:
     def cdefs(self) -> list[str]:
         return self.target.cdefs()
 
+    def hashid(self) -> str:
+        return utils.hash((self.target.props, str(self.tools)))[0:8]
+
     def builddir(self) -> str:
-        return self.target.builddir()
+        return f"{const.BUILD_DIR}/{self.target.id}-{self.hashid()[:8]}"
 
 
 def loadAllTargets() -> list[TargetManifest]:
@@ -172,7 +180,7 @@ def instanciate(componentSpec: str, components: list[ComponentManifest], target:
     if not enabled:
         return None
 
-    return ComponentInstance(target, manifest, sources, resolved[1:])
+    return ComponentInstance(manifest, sources, resolved[1:])
 
 
 def contextFor(targetSpec: str, props: Props) -> Context:
@@ -180,6 +188,24 @@ def contextFor(targetSpec: str, props: Props) -> Context:
 
     target = loadTarget(targetSpec)
     components = loadAllComponents()
+    tools: dict[str, Tool] = {}
+
+    for toolSpec in target.tools:
+        tool = target.tools[toolSpec]
+
+        tools[toolSpec] = Tool(
+            strict=False,
+            cmd=tool.cmd,
+            args=tool.args,
+            files=tool.files)
+
+        tools[toolSpec].args += rules.rules[toolSpec].args
+
+    for component in components:
+        for toolSpec in component.tools:
+            tool = component.tools[toolSpec]
+
+            tools[toolSpec].args += tool.args
 
     components = filterDisabled(components, target)
     instances = cast(list[ComponentInstance], list(filter(lambda e: e != None, map(lambda c: instanciate(
@@ -187,5 +213,6 @@ def contextFor(targetSpec: str, props: Props) -> Context:
 
     return Context(
         target,
-        instances
+        instances,
+        tools,
     )

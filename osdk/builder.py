@@ -39,7 +39,7 @@ def gen(out: TextIO, context: Context):
     writer.separator("Components")
 
     for instance in context.instances:
-        objects = instance.objsfiles()
+        objects = instance.objsfiles(context)
         writer.comment(f"Component: {instance.manifest.id}")
         writer.comment(f"Resolved: {', '.join(instance.resolved)}")
 
@@ -53,7 +53,7 @@ def gen(out: TextIO, context: Context):
         writer.newline()
 
         if instance.isLib():
-            writer.build(instance.libfile(), "ar",
+            writer.build(instance.libfile(context), "ar",
                          list(map(lambda o: o[1], objects)))
         else:
             libraries: list[str] = []
@@ -67,9 +67,9 @@ def gen(out: TextIO, context: Context):
                 if not reqInstance.isLib():
                     raise Exception(f"Component {req} is not a library")
 
-                libraries.append(reqInstance.outfile())
+                libraries.append(reqInstance.outfile(context))
 
-            writer.build(instance.binfile(), "ld",
+            writer.build(instance.binfile(context), "ld",
                          list(map(lambda o: o[1], objects)) + libraries)
 
         writer.newline()
@@ -79,32 +79,47 @@ def build(componentSpec: str, targetSpec: str,  props: Props = {}) -> str:
     context = contextFor(targetSpec, props)
     target = context.target
 
-    shell.mkdir(target.builddir())
-    ninjaPath = f"{target.builddir()}/build.ninja"
+    shell.mkdir(context.builddir())
+    ninjaPath = f"{context.builddir()}/build.ninja"
 
     with open(ninjaPath, "w") as f:
         gen(f, context)
 
-    component = context.componentByName(componentSpec)
+    instance = context.componentByName(componentSpec)
 
-    if component is None:
+    if instance is None:
         raise Exception(f"Component {componentSpec} not found")
 
-    shell.exec(f"ninja", "-v", "-f", ninjaPath, component.outfile())
+    shell.exec(f"ninja", "-v", "-f", ninjaPath, instance.outfile(context))
 
-    return component.outfile()
+    return instance.outfile(context)
 
 
-def buildAll(targetSpec: str, props: Props = {}) -> str:
+class Paths:
+    bin: str
+    lib: str
+    obj: str
+
+    def __init__(self, bin: str, lib: str, obj: str):
+        self.bin = bin
+        self.lib = lib
+        self.obj = obj
+
+
+def buildAll(targetSpec: str, props: Props = {}) -> Paths:
     context = contextFor(targetSpec, props)
     target = context.target
 
-    shell.mkdir(target.builddir())
-    ninjaPath = f"{target.builddir()}/build.ninja"
+    shell.mkdir(context.builddir())
+    ninjaPath = f"{context.builddir()}/build.ninja"
 
     with open(ninjaPath, "w") as f:
         gen(f, context)
 
     shell.exec(f"ninja", "-v", "-f", ninjaPath)
 
-    return target.builddir()
+    return Paths(
+        context.builddir() + "/bin",
+        context.builddir() + "/lib",
+        context.builddir() + "/obj",
+    )
