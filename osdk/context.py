@@ -4,7 +4,7 @@ from pathlib import Path
 
 from osdk.model import TargetManifest, ComponentManifest, Props, Type, Tool, Tools
 from osdk.logger import Logger
-from osdk import const, shell, jexpr, utils, rules
+from osdk import const, shell, jexpr, utils, rules, mixins
 
 logger = Logger("context")
 
@@ -186,7 +186,12 @@ def instanciate(componentSpec: str, components: list[ComponentManifest], target:
 def contextFor(targetSpec: str, props: Props) -> Context:
     logger.log(f"Loading context for {targetSpec}")
 
-    target = loadTarget(targetSpec)
+    targetEls = targetSpec.split(":")
+
+    if targetEls[0] == "":
+        targetEls[0] = "host-" + shell.uname().machine
+
+    target = loadTarget(targetEls[0])
     components = loadAllComponents()
     tools: Tools = {}
 
@@ -200,6 +205,10 @@ def contextFor(targetSpec: str, props: Props) -> Context:
             files=tool.files)
 
         tools[toolSpec].args += rules.rules[toolSpec].args
+
+    for m in targetEls[1:]:
+        mixin = mixins.byId(m)
+        tools = mixin(target, tools)
 
     for component in components:
         for toolSpec in component.tools:

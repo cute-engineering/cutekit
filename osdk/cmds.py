@@ -48,7 +48,17 @@ cmds += [Cmd("r", "run", "Run the target", runCmd)]
 
 
 def debugCmd(args: Args):
-    pass
+    targetSpec = cast(str, args.consumeOpt(
+        "target", "host-" + shell.uname().machine))
+
+    componentSpec = args.consumeArg()
+
+    if componentSpec is None:
+        raise Exception("Component not specified")
+
+    exe = builder.build(componentSpec, targetSpec)
+
+    shell.exec("/usr/bin/lldb", "-o", "run", exe)
 
 
 cmds += [Cmd("d", "debug", "Debug the target", debugCmd)]
