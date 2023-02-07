@@ -85,9 +85,12 @@ class Tool:
         return f"Tool({self.cmd})"
 
 
+Tools = dict[str, Tool]
+
+
 class TargetManifest(Manifest):
     props: Props
-    tools: dict[str, Tool]
+    tools: Tools
     routing: dict[str, str]
 
     def __init__(self, json: Json = None, path: str = "", strict=True, **kwargs):
@@ -131,7 +134,7 @@ class TargetManifest(Manifest):
 class ComponentManifest(Manifest):
     decription: str = "(No description)"
     props: Props = {}
-    tools: dict[str, Tool] = {}
+    tools: Tools = {}
     enableIf: dict[str, list[Any]] = {}
     requires: list[str] = []
     provides: list[str] = []

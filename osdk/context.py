@@ -2,7 +2,7 @@ from typing import cast, Protocol
 from pathlib import Path
 
 
-from osdk.model import TargetManifest, ComponentManifest, Props, Type, Tool
+from osdk.model import TargetManifest, ComponentManifest, Props, Type, Tool, Tools
 from osdk.logger import Logger
 from osdk import const, shell, jexpr, utils, rules
 
@@ -63,9 +63,9 @@ class ComponentInstance:
 class Context(IContext):
     target: TargetManifest
     instances: list[ComponentInstance]
-    tools: dict[str, Tool]
+    tools: Tools
 
-    def __init__(self, target: TargetManifest, instances: list[ComponentInstance], tools: dict[str, Tool]):
+    def __init__(self, target: TargetManifest, instances: list[ComponentInstance], tools: Tools):
         self.target = target
         self.instances = instances
         self.tools = tools
@@ -188,7 +188,7 @@ def contextFor(targetSpec: str, props: Props) -> Context:
 
     target = loadTarget(targetSpec)
     components = loadAllComponents()
-    tools: dict[str, Tool] = {}
+    tools: Tools = {}
 
     for toolSpec in target.tools:
         tool = target.tools[toolSpec]
