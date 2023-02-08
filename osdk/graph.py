@@ -1,10 +1,10 @@
-from graphviz import Digraph
-
 from osdk.context import Context
 from osdk import vt100
 
 
 def view(context: Context, scope: str | None = None, showExe: bool = True):
+    from graphviz import Digraph
+
     g = Digraph(context.target.id, filename='graph.gv')
 
     g.attr('graph',  splines='ortho', rankdir='BT')
