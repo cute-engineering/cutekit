@@ -183,7 +183,13 @@ def instanciate(componentSpec: str, components: list[ComponentManifest], target:
     return ComponentInstance(manifest, sources, resolved[1:])
 
 
-def contextFor(targetSpec: str, props: Props) -> Context:
+context: dict = {}
+
+
+def contextFor(targetSpec: str) -> Context:
+    if targetSpec in context:
+        return context[targetSpec]
+
     logger.log(f"Loading context for {targetSpec}")
 
     targetEls = targetSpec.split(":")
@@ -221,8 +227,10 @@ def contextFor(targetSpec: str, props: Props) -> Context:
     instances = cast(list[ComponentInstance], list(filter(lambda e: e != None, map(lambda c: instanciate(
         c.id, components, target), components))))
 
-    return Context(
+    context[targetSpec] = Context(
         target,
         instances,
         tools,
     )
+
+    return context[targetSpec]

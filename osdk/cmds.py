@@ -156,7 +156,7 @@ def graphCmd(args: Args):
     scope: str | None = cast(str | None, args.tryConsumeOpt("scope"))
     onlyLibs: bool = args.consumeOpt("only-libs", False) == True
 
-    context = contextFor(targetSpec, {})
+    context = contextFor(targetSpec)
 
     graph.view(context, scope=scope, showExe=not onlyLibs)
 
