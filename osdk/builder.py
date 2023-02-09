@@ -76,8 +76,8 @@ def gen(out: TextIO, context: Context):
         writer.newline()
 
 
-def build(componentSpec: str, targetSpec: str) -> str:
-    context = contextFor(targetSpec)
+def build(componentSpec: str, targetSpec: str, props: Props =  {}) -> str:
+    context = contextFor(targetSpec, props)
     target = context.target
 
     shell.mkdir(context.builddir())

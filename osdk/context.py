@@ -186,7 +186,7 @@ def instanciate(componentSpec: str, components: list[ComponentManifest], target:
 context: dict = {}
 
 
-def contextFor(targetSpec: str) -> Context:
+def contextFor(targetSpec: str, props: Props = {}) -> Context:
     if targetSpec in context:
         return context[targetSpec]
 
@@ -198,6 +198,8 @@ def contextFor(targetSpec: str) -> Context:
         targetEls[0] = "host-" + shell.uname().machine
 
     target = loadTarget(targetEls[0])
+    target.props |= props
+
     components = loadAllComponents()
     components = filterDisabled(components, target)
 
@@ -221,7 +223,6 @@ def contextFor(targetSpec: str) -> Context:
     for component in components:
         for toolSpec in component.tools:
             tool = component.tools[toolSpec]
-
             tools[toolSpec].args += tool.args
 
     instances = cast(list[ComponentInstance], list(filter(lambda e: e != None, map(lambda c: instanciate(
