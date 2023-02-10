@@ -39,10 +39,9 @@ def gen(out: TextIO, context: Context):
 
     writer.separator("Components")
 
-    for instance in context.instances:
-        if not instance.enabled:
-            continue
+    all: list[str] = []
 
+    for instance in context.enabledInstances():
         objects = instance.objsfiles(context)
         writer.comment(f"Component: {instance.manifest.id}")
         writer.comment(f"Resolved: {', '.join(instance.resolved)}")
@@ -76,7 +75,13 @@ def gen(out: TextIO, context: Context):
             writer.build(instance.binfile(context), "ld",
                          list(map(lambda o: o[1], objects)) + libraries)
 
+            all.append(instance.binfile(context))
+
         writer.newline()
+
+    writer.separator("Phony targets")
+
+    writer.build("all", "phony", all)
 
 
 def build(componentSpec: str, targetSpec: str, props: Props = {}) -> str:

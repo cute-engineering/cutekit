@@ -71,9 +71,9 @@ def buildCmd(args: Args):
     componentSpec = args.consumeArg()
 
     if componentSpec is None:
-        raise Exception("Component not specified")
-
-    builder.build(componentSpec, targetSpec)
+        builder.buildAll(targetSpec)
+    else:
+        builder.build(componentSpec, targetSpec)
 
 
 cmds += [Cmd("b", "build", "Build the target", buildCmd)]

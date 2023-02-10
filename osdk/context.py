@@ -1,4 +1,4 @@
-from typing import cast, Protocol
+from typing import cast, Protocol, Iterable
 from pathlib import Path
 
 
@@ -71,6 +71,9 @@ class Context(IContext):
     instances: list[ComponentInstance]
     tools: Tools
 
+    def enabledInstances(self) -> Iterable[ComponentInstance]:
+        return filter(lambda x: x.enabled, self.instances)
+
     def __init__(self, target: TargetManifest, instances: list[ComponentInstance], tools: Tools):
         self.target = target
         self.instances = instances
@@ -84,7 +87,7 @@ class Context(IContext):
 
     def cincls(self) -> list[str]:
         includes = list(
-            map(lambda x: x.cinclude(), self.instances))
+            map(lambda x: x.cinclude(), self.enabledInstances()))
         return utils.uniq(includes)
 
     def cdefs(self) -> list[str]:
