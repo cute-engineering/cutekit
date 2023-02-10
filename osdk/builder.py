@@ -82,6 +82,7 @@ def gen(out: TextIO, context: Context):
     writer.separator("Phony targets")
 
     writer.build("all", "phony", all)
+    writer.default("all")
 
 
 def build(componentSpec: str, targetSpec: str, props: Props = {}) -> str:
