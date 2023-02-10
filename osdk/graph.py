@@ -7,7 +7,7 @@ def view(context: Context, scope: str | None = None, showExe: bool = True, showD
 
     g = Digraph(context.target.id, filename='graph.gv')
 
-    g.attr('graph',  splines='ortho', rankdir='BT')
+    g.attr('graph',  splines='ortho', rankdir='BT', ranksep='1.5')
     g.attr('node', shape='ellipse')
     g.attr(
         'graph', label=f"<<B>{scope or 'Full Dependency Graph'}</B><BR/>{context.target.id}>", labelloc='t')
@@ -37,7 +37,11 @@ def view(context: Context, scope: str | None = None, showExe: bool = True, showD
                 g.edge(instance.manifest.id, req)
 
             for req in instance.manifest.provides:
-                g.edge(req, instance.manifest.id, arrowhead="none")
+                isChosen = context.target.routing.get(
+                    req, None) == instance.manifest.id
+
+                g.edge(req, instance.manifest.id, arrowhead="none", color=(
+                    "blue" if isChosen else "black"))
         elif showDisabled:
             g.node(instance.manifest.id, f"<<B>{instance.manifest.id}</B><BR/>{vt100.wordwrap(instance.manifest.decription, 40,newline='<BR/>')}<BR/><BR/><I>{vt100.wordwrap(instance.disableReason, 40,newline='<BR/>')}</I>>",
                    shape="plaintext", style="filled",   fontcolor="#999999", fillcolor="#eeeeee")
