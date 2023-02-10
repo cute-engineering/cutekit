@@ -154,16 +154,17 @@ class ComponentManifest(Manifest):
     def __repr__(self):
         return f"ComponentManifest({self.id})"
 
-    def isEnabled(self, target: TargetManifest):
+    def isEnabled(self, target: TargetManifest) -> tuple[bool, str]:
         for k, v in self.enableIf.items():
             if not k in target.props:
                 logger.log(
                     f"Component {self.id} disabled by missing {k} in target")
-                return False
+                return False, f"Missing props '{k}' in target"
 
             if not target.props[k] in v:
+                vStrs = [f"'{str(x)}'" for x in v]
                 logger.log(
                     f"Component {self.id} disabled by {k}={target.props[k]} not in {v}")
-                return False
+                return False, f"Props missmatch for '{k}': Got '{target.props[k]}' but expected {', '.join(vStrs)}"
 
-        return True
+        return True, ""

@@ -40,6 +40,9 @@ def gen(out: TextIO, context: Context):
     writer.separator("Components")
 
     for instance in context.instances:
+        if not instance.enabled:
+            continue
+
         objects = instance.objsfiles(context)
         writer.comment(f"Component: {instance.manifest.id}")
         writer.comment(f"Resolved: {', '.join(instance.resolved)}")
@@ -76,9 +79,8 @@ def gen(out: TextIO, context: Context):
         writer.newline()
 
 
-def build(componentSpec: str, targetSpec: str, props: Props =  {}) -> str:
+def build(componentSpec: str, targetSpec: str, props: Props = {}) -> str:
     context = contextFor(targetSpec, props)
-    target = context.target
 
     shell.mkdir(context.builddir())
     ninjaPath = f"{context.builddir()}/build.ninja"
@@ -90,6 +92,10 @@ def build(componentSpec: str, targetSpec: str, props: Props =  {}) -> str:
 
     if instance is None:
         raise Exception(f"Component {componentSpec} not found")
+
+    if not instance.enabled:
+        raise Exception(
+            f"Component {componentSpec} is disabled: {instance.disableReason}")
 
     shell.exec(f"ninja", "-v", "-f", ninjaPath, instance.outfile(context))
 

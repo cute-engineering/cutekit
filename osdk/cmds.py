@@ -155,10 +155,12 @@ def graphCmd(args: Args):
 
     scope: str | None = cast(str | None, args.tryConsumeOpt("scope"))
     onlyLibs: bool = args.consumeOpt("only-libs", False) == True
+    showDisabled: bool = args.consumeOpt("show-disabled", False) == True
 
     context = contextFor(targetSpec)
 
-    graph.view(context, scope=scope, showExe=not onlyLibs)
+    graph.view(context, scope=scope, showExe=not onlyLibs,
+               showDisabled=showDisabled)
 
 
 cmds += [Cmd("g", "graph", "Show dependency graph", graphCmd)]

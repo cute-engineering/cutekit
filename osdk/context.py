@@ -15,15 +15,21 @@ class IContext(Protocol):
 
 
 class ComponentInstance:
+    enabled: bool = True
+    disableReason = ""
     manifest: ComponentManifest
     sources: list[str] = []
     resolved: list[str] = []
 
     def __init__(
             self,
+            enabled: bool,
+            disableReason: str,
             manifest: ComponentManifest,
             sources: list[str],
             resolved: list[str]):
+        self.enabled = enabled
+        self.disableReason = disableReason
         self.manifest = manifest
         self.sources = sources
         self.resolved = resolved
@@ -112,11 +118,12 @@ def loadAllComponents() -> list[ComponentManifest]:
             files))
 
 
-def filterDisabled(components: list[ComponentManifest], target: TargetManifest) -> list[ComponentManifest]:
-    return list(filter(lambda c: c.isEnabled(target), components))
+def filterDisabled(components: list[ComponentManifest], target: TargetManifest) -> tuple[list[ComponentManifest], list[ComponentManifest]]:
+    return list(filter(lambda c: c.isEnabled(target)[0], components)), \
+        list(filter(lambda c: not c.isEnabled(target)[0], components))
 
 
-def providerFor(what: str, components: list[ComponentManifest]) -> str | None:
+def providerFor(what: str, components: list[ComponentManifest]) -> tuple[str | None, str]:
     result: list[ComponentManifest] = list(
         filter(lambda c: c.id == what, components))
 
@@ -125,26 +132,27 @@ def providerFor(what: str, components: list[ComponentManifest]) -> str | None:
         result = list(filter(lambda x: (what in x.provides), components))
 
     if len(result) == 0:
-        logger.error(f"No provider for {what}")
-        return None
+        logger.error(f"No provider for '{what}'")
+        return (None, f"No provider for '{what}'")
 
     if len(result) > 1:
-        logger.error(f"Multiple providers for {what}: {result}")
-        return None
+        ids = list(map(lambda x: x.id, result))
+        logger.error(f"Multiple providers for '{what}': {result}")
+        return (None, f"Multiple providers for '{what}': {','.join(ids)}")
 
-    return result[0].id
+    return (result[0].id, "")
 
 
-def resolveDeps(componentSpec: str, components: list[ComponentManifest], target: TargetManifest) -> tuple[bool,  list[str]]:
+def resolveDeps(componentSpec: str, components: list[ComponentManifest], target: TargetManifest) -> tuple[bool, str,  list[str]]:
     mapping = dict(map(lambda c: (c.id, c), components))
 
-    def resolveInner(what: str, stack: list[str] = []) -> tuple[bool,  list[str]]:
+    def resolveInner(what: str, stack: list[str] = []) -> tuple[bool, str,  list[str]]:
         result: list[str] = []
         what = target.route(what)
-        resolved = providerFor(what, components)
+        resolved, unresolvedReason = providerFor(what, components)
 
         if resolved is None:
-            return False,  []
+            return False, unresolvedReason,  []
 
         if resolved in stack:
             raise Exception(f"Dependency loop: {stack} -> {resolved}")
@@ -152,35 +160,37 @@ def resolveDeps(componentSpec: str, components: list[ComponentManifest], target:
         stack.append(resolved)
 
         for req in mapping[resolved].requires:
-            keep, reqs = resolveInner(req, stack)
+            keep, unresolvedReason,  reqs = resolveInner(req, stack)
 
             if not keep:
                 stack.pop()
-                logger.error(f"Dependency {req} not met for {resolved}")
-                return False,  []
+                logger.error(f"Dependency '{req}' not met for '{resolved}'")
+                return False, unresolvedReason,  []
 
             result.extend(reqs)
 
         stack.pop()
         result.insert(0, resolved)
 
-        return True, result
+        return True, "", result
 
-    enabled, resolved = resolveInner(componentSpec)
+    enabled, unresolvedReason, resolved = resolveInner(componentSpec)
 
-    return enabled, resolved
+    return enabled, unresolvedReason, resolved
 
 
 def instanciate(componentSpec: str, components: list[ComponentManifest], target: TargetManifest) -> ComponentInstance | None:
     manifest = next(filter(lambda c: c.id == componentSpec, components))
     sources = shell.find(
         manifest.dirname(), ["*.c", "*.cpp", "*.s", "*.asm"], recusive=False)
-    enabled, resolved = resolveDeps(componentSpec, components, target)
+    enabled, unresolvedReason, resolved = resolveDeps(
+        componentSpec, components, target)
 
-    if not enabled:
-        return None
+    return ComponentInstance(enabled, unresolvedReason, manifest, sources, resolved[1:])
 
-    return ComponentInstance(manifest, sources, resolved[1:])
+
+def instanciateDisabled(component: ComponentManifest,  target: TargetManifest) -> ComponentInstance:
+    return ComponentInstance(False, component.isEnabled(target)[1], component, [], [])
 
 
 context: dict = {}
@@ -190,7 +200,7 @@ def contextFor(targetSpec: str, props: Props = {}) -> Context:
     if targetSpec in context:
         return context[targetSpec]
 
-    logger.log(f"Loading context for {targetSpec}")
+    logger.log(f"Loading context for '{targetSpec}'")
 
     targetEls = targetSpec.split(":")
 
@@ -201,7 +211,7 @@ def contextFor(targetSpec: str, props: Props = {}) -> Context:
     target.props |= props
 
     components = loadAllComponents()
-    components = filterDisabled(components, target)
+    components, disabled = filterDisabled(components, target)
 
     tools: Tools = {}
 
@@ -225,7 +235,10 @@ def contextFor(targetSpec: str, props: Props = {}) -> Context:
             tool = component.tools[toolSpec]
             tools[toolSpec].args += tool.args
 
-    instances = cast(list[ComponentInstance], list(filter(lambda e: e != None, map(lambda c: instanciate(
+    instances: list[ComponentInstance] = list(
+        map(lambda c: instanciateDisabled(c, target), disabled))
+
+    instances += cast(list[ComponentInstance], list(filter(lambda e: e != None, map(lambda c: instanciate(
         c.id, components, target), components))))
 
     context[targetSpec] = Context(
