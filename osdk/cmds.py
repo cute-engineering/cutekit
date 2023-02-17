@@ -1,4 +1,5 @@
 from typing import Callable, cast
+import os
 
 from osdk.args import Args
 from osdk.context import contextFor
@@ -173,6 +174,10 @@ def installCmd(args: Args):
         ext = project.extern[extSpec]
 
         extPath = f"{const.EXTERN_DIR}/{extSpec}"
+
+        if os.path.exists(extPath):
+            print(f"Skipping {extSpec}, already installed")
+            continue
 
         print(f"Installing {extSpec}-{ext.tag} from {ext.git}...")
         shell.popen("git", "clone", "--depth", "1", "--branch",
