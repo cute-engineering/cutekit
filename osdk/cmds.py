@@ -166,6 +166,22 @@ def graphCmd(args: Args):
 cmds += [Cmd("g", "graph", "Show dependency graph", graphCmd)]
 
 
+def installCmd(args: Args):
+    project = context.loadProject(".")
+
+    for extSpec in project.extern:
+        ext = project.extern[extSpec]
+
+        extPath = f"{const.EXTERN_DIR}/{extSpec}"
+
+        print(f"Installing {extSpec}-{ext.tag} from {ext.git}...")
+        shell.popen("git", "clone", "--depth", "1", "--branch",
+                    ext.tag, ext.git, extPath)
+
+
+cmds += [Cmd("i", "install", "Install all the external packages", installCmd)]
+
+
 def usage():
     print(f"Usage: {const.ARGV0} <command> [args...]")
 

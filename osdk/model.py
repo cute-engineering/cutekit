@@ -15,6 +15,7 @@ Props = dict[str, Any]
 
 class Type(Enum):
     UNKNOWN = "unknown"
+    PROJECT = "project"
     TARGET = "target"
     LIB = "lib"
     EXE = "exe"
@@ -52,6 +53,59 @@ class Manifest:
 
     def dirname(self) -> str:
         return os.path.dirname(self.path)
+
+
+class Extern:
+    git: str = ""
+    tag: str = ""
+
+    def __init__(self, json: Json = None, strict=True, **kwargs):
+        if json is not None:
+            if not "git" in json and strict:
+                raise ValueError("Missing git")
+
+            self.git = json["git"]
+
+            if not "tag" in json and strict:
+                raise ValueError("Missing tag")
+
+            self.tag = json["tag"]
+        elif strict:
+            raise ValueError("Missing json")
+
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
+
+    def __str__(self):
+        return f"Extern(git={self.git}, tag={self.tag})"
+
+    def __repr__(self):
+        return f"Extern({self.git})"
+
+
+class ProjectManifest(Manifest):
+    description: str = ""
+    extern: dict[str, Extern] = {}
+
+    def __init__(self, json: Json = None, path: str = "", strict=True, **kwargs):
+        if json is not None:
+            if not "description" in json and strict:
+                raise ValueError("Missing description")
+
+            self.description = json["description"]
+
+            self.extern = {k: Extern(v)
+                           for k, v in json.get("extern", {}).items()}
+        elif strict:
+            raise ValueError("Missing json")
+
+        super().__init__(json, path, strict, **kwargs)
+
+    def __str__(self):
+        return f"ProjectManifest(id={self.id}, type={self.type}, path={self.path}, description={self.description}, extern={self.extern})"
+
+    def __repr__(self):
+        return f"ProjectManifest({self.id})"
 
 
 class Tool:

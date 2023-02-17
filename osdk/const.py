@@ -7,6 +7,7 @@ ARGV0 = os.path.basename(sys.argv[0])
 OSDK_DIR = ".osdk"
 BUILD_DIR = f"{OSDK_DIR}/build"
 CACHE_DIR = f"{OSDK_DIR}/cache"
+EXTERN_DIR = f"{OSDK_DIR}/extern"
 SRC_DIR = "src/"
 META_DIR = f"meta"
 TARGETS_DIR = f"{META_DIR}/targets"

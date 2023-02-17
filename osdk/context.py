@@ -1,8 +1,9 @@
 from typing import cast, Protocol, Iterable
 from pathlib import Path
+import os
 
 
-from osdk.model import TargetManifest, ComponentManifest, Props, Type, Tool, Tools
+from osdk.model import ProjectManifest, TargetManifest, ComponentManifest, Props, Type, Tool, Tools
 from osdk.logger import Logger
 from osdk import const, shell, jexpr, utils, rules, mixins
 
@@ -106,6 +107,11 @@ def loadAllTargets() -> list[TargetManifest]:
         map(lambda path: TargetManifest(jexpr.evalRead(path), path), files))
 
 
+def loadProject(path: str) -> ProjectManifest:
+    path = os.path.join(path, "project.json")
+    return ProjectManifest(jexpr.evalRead(path), path)
+
+
 def loadTarget(id: str) -> TargetManifest:
     try:
         return next(filter(lambda t: t.id == id, loadAllTargets()))
@@ -115,6 +121,8 @@ def loadTarget(id: str) -> TargetManifest:
 
 def loadAllComponents() -> list[ComponentManifest]:
     files = shell.find(const.SRC_DIR, ["manifest.json"])
+    files += shell.find(const.EXTERN_DIR, ["manifest.json"])
+
     return list(
         map(
             lambda path: ComponentManifest(jexpr.evalRead(path), path),

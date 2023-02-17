@@ -1,4 +1,5 @@
 import os
+import sys
 import hashlib
 import errno
 import subprocess
@@ -140,7 +141,7 @@ def popen(*args: str) -> str:
     logger.log(f"Executing {args}")
 
     try:
-        proc = subprocess.run(args, stdout=subprocess.PIPE)
+        proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=sys.stderr)
     except FileNotFoundError:
         raise Exception(f"Command not found")
 
