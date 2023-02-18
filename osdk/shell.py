@@ -123,16 +123,17 @@ def exec(*args: str):
         proc = subprocess.run(args)
 
     except FileNotFoundError:
-        raise Exception(f"Command not found")
+        raise Exception(f"{args[0]}: Command not found")
 
     except KeyboardInterrupt:
-        raise Exception("Interrupted")
+        raise Exception(f"{args[0]}: Interrupted")
 
     if proc.returncode == -signal.SIGSEGV:
-        raise Exception("Segmentation fault")
+        raise Exception(f"{args[0]}: Segmentation fault")
 
     if proc.returncode != 0:
-        raise Exception(f"Process exited with code {proc.returncode}")
+        raise Exception(
+            f"{args[0]}: Process exited with code {proc.returncode}")
 
     return True
 
@@ -143,13 +144,14 @@ def popen(*args: str) -> str:
     try:
         proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=sys.stderr)
     except FileNotFoundError:
-        raise Exception(f"Command not found")
+        raise Exception(f"{args[0]}: Command not found")
 
     if proc.returncode == -signal.SIGSEGV:
-        raise Exception("Segmentation fault")
+        raise Exception(f"{args[0]}: Segmentation fault")
 
     if proc.returncode != 0:
-        raise Exception(f"Process exited with code {proc.returncode}")
+        raise Exception(
+            f"{args[0]}: Process exited with code {proc.returncode}")
 
     return proc.stdout.decode('utf-8')
 
