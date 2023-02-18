@@ -9,13 +9,13 @@ Callback = Callable[[Args], None]
 
 
 class Cmd:
-    shortName: str
+    shortName: str | None
     longName: str
     helpText: str
     callback: Callable[[Args], None]
     isPlugin: bool = False
 
-    def __init__(self, shortName: str, longName: str, helpText: str, callback: Callable[[Args], None]):
+    def __init__(self, shortName: str | None, longName: str, helpText: str, callback: Callable[[Args], None]):
         self.shortName = shortName
         self.longName = longName
         self.helpText = helpText
@@ -28,7 +28,7 @@ cmds: list[Cmd] = []
 def append(cmd: Cmd):
     cmd.isPlugin = True
     cmds.append(cmd)
-    cmds.sort(key=lambda c: c.shortName)
+    cmds.sort(key=lambda c: c.shortName or c.longName)
 
 
 def runCmd(args: Args):
@@ -135,7 +135,7 @@ def helpCmd(args: Args):
             pluginText = f"{vt100.CYAN}(plugin){vt100.RESET}"
 
         print(
-            f" {vt100.GREEN}{cmd.shortName}{vt100.RESET}  {cmd.longName} - {cmd.helpText} {pluginText}")
+            f" {vt100.GREEN}{cmd.shortName or ' '}{vt100.RESET}  {cmd.longName} - {cmd.helpText} {pluginText}")
 
     print()
 
