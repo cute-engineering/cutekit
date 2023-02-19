@@ -2,6 +2,31 @@
 
 The operating system development kit 
 
+## Table of contents
+
+- [osdk](#osdk)
+  - [Table of contents](#table-of-contents)
+  - [Macros](#macros)
+    - [`@latest`](#latest)
+    - [`@uname`](#uname)
+    - [`@include`](#include)
+    - [`@join`](#join)
+    - [`@concat`](#concat)
+    - [`@exec`](#exec)
+  - [Manifest file format](#manifest-file-format)
+    - [`id`](#id)
+    - [`type`](#type)
+    - [`description`](#description)
+    - [`enabledIf`](#enabledif)
+    - [`requires`](#requires)
+    - [`provides`](#provides)
+  - [Target file format](#target-file-format)
+    - [`id`](#id-1)
+    - [`type`](#type-1)
+    - [`props`](#props)
+    - [`tools`](#tools)
+
+
 ## Macros
 
 
@@ -98,7 +123,21 @@ Exemple:
 }
 ```
 
-### `deps`
+### `enabledIf`
+
+A list of requirements for the package check agaisnt the build props. If the requirement is not met, the package will be disabled.
+
+```json
+{
+    "enabledIf": {
+        "freestanding": [
+            false
+        ]
+    }
+}
+```
+
+### `requires`
 
 Dependencies of the package. The name listed here must be the same as the id of the package or member of a provide list.
 
@@ -106,14 +145,14 @@ Exemple:
 
 ```json
 {
-    "deps": [
+    "requires": [
         "libc",
         "libm"
     ]
 }
 ```
 
-### `provide`
+### `provides`
 
 Alias for the package.
 
@@ -121,15 +160,12 @@ Exemple:
 
 ```json
 {
-    "provide": [
+    "provides": [
         "hello"
     ]
 }
 ```
 
-### `requires`
-
-A list of requirements for the package check agaisnt the build props. If the requirement is not met, the package will be disabled.
 
 ## Target file format
 
