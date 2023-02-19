@@ -14,21 +14,20 @@ class Rule:
         self.args = args
         self.deps = deps
 
-
 rules: dict[str, Rule] = {
-    "cc": Rule("cc", ["c"], ["o"], "-c -o $out $in -MD -MF $out.d $flags $cincs $cdefs", ["-std=gnu2x",
+    "cc": Rule("cc", ["*.c"], ["*.o"], "-c -o $out $in -MD -MF $out.d $flags $cincs $cdefs", ["-std=gnu2x",
                                                                                           "-Wall",
                                                                                           "-Wextra",
                                                                                           "-Werror"], "$out.d"),
-    "cxx": Rule("cxx", ["cpp", "cc", "cxx"], ["o"], "-c -o $out $in -MD -MF $out.d $flags $cincs $cdefs", ["-std=gnu++2b",
+    "cxx": Rule("cxx", ["*.cpp", "*.cc", "*.cxx"], ["*.o"], "-c -o $out $in -MD -MF $out.d $flags $cincs $cdefs", ["-std=gnu++2b",
                                                                                                            "-Wall",
                                                                                                            "-Wextra",
                                                                                                            "-Werror",
                                                                                                            "-fno-exceptions",
                                                                                                            "-fno-rtti"], "$out.d"),
-    "as": Rule("as", ["s", "asm", "S"], ["o"], "-o $out $in $flags"),
-    "ar": Rule("ar", ["o"], ["a"], "$flags $out $in"),
-    "ld": Rule("ld", ["o", "a"], ["out"], "-o $out $in $flags"),
+    "as": Rule("as", ["*.s", "*.asm", "*.S"], ["*.o"], "-o $out $in $flags"),
+    "ar": Rule("ar", ["*.o"], ["*.a"], "$flags $out $in"),
+    "ld": Rule("ld", ["*.o", "*.a"], ["*.out"], "-o $out $in $flags"),
 }
 
 
@@ -40,7 +39,7 @@ def byFileIn(fileIn: str) -> Rule | None:
     for key in rules:
         rule = rules[key]
         for ext in rule.fileIn:
-            if fileIn.endswith("." + ext):
+            if fileIn.endswith(ext[1:]):
                 return rule
     return None
 
