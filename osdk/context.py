@@ -1,4 +1,5 @@
 from typing import cast, Protocol, Iterable
+from itertools import chain
 from pathlib import Path
 import os
 
@@ -192,8 +193,9 @@ def resolveDeps(componentSpec: str, components: list[ComponentManifest], target:
 
 def instanciate(componentSpec: str, components: list[ComponentManifest], target: TargetManifest) -> ComponentInstance | None:
     manifest = next(filter(lambda c: c.id == componentSpec, components))
+    wildcards = set(chain(*map(lambda rule: rule.fileIn, rules.rules.values())))
     sources = shell.find(
-        manifest.dirname(), ["*.c", "*.cpp", "*.s", "*.asm"], recusive=False)
+        manifest.dirname(), list(wildcards), recusive=False)
     enabled, unresolvedReason, resolved = resolveDeps(
         componentSpec, components, target)
 
