@@ -192,6 +192,7 @@ class ComponentManifest(Manifest):
     enableIf: dict[str, list[Any]] = {}
     requires: list[str] = []
     provides: list[str] = []
+    subdirs: list[str] = []
 
     def __init__(self, json: Json = None, path: str = "", strict=True, **kwargs):
         if json is not None:
@@ -202,6 +203,8 @@ class ComponentManifest(Manifest):
             self.enableIf = json.get("enableIf", self.enableIf)
             self.requires = json.get("requires", self.requires)
             self.provides = json.get("provides", self.provides)
+            self.subdirs = list(map(lambda x: os.path.join(os.path.dirname(
+                path), x), json.get("subdirs", [""])))
 
         super().__init__(json, path, strict, **kwargs)
 
