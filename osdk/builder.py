@@ -1,3 +1,4 @@
+import os
 from typing import TextIO
 
 from osdk.model import ComponentManifest, TargetManifest, Props
@@ -89,7 +90,7 @@ def build(componentSpec: str, targetSpec: str, props: Props = {}) -> str:
     context = contextFor(targetSpec, props)
 
     shell.mkdir(context.builddir())
-    ninjaPath = f"{context.builddir()}/build.ninja"
+    ninjaPath = os.path.join(context.builddir(), "build.ninja")
 
     with open(ninjaPath, "w") as f:
         gen(f, context)
@@ -124,7 +125,7 @@ def buildAll(targetSpec: str) -> Paths:
     target = context.target
 
     shell.mkdir(context.builddir())
-    ninjaPath = f"{context.builddir()}/build.ninja"
+    ninjaPath = os.path.join(context.builddir(), "build.ninja")
 
     with open(ninjaPath, "w") as f:
         gen(f, context)
@@ -132,7 +133,7 @@ def buildAll(targetSpec: str) -> Paths:
     shell.exec(f"ninja", "-v", "-f", ninjaPath)
 
     return Paths(
-        context.builddir() + "/bin",
-        context.builddir() + "/lib",
-        context.builddir() + "/obj",
+        os.path.join(context.buildir(), "bin"),
+        os.path.join(context.buildir(), "lib"),
+        os.path.join(context.buildir(), "obj")
     )

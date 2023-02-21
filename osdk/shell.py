@@ -102,8 +102,8 @@ def wget(url: str, path: str | None = None) -> str:
     import requests
 
     if path is None:
-        path = const.CACHE_DIR + "/" + \
-            hashlib.sha256(url.encode('utf-8')).hexdigest()
+        path = os.path.join(const.CACHE_DIR,
+            hashlib.sha256(url.encode('utf-8')).hexdigest())
 
     if os.path.exists(path):
         return path

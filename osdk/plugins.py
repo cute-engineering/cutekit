@@ -1,3 +1,5 @@
+import os
+
 import importlib.util as importlib
 from osdk.logger import Logger
 from osdk.shell import readdir
@@ -19,9 +21,9 @@ def load(path: str):
 
 def loadAll():
     logger.log("Loading plugins...")
-    for files in readdir("meta/plugins"):
+    for files in readdir(os.path.join("meta", "plugins")):
         if files.endswith(".py"):
-            plugin = load(f"meta/plugins/{files}")
+            plugin = load(os.path.join("meta", "plugins", files))
 
             if plugin:
                 print(f"Loaded plugin {plugin.name}")
