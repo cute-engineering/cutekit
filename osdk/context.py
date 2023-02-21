@@ -40,20 +40,20 @@ class ComponentInstance:
         return self.manifest.type == Type.LIB
 
     def binfile(self, context: IContext) -> str:
-        return f"{context.builddir()}/bin/{self.manifest.id}.out"
+        return os.path.join(context.builddir(), "bin", f"{self.manifest.id}.out")
 
     def objdir(self, context: IContext) -> str:
-        return f"{context.builddir()}/obj/{self.manifest.id}"
+        return os.path.join(context.builddir(), "obj", self.manifest.id)
 
     def objsfiles(self, context: IContext) -> list[tuple[str, str]]:
         return list(
             map(
                 lambda s: (
-                    s, f"{self.objdir(context)}/{s.replace(self.manifest.dirname() + '/', '')}.o"),
+                    s, os.path.join(self.objdir(context), s.replace(os.path.join(self.manifest.dirname(), ''), '') + ".o")),
                 self.sources))
 
     def libfile(self, context: IContext) -> str:
-        return f"{context.builddir()}/lib/{self.manifest.id}.a"
+        return os.path.join(context.builddir(), "lib", f"{self.manifest.id}.a")
 
     def outfile(self, context: IContext) -> str:
         if self.isLib():
@@ -99,7 +99,7 @@ class Context(IContext):
         return utils.hash((self.target.props, str(self.tools)))[0:8]
 
     def builddir(self) -> str:
-        return f"{const.BUILD_DIR}/{self.target.id}-{self.hashid()[:8]}"
+        return os.path.join(const.BUILD_DIR, f"{self.target.id}-{self.hashid()[:8]}")
 
 
 def loadAllTargets() -> list[TargetManifest]:

@@ -60,7 +60,7 @@ def debugCmd(args: Args):
 
     exe = builder.build(componentSpec, targetSpec)
 
-    shell.exec("/usr/bin/lldb", "-o", "run", exe)
+    shell.exec("lldb", "-o", "run", "exe")
 
 
 cmds += [Cmd("d", "debug", "Debug the target", debugCmd)]
@@ -174,7 +174,7 @@ def installCmd(args: Args):
     for extSpec in project.extern:
         ext = project.extern[extSpec]
 
-        extPath = f"{const.EXTERN_DIR}/{extSpec}"
+        extPath = os.path.join(const.EXTERN_DIR, extSpec)
 
         if os.path.exists(extPath):
             print(f"Skipping {extSpec}, already installed")
@@ -214,7 +214,7 @@ def initCmd(args: Args):
     project_name = input("Project name: ")
     description = input("Description: ")
 
-    to_create = ["src", "meta", "meta/targets", "meta/plugins"]
+    to_create = ["src", "meta", os.path.join("meta", "targets"), os.path.join("meta", "plugins")]
 
     os.mkdir(project_name.lower())
     for directory in to_create:

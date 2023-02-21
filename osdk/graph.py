@@ -53,4 +53,4 @@ def view(context: Context, scope: str | None = None, showExe: bool = True, showD
                 g.edge(req, instance.manifest.id,
                        arrowhead="none", color="#aaaaaa")
 
-    g.view(filename=f"{context.builddir()}/graph.gv")
+    g.view(filename=os.path.join(context.builddir(), "graph.gv"))
