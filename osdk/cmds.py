@@ -60,7 +60,7 @@ def debugCmd(args: Args):
 
     exe = builder.build(componentSpec, targetSpec)
 
-    shell.exec("lldb", "-o", "run", "exe")
+    shell.exec("lldb", "-o", "run", exe)
 
 
 cmds += [Cmd("d", "debug", "Debug the target", debugCmd)]
