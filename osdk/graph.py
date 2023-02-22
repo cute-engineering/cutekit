@@ -1,3 +1,5 @@
+import os
+
 from osdk.context import Context
 from osdk import vt100
 
