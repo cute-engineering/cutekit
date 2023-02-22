@@ -2,6 +2,8 @@ from typing import Any, TypeVar, cast
 import json
 import hashlib
 
+from osdk import shell, const
+
 T = TypeVar('T')
 
 
@@ -56,3 +58,10 @@ def asList(i: T | list[T] | None) -> list[T]:
     if isinstance(i, list):
         return cast(list[T], i)
     return [i]
+
+
+def get_version() -> str:
+    if const.VERSION == "{{VERSION_PLACEHOLDER}}":
+        return str(int(shell.popen(*["git", "rev-parse", "--short", "HEAD"])[:-1], 16))
+    else:
+        return const.VERSION

@@ -1,9 +1,9 @@
 from setuptools import setup
-from osdk.const import VERSION
+from osdk.utils import get_version
 
 setup(
     name="osdk",
-    version=VERSION,
+    version=get_version(),
     python_requires='>=3.10',
     description="Operating System Development Kit",
     author="The DEVSE Community",

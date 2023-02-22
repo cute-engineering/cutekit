@@ -1,7 +1,8 @@
 import os
 import sys
+import subprocess
 
-VERSION = "0.4.0"
+VERSION = "{{VERSION_PLACEHOLDER}}"
 MODULE_DIR = os.path.dirname(os.path.realpath(__file__))
 ARGV0 = os.path.basename(sys.argv[0])
 OSDK_DIR = ".osdk"

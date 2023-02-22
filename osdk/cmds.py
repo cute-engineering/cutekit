@@ -145,7 +145,7 @@ cmds += [Cmd("h", "help", "Show this help message", helpCmd)]
 
 
 def versionCmd(args: Args):
-    print(f"OSDK v{const.VERSION}\n")
+    print(f"OSDK v{const.get_version()}\n")
 
 
 cmds += [Cmd("v", "version", "Show current version", versionCmd)]
