@@ -133,7 +133,7 @@ def buildAll(targetSpec: str) -> Paths:
     shell.exec(f"ninja", "-v", "-f", ninjaPath)
 
     return Paths(
-        os.path.join(context.buildir(), "bin"),
-        os.path.join(context.buildir(), "lib"),
-        os.path.join(context.buildir(), "obj")
+        os.path.join(context.builddir(), "bin"),
+        os.path.join(context.builddir(), "lib"),
+        os.path.join(context.builddir(), "obj")
     )
