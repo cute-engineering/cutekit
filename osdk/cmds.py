@@ -145,7 +145,7 @@ cmds += [Cmd("h", "help", "Show this help message", helpCmd)]
 
 
 def versionCmd(args: Args):
-    print(f"OSDK v{const.get_version()}\n")
+    print(f"OSDK v{const.VERSION}\n")
 
 
 cmds += [Cmd("v", "version", "Show current version", versionCmd)]
@@ -214,7 +214,8 @@ def initCmd(args: Args):
     project_name = input("Project name: ")
     description = input("Description: ")
 
-    to_create = ["src", "meta", os.path.join("meta", "targets"), os.path.join("meta", "plugins")]
+    to_create = ["src", "meta", os.path.join(
+        "meta", "targets"), os.path.join("meta", "plugins")]
 
     os.mkdir(project_name.lower())
     for directory in to_create:
