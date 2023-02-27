@@ -1,0 +1,41 @@
+.TH OSDK\-GRAPH 1 2023-02-27
+
+.SH NAME
+osdk\-graph \- Show dependency graph.
+
+.SH SYNOPSIS
+\fBosdk graph\fR [\fIoptions\fR]
+.br
+\fBosdk g\fR [\fIoptions\fR]
+
+.SH DESCRIPTION
+This command will display a dependency graph using graphviz.
+
+.SH OPTIONS
+.TP
+\fB\-\-target\fR=\fItarget\fR
+Show dependency for target \fItarget\fR.
+.TP
+\fB\-\-scope\fR=\fIscope\fR
+.TP
+\fB\-\-only\-libs\fR
+.TP
+\fB\-\-show-disabled\fR
+
+.SH EXIT STATUS
+exits with status 0 if all operations were successfull, greater than 0 if 
+errors occur.
+
+.SH BUGS
+See <https://github.com/cute-engineering/osdk> for issues.
+
+.SH COPYRIGHT
+Copyright \(co 2023 Cute Engineering.
+.br
+License MIT: <https://opensource.org/license/mit/>.
+.br
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+.SH SEE ALSO
+.BR osdk (1)

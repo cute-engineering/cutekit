@@ -1,0 +1,74 @@
+.TH OSDK 1 2023-02-27
+
+.SH NAME
+osdk \- Operating System Development Kit.
+
+.SH SYNOPSIS
+\fBosdk\fR \fIcommand\fR [\fIargs...\fR]
+.br
+\fBosdk\fR \fIhelp\fP
+
+.SH DESCRIPTION
+This program is a package manager and build tool for Operating System 
+development.
+
+.SH COMMANDS
+.SS Build Commands
+.TP
+\fBosdk-run\fR(1)
+Run target.
+.TP
+\fBosdk-debug\fR(1)
+Debug target.
+.TP
+\fBosdk-build\fR(1)
+Build target.
+.TP
+\fBosdk-clean\fR(1)
+Clean the build directory.
+.TP
+\fBosdk-nuke\fR(1)
+Clean the build directory and cache.
+.SS Manifest Commands
+.TP
+\fBosdk-list\fR(1)
+List existing targets.
+.TP
+\fBosdk-graph\fR(1)
+Show dependency graph.
+.SS "Package Commands"
+.TP
+\fBosdk-install\fR(1)
+Install all the external packages.
+.TP
+\fBosdk-init\fR(1)
+Start a new project.
+.SS General Commands
+.TP
+\fBosdk-help\fR(1)
+Display help information.
+.TP
+\fBosdk-version\fR(1)
+Display current version and exit.
+
+.SH EXIT STATUS
+exits with status 0 if all operations were successfull, greater than 0 if 
+errors occur.
+
+.SH BUGS
+See <https://github.com/cute-engineering/osdk> for issues.
+
+.SH EXAMPLES
+.TP
+Install and build a project
+osdk install
+.br
+osdk build
+
+.SH COPYRIGHT
+Copyright \(co 2023 Cute Engineering.
+.br
+License MIT: <https://opensource.org/license/mit/>.
+.br
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
