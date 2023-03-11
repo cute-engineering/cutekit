@@ -43,7 +43,7 @@ def runCmd(args: Args):
 
     exe = builder.build(componentSpec, targetSpec)
 
-    shell.exec(exe)
+    shell.exec(exe, *args.args)
 
 
 cmds += [Cmd("r", "run", "Run the target", runCmd)]
