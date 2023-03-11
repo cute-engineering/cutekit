@@ -1,7 +1,7 @@
 import os
 from typing import TextIO
 
-from osdk.model import ComponentManifest, TargetManifest, Props
+from osdk.model import Props
 from osdk.ninja import Writer
 from osdk.logger import Logger
 from osdk.context import Context, contextFor
@@ -122,7 +122,6 @@ class Paths:
 
 def buildAll(targetSpec: str) -> Paths:
     context = contextFor(targetSpec)
-    target = context.target
 
     shell.mkdir(context.builddir())
     ninjaPath = os.path.join(context.builddir(), "build.ninja")
@@ -137,3 +136,23 @@ def buildAll(targetSpec: str) -> Paths:
         os.path.join(context.builddir(), "lib"),
         os.path.join(context.builddir(), "obj")
     )
+
+
+def testAll(targetSpec: str):
+    context = contextFor(targetSpec)
+
+    shell.mkdir(context.builddir())
+    ninjaPath = os.path.join(context.builddir(), "build.ninja")
+
+    with open(ninjaPath, "w") as f:
+        gen(f, context)
+
+    shell.exec(f"ninja", "-v", "-f", ninjaPath, "all")
+
+    for instance in context.enabledInstances():
+        if instance.isLib():
+            continue
+
+        if instance.id().endswith("-tests"):
+            print(f"Running {instance.id()}")
+            shell.exec(instance.outfile(context))

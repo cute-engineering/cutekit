@@ -49,6 +49,15 @@ def runCmd(args: Args):
 cmds += [Cmd("r", "run", "Run the target", runCmd)]
 
 
+def testCmd(args: Args):
+    targetSpec = cast(str, args.consumeOpt(
+        "target", "host-" + shell.uname().machine))
+    builder.testAll(targetSpec)
+
+
+cmds += [Cmd("t", "test", "Run all test targets", testCmd)]
+
+
 def debugCmd(args: Args):
     targetSpec = cast(str, args.consumeOpt(
         "target", "host-" + shell.uname().machine))
