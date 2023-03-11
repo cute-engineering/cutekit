@@ -36,6 +36,9 @@ class ComponentInstance:
         self.sources = sources
         self.resolved = resolved
 
+    def id(self) -> str:
+        return self.manifest.id
+
     def isLib(self):
         return self.manifest.type == Type.LIB
 
