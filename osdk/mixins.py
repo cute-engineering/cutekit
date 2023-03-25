@@ -43,8 +43,8 @@ def makeMixinOptimize(level: str) -> Mixin:
 
 
 def mixinDebug(target: TargetManifest, tools: Tools) -> Tools:
-    patchToolArgs(tools, "cc", ["-g"])
-    patchToolArgs(tools, "cxx", ["-g"])
+    patchToolArgs(tools, "cc", ["-g", "-gdwarf-4"])
+    patchToolArgs(tools, "cxx", ["-g", "-gdwarf-4"])
 
     return tools
 
@@ -65,6 +65,7 @@ mixins: dict[str, Mixin] = {
 
 def append(mixinSpec: str, mixin: Mixin):
     mixins[mixinSpec] = mixin
+
 
 def byId(id: str) -> Mixin:
     return mixins[id]

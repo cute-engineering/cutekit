@@ -28,7 +28,7 @@ def title(text: str):
     print(f"{LIGHT_WHITE}{text}{RESET}:")
 
 
-def wordwrap(text: str, width: int = 60, newline="\n") -> str:
+def wordwrap(text: str, width: int = 60, newline: str = "\n") -> str:
     result = ""
     curr = 0
 
