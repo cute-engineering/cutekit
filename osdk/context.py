@@ -210,7 +210,7 @@ def instanciateDisabled(component: ComponentManifest,  target: TargetManifest) -
     return ComponentInstance(False, component.isEnabled(target)[1], component, [], [])
 
 
-context: dict = {}
+context: dict[str, Context] = {}
 
 
 def contextFor(targetSpec: str, props: Props = {}) -> Context:

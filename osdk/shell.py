@@ -33,6 +33,8 @@ def uname() -> Uname:
             result.machine = "arm64"
         case "AMD64":
             result.machine = "x86_64"
+        case _:
+            pass
 
     return result
 
@@ -102,7 +104,8 @@ def wget(url: str, path: str | None = None) -> str:
     import requests
 
     if path is None:
-        path = os.path.join(const.CACHE_DIR,
+        path = os.path.join(
+            const.CACHE_DIR,
             hashlib.sha256(url.encode('utf-8')).hexdigest())
 
     if os.path.exists(path):

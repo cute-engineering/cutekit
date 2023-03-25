@@ -1,11 +1,9 @@
 import os
 from enum import Enum
 from typing import Any
-from json import JSONEncoder
 
 from osdk.jexpr import Json
 from osdk.logger import Logger
-from osdk import const, utils
 
 
 logger = Logger("model")
@@ -26,7 +24,7 @@ class Manifest:
     type: Type = Type.UNKNOWN
     path: str = ""
 
-    def __init__(self,  json: Json = None, path: str = "", strict=True, **kwargs):
+    def __init__(self, json: Json = None, path: str = "", strict: bool = True, **kwargs: Any):
         if json is not None:
             if not "id" in json:
                 raise ValueError("Missing id")
@@ -59,7 +57,7 @@ class Extern:
     git: str = ""
     tag: str = ""
 
-    def __init__(self, json: Json = None, strict=True, **kwargs):
+    def __init__(self, json: Json = None, strict: bool = True, **kwargs: Any):
         if json is not None:
             if not "git" in json and strict:
                 raise ValueError("Missing git")
@@ -87,7 +85,7 @@ class ProjectManifest(Manifest):
     description: str = ""
     extern: dict[str, Extern] = {}
 
-    def __init__(self, json: Json = None, path: str = "", strict=True, **kwargs):
+    def __init__(self, json: Json = None, path: str = "", strict: bool = True, **kwargs: Any):
         if json is not None:
             if not "description" in json and strict:
                 raise ValueError("Missing description")
@@ -113,7 +111,7 @@ class Tool:
     args: list[str] = []
     files: list[str] = []
 
-    def __init__(self, json: Json = None, strict=True, **kwargs):
+    def __init__(self, json: Json = None, strict: bool = True, **kwargs: Any):
         if json is not None:
             if not "cmd" in json and strict:
                 raise ValueError("Missing cmd")
@@ -147,7 +145,7 @@ class TargetManifest(Manifest):
     tools: Tools
     routing: dict[str, str]
 
-    def __init__(self, json: Json = None, path: str = "", strict=True, **kwargs):
+    def __init__(self, json: Json = None, path: str = "", strict: bool = True, **kwargs: Any):
         if json is not None:
             if not "props" in json and strict:
                 raise ValueError("Missing props")
@@ -194,7 +192,7 @@ class ComponentManifest(Manifest):
     provides: list[str] = []
     subdirs: list[str] = []
 
-    def __init__(self, json: Json = None, path: str = "", strict=True, **kwargs):
+    def __init__(self, json: Json = None, path: str = "", strict: bool = True, **kwargs: Any):
         if json is not None:
             self.decription = json.get("description", self.decription)
             self.props = json.get("props", self.props)

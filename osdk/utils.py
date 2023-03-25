@@ -2,8 +2,6 @@ from typing import Any, TypeVar, cast
 import json
 import hashlib
 
-from osdk import shell, const
-
 T = TypeVar('T')
 
 
