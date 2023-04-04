@@ -67,8 +67,10 @@ class ComponentInstance:
     def cinclude(self) -> str:
         if "cpp-root-include" in self.manifest.props:
             return self.manifest.dirname()
-        else:
+        elif self.manifest.type == Type.LIB:
             return str(Path(self.manifest.dirname()).parent)
+        else:
+            return ""
 
 
 class Context(IContext):
@@ -91,8 +93,8 @@ class Context(IContext):
         return result[0]
 
     def cincls(self) -> list[str]:
-        includes = list(
-            map(lambda x: x.cinclude(), self.enabledInstances()))
+        includes = list(filter(lambda x: x != "", map(
+            lambda x: x.cinclude(), self.enabledInstances())))
         return utils.uniq(includes)
 
     def cdefs(self) -> list[str]:
