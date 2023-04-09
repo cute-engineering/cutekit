@@ -64,6 +64,12 @@ class ComponentInstance:
         else:
             return self.binfile(context)
 
+    def cdefs(self) -> str:
+        if "gen-uuid" in self.manifest.props:
+            return f"-D{self.manifest.id.upper().replace('-', '_')}_UUID=\\\"{utils.uuid()}\\\""
+        else:
+            return ""
+
     def cinclude(self) -> str:
         if "cpp-root-include" in self.manifest.props:
             return self.manifest.dirname()
@@ -98,7 +104,10 @@ class Context(IContext):
         return utils.uniq(includes)
 
     def cdefs(self) -> list[str]:
-        return self.target.cdefs()
+        cdefs= list(filter(lambda x: x != "", map(
+            lambda x: x.cdefs(), self.enabledInstances())))
+
+        return utils.uniq(self.target.cdefs() + cdefs)
 
     def hashid(self) -> str:
         return utils.hash((self.target.props, str(self.tools)))[0:8]

@@ -1,4 +1,5 @@
 from typing import Any, TypeVar, cast
+from uuid import uuid4
 import json
 import hashlib
 
@@ -56,3 +57,6 @@ def asList(i: T | list[T] | None) -> list[T]:
     if isinstance(i, list):
         return cast(list[T], i)
     return [i]
+
+def uuid() -> str:
+    return hex(uuid4().int & (1<<64)-1)[2:]
