@@ -179,6 +179,12 @@ def cp(src: str, dst: str):
     shutil.copy(src, dst)
 
 
+def cpTree(src: str, dst: str):
+    logger.log(f"Copying {src} to {dst}")
+
+    shutil.copytree(src, dst, dirs_exist_ok=True)
+
+
 LATEST_CACHE: dict[str, str] = {}
 
 
