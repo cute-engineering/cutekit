@@ -41,7 +41,7 @@ def runCmd(args: Args):
     if componentSpec is None:
         raise Exception("Component not specified")
 
-    exe = builder.build(componentSpec, targetSpec)
+    exe = builder.build(componentSpec, targetSpec).outfile()
 
     shell.exec(exe, *args.args)
 
@@ -67,7 +67,7 @@ def debugCmd(args: Args):
     if componentSpec is None:
         raise Exception("Component not specified")
 
-    exe = builder.build(componentSpec, targetSpec)
+    exe = builder.build(componentSpec, targetSpec).outfile()
 
     shell.exec("lldb", "-o", "run", exe)
 
@@ -270,7 +270,7 @@ def initCmd(args: Args):
         f.write("from osdk.cmds import Cmd, append\n\n")
         f.write("def runCmd(args: Args) -> None:\n")
         f.write(
-            f"    {project_name.lower()} = builder.build(\"{project_name.lower()}\", \"host-{shell.uname().machine}\")\n"
+            f"    {project_name.lower()} = builder.build(\"{project_name.lower()}\", \"host-{shell.uname().machine}\").outfile()\n"
         )
         f.write(f"    shell.exec(*[{project_name.lower()}])")
         f.write("\n\nappend(Cmd(\"s\", \"start\", \"Run the project\", runCmd))")
