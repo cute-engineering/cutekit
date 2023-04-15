@@ -21,7 +21,9 @@ class ComponentInstance:
     disableReason = ""
     manifest: ComponentManifest
     sources: list[str] = []
+    res: list[str] = []
     resolved: list[str] = []
+    context: IContext
 
     def __init__(
             self,
@@ -29,11 +31,13 @@ class ComponentInstance:
             disableReason: str,
             manifest: ComponentManifest,
             sources: list[str],
+            res: list[str],
             resolved: list[str]):
         self.enabled = enabled
         self.disableReason = disableReason
         self.manifest = manifest
         self.sources = sources
+        self.res = res
         self.resolved = resolved
 
     def id(self) -> str:
@@ -42,27 +46,31 @@ class ComponentInstance:
     def isLib(self):
         return self.manifest.type == Type.LIB
 
-    def binfile(self, context: IContext) -> str:
-        return os.path.join(context.builddir(), "bin", f"{self.manifest.id}.out")
+    def objdir(self) -> str:
+        return os.path.join(self.context.builddir(), f"{self.manifest.id}/obj")
 
-    def objdir(self, context: IContext) -> str:
-        return os.path.join(context.builddir(), "obj", self.manifest.id)
+    def resdir(self) -> str:
+        return os.path.join(self.context.builddir(), f"{self.manifest.id}/res")
 
-    def objsfiles(self, context: IContext) -> list[tuple[str, str]]:
-        return list(
-            map(
-                lambda s: (
-                    s, os.path.join(self.objdir(context), s.replace(os.path.join(self.manifest.dirname(), ''), '') + ".o")),
-                self.sources))
+    def objsfiles(self) -> list[tuple[str, str]]:
+        def toOFile(s: str) -> str:
+            return os.path.join(self.objdir(), s.replace(os.path.join(self.manifest.dirname(), ''), '') + ".o")
+        return list(map(lambda s: (s, toOFile(s)), self.sources))
 
-    def libfile(self, context: IContext) -> str:
-        return os.path.join(context.builddir(), "lib", f"{self.manifest.id}.a")
+    def resfiles(self) -> list[tuple[str, str, str]]:
+        def toAssetFile(s: str) -> str:
+            return os.path.join(self.resdir(), s.replace(os.path.join(self.manifest.dirname(), 'res/'), ''))
 
-    def outfile(self, context: IContext) -> str:
+        def toAssetId(s: str) -> str:
+            return s.replace(os.path.join(self.manifest.dirname(), 'res/'), '')
+
+        return list(map(lambda s: (s, toAssetFile(s), toAssetId(s)), self.res))
+
+    def outfile(self) -> str:
         if self.isLib():
-            return self.libfile(context)
+            return os.path.join(self.context.builddir(), self.manifest.id, f"lib/{self.manifest.id}.a")
         else:
-            return self.binfile(context)
+            return os.path.join(self.context.builddir(), self.manifest.id, f"bin/{self.manifest.id}.out")
 
     def cinclude(self) -> str:
         if "cpp-root-include" in self.manifest.props:
@@ -202,14 +210,23 @@ def instanciate(componentSpec: str, components: list[ComponentManifest], target:
         chain(*map(lambda rule: rule.fileIn, rules.rules.values())))
     sources = shell.find(
         manifest.subdirs, list(wildcards), recusive=False)
+
+    res = shell.find(os.path.join(manifest.dirname(), "res"))
+
     enabled, unresolvedReason, resolved = resolveDeps(
         componentSpec, components, target)
 
-    return ComponentInstance(enabled, unresolvedReason, manifest, sources, resolved[1:])
+    return ComponentInstance(enabled, unresolvedReason, manifest, sources, res, resolved[1:])
 
 
 def instanciateDisabled(component: ComponentManifest,  target: TargetManifest) -> ComponentInstance:
-    return ComponentInstance(False, component.isEnabled(target)[1], component, [], [])
+    return ComponentInstance(
+        enabled=False,
+        disableReason=component.isEnabled(target)[1],
+        manifest=component,
+        sources=[],
+        res=[],
+        resolved=[])
 
 
 context: dict[str, Context] = {}
@@ -265,5 +282,8 @@ def contextFor(targetSpec: str, props: Props = {}) -> Context:
         instances,
         tools,
     )
+
+    for instance in instances:
+        instance.context = context[targetSpec]
 
     return context[targetSpec]

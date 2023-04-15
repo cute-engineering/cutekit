@@ -4,7 +4,7 @@ from typing import TextIO
 from osdk.model import Props
 from osdk.ninja import Writer
 from osdk.logger import Logger
-from osdk.context import Context, contextFor
+from osdk.context import ComponentInstance, Context, contextFor
 from osdk import shell, rules
 
 logger = Logger("builder")
@@ -28,6 +28,9 @@ def gen(out: TextIO, context: Context):
 
     writer.newline()
 
+    writer.rule("cp", "cp $in $out")
+    writer.newline()
+
     for i in target.tools:
         tool = target.tools[i]
         rule = rules.rules[i]
@@ -43,7 +46,8 @@ def gen(out: TextIO, context: Context):
     all: list[str] = []
 
     for instance in context.enabledInstances():
-        objects = instance.objsfiles(context)
+        objects = instance.objsfiles()
+        assets = instance.resfiles()
         writer.comment(f"Component: {instance.manifest.id}")
         writer.comment(f"Resolved: {', '.join(instance.resolved)}")
 
@@ -54,11 +58,14 @@ def gen(out: TextIO, context: Context):
             t = target.tools[r.id]
             writer.build(obj[1], r.id,  obj[0], order_only=t.files)
 
+        for asset in assets:
+            writer.build(asset[1], "cp", asset[0])
+
         writer.newline()
 
         if instance.isLib():
-            writer.build(instance.libfile(context), "ar",
-                         list(map(lambda o: o[1], objects)))
+            writer.build(instance.outfile(), "ar",
+                         list(map(lambda o: o[1], objects)), implicit=list(map(lambda o: o[1], assets)))
         else:
             libraries: list[str] = []
 
@@ -71,12 +78,12 @@ def gen(out: TextIO, context: Context):
                 if not reqInstance.isLib():
                     raise Exception(f"Component {req} is not a library")
 
-                libraries.append(reqInstance.outfile(context))
+                libraries.append(reqInstance.outfile())
 
-            writer.build(instance.binfile(context), "ld",
-                         list(map(lambda o: o[1], objects)) + libraries)
+            writer.build(instance.outfile(), "ld", list(
+                map(lambda o: o[1], objects)) + libraries, implicit=list(map(lambda o: o[1], assets)))
 
-            all.append(instance.binfile(context))
+            all.append(instance.outfile())
 
         writer.newline()
 
@@ -86,7 +93,7 @@ def gen(out: TextIO, context: Context):
     writer.default("all")
 
 
-def build(componentSpec: str, targetSpec: str, props: Props = {}) -> str:
+def build(componentSpec: str, targetSpec: str, props: Props = {}) -> ComponentInstance:
     context = contextFor(targetSpec, props)
 
     shell.mkdir(context.builddir())
@@ -104,9 +111,9 @@ def build(componentSpec: str, targetSpec: str, props: Props = {}) -> str:
         raise Exception(
             f"Component {componentSpec} is disabled: {instance.disableReason}")
 
-    shell.exec(f"ninja", "-v", "-f", ninjaPath, instance.outfile(context))
+    shell.exec(f"ninja", "-v", "-f", ninjaPath, instance.outfile())
 
-    return instance.outfile(context)
+    return instance
 
 
 class Paths:
@@ -120,7 +127,7 @@ class Paths:
         self.obj = obj
 
 
-def buildAll(targetSpec: str) -> Paths:
+def buildAll(targetSpec: str) -> Context:
     context = contextFor(targetSpec)
 
     shell.mkdir(context.builddir())
@@ -131,11 +138,7 @@ def buildAll(targetSpec: str) -> Paths:
 
     shell.exec(f"ninja", "-v", "-f", ninjaPath)
 
-    return Paths(
-        os.path.join(context.builddir(), "bin"),
-        os.path.join(context.builddir(), "lib"),
-        os.path.join(context.builddir(), "obj")
-    )
+    return context
 
 
 def testAll(targetSpec: str):
@@ -155,4 +158,4 @@ def testAll(targetSpec: str):
 
         if instance.id().endswith("-tests"):
             print(f"Running {instance.id()}")
-            shell.exec(instance.outfile(context))
+            shell.exec(instance.outfile())
