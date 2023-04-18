@@ -49,6 +49,16 @@ def mixinDebug(target: TargetManifest, tools: Tools) -> Tools:
     return tools
 
 
+def makeMixinTune(tune: str) -> Mixin:
+    def mixinTune(target: TargetManifest, tools: Tools) -> Tools:
+        patchToolArgs(tools, "cc", [f"-mtune={tune}"])
+        patchToolArgs(tools, "cxx", [f"-mtune={tune}"])
+
+        return tools
+
+    return mixinTune
+
+
 mixins: dict[str, Mixin] = {
     "cache": mixinCache,
     "debug": mixinDebug,
@@ -56,6 +66,7 @@ mixins: dict[str, Mixin] = {
     "msan": makeMixinSan("memory"),
     "tsan": makeMixinSan("thread"),
     "ubsan": makeMixinSan("undefined"),
+    "tune": makeMixinTune("native"),
     "o3": makeMixinOptimize("3"),
     "o2": makeMixinOptimize("2"),
     "o1": makeMixinOptimize("1"),
