@@ -41,9 +41,13 @@ def runCmd(args: Args):
     if componentSpec is None:
         raise Exception("Component not specified")
 
-    exe = builder.build(componentSpec, targetSpec).outfile()
+    component = builder.build(componentSpec, targetSpec)
 
-    shell.exec(exe, *args.args)
+    os.environ["OSDK_TARGET"] = component.context.target.id
+    os.environ["OSDK_COMPONENT"] = component.id()
+    os.environ["OSDK_BUILDDIR"] = component.context.builddir()
+
+    shell.exec(component.outfile(), *args.args)
 
 
 cmds += [Cmd("r", "run", "Run the target", runCmd)]
@@ -67,9 +71,13 @@ def debugCmd(args: Args):
     if componentSpec is None:
         raise Exception("Component not specified")
 
-    exe = builder.build(componentSpec, targetSpec).outfile()
+    component = builder.build(componentSpec, targetSpec)
 
-    shell.exec("lldb", "-o", "run", exe)
+    os.environ["OSDK_TARGET"] = component.context.target.id
+    os.environ["OSDK_COMPONENT"] = component.id()
+    os.environ["OSDK_BUILDDIR"] = component.context.builddir()
+
+    shell.exec("lldb", "-o", "run", component.outfile(), *args.args)
 
 
 cmds += [Cmd("d", "debug", "Debug the target", debugCmd)]

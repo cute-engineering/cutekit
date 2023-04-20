@@ -43,6 +43,13 @@ class Manifest:
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
+    def toJson(self) -> Json:
+        return {
+            "id": self.id,
+            "type": self.type.value,
+            "path": self.path
+        }
+
     def __str__(self):
         return f"Manifest(id={self.id}, type={self.type}, path={self.path})"
 
@@ -74,6 +81,12 @@ class Extern:
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
+    def toJson(self) -> Json:
+        return {
+            "git": self.git,
+            "tag": self.tag
+        }
+
     def __str__(self):
         return f"Extern(git={self.git}, tag={self.tag})"
 
@@ -98,6 +111,13 @@ class ProjectManifest(Manifest):
             raise ValueError("Missing json")
 
         super().__init__(json, path, strict, **kwargs)
+
+    def toJson(self) -> Json:
+        return {
+            **super().toJson(),
+            "description": self.description,
+            "extern": {k: v.toJson() for k, v in self.extern.items()}
+        }
 
     def __str__(self):
         return f"ProjectManifest(id={self.id}, type={self.type}, path={self.path}, description={self.description}, extern={self.extern})"
@@ -130,6 +150,13 @@ class Tool:
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
+    def toJson(self) -> Json:
+        return {
+            "cmd": self.cmd,
+            "args": self.args,
+            "files": self.files
+        }
+
     def __str__(self):
         return f"Tool(cmd={self.cmd}, args={self.args}, files={self.files})"
 
@@ -160,6 +187,14 @@ class TargetManifest(Manifest):
             self.routing = json.get("routing", {})
 
         super().__init__(json, path, strict, **kwargs)
+
+    def toJson(self) -> Json:
+        return {
+            **super().toJson(),
+            "props": self.props,
+            "tools": {k: v.toJson() for k, v in self.tools.items()},
+            "routing": self.routing
+        }
 
     def __repr__(self):
         return f"TargetManifest({self.id})"
@@ -205,6 +240,18 @@ class ComponentManifest(Manifest):
                 path), x), json.get("subdirs", [""])))
 
         super().__init__(json, path, strict, **kwargs)
+
+    def toJson(self) -> Json:
+        return {
+            **super().toJson(),
+            "description": self.decription,
+            "props": self.props,
+            "tools": {k: v.toJson() for k, v in self.tools.items()},
+            "enableIf": self.enableIf,
+            "requires": self.requires,
+            "provides": self.provides,
+            "subdirs": self.subdirs
+        }
 
     def __repr__(self):
         return f"ComponentManifest({self.id})"
