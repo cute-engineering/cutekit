@@ -12,6 +12,8 @@ logger = Logger("context")
 
 
 class IContext(Protocol):
+    target: TargetManifest
+
     def builddir(self) -> str:
         ...
 
@@ -109,7 +111,7 @@ class Context(IContext):
         return self.target.cdefs()
 
     def hashid(self) -> str:
-        return utils.hash((self.target.props, str(self.tools)))[0:8]
+        return utils.hash((self.target.props, [self.tools[t].toJson() for t in self.tools]))[0:8]
 
     def builddir(self) -> str:
         return os.path.join(const.BUILD_DIR, f"{self.target.id}-{self.hashid()[:8]}")
