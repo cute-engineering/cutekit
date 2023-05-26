@@ -8,11 +8,11 @@ import re
 import shutil
 import fnmatch
 import platform
+import logging
 
-from osdk.logger import Logger
 from osdk import const
 
-logger = Logger("shell")
+logger = logging.getLogger(__name__)
 
 
 class Uname:
@@ -45,7 +45,7 @@ def sha256sum(path: str) -> str:
 
 
 def find(path: str | list[str], wildcards: list[str] = [], recusive: bool = True) -> list[str]:
-    logger.log(f"Looking for files in {path} matching {wildcards}")
+    logger.info(f"Looking for files in {path} matching {wildcards}")
 
     result: list[str] = []
 
@@ -81,7 +81,7 @@ def find(path: str | list[str], wildcards: list[str] = [], recusive: bool = True
 
 
 def mkdir(path: str) -> str:
-    logger.log(f"Creating directory {path}")
+    logger.info(f"Creating directory {path}")
 
     try:
         os.makedirs(path)
@@ -92,7 +92,7 @@ def mkdir(path: str) -> str:
 
 
 def rmrf(path: str) -> bool:
-    logger.log(f"Removing directory {path}")
+    logger.info(f"Removing directory {path}")
 
     if not os.path.exists(path):
         return False
@@ -111,7 +111,7 @@ def wget(url: str, path: str | None = None) -> str:
     if os.path.exists(path):
         return path
 
-    logger.log(f"Downloading {url} to {path}")
+    logger.info(f"Downloading {url} to {path}")
 
     r = requests.get(url, stream=True)
     r.raise_for_status()
@@ -125,7 +125,7 @@ def wget(url: str, path: str | None = None) -> str:
 
 
 def exec(*args: str):
-    logger.log(f"Executing {args}")
+    logger.info(f"Executing {args}")
 
     try:
         proc = subprocess.run(args)
@@ -147,7 +147,7 @@ def exec(*args: str):
 
 
 def popen(*args: str) -> str:
-    logger.log(f"Executing {args}")
+    logger.info(f"Executing {args}")
 
     try:
         proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=sys.stderr)
@@ -165,7 +165,7 @@ def popen(*args: str) -> str:
 
 
 def readdir(path: str) -> list[str]:
-    logger.log(f"Reading directory {path}")
+    logger.info(f"Reading directory {path}")
 
     try:
         return os.listdir(path)
@@ -174,13 +174,13 @@ def readdir(path: str) -> list[str]:
 
 
 def cp(src: str, dst: str):
-    logger.log(f"Copying {src} to {dst}")
+    logger.info(f"Copying {src} to {dst}")
 
     shutil.copy(src, dst)
 
 
 def cpTree(src: str, dst: str):
-    logger.log(f"Copying {src} to {dst}")
+    logger.info(f"Copying {src} to {dst}")
 
     shutil.copytree(src, dst, dirs_exist_ok=True)
 
@@ -203,7 +203,7 @@ def latest(cmd: str) -> str:
     if cmd in LATEST_CACHE:
         return LATEST_CACHE[cmd]
 
-    logger.log(f"Finding latest version of {cmd}")
+    logger.info(f"Finding latest version of {cmd}")
 
     regex = re.compile(r"^" + re.escape(cmd) + r"(-.[0-9]+)?(\.exe)?$")
 
@@ -220,7 +220,7 @@ def latest(cmd: str) -> str:
     versions.sort()
     chosen = versions[-1]
 
-    logger.log(f"Chosen {chosen} as latest version of {cmd}")
+    logger.info(f"Chosen {chosen} as latest version of {cmd}")
 
     LATEST_CACHE[cmd] = chosen
 
