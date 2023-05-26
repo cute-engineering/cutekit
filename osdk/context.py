@@ -2,13 +2,12 @@ from typing import cast, Protocol, Iterable
 from itertools import chain
 from pathlib import Path
 import os
-
+import logging
 
 from osdk.model import ProjectManifest, TargetManifest, ComponentManifest, Props, Type, Tool, Tools
-from osdk.logger import Logger
 from osdk import const, shell, jexpr, utils, rules, mixins
 
-logger = Logger("context")
+logger = logging.getLogger(__name__)
 
 
 class IContext(Protocol):
@@ -238,7 +237,7 @@ def contextFor(targetSpec: str, props: Props = {}) -> Context:
     if targetSpec in context:
         return context[targetSpec]
 
-    logger.log(f"Loading context for '{targetSpec}'")
+    logger.info(f"Loading context for '{targetSpec}'")
 
     targetEls = targetSpec.split(":")
 

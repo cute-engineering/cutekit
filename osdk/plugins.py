@@ -1,14 +1,13 @@
 import os
+import logging
 
 import importlib.util as importlib
-from osdk.logger import Logger
 from osdk.shell import readdir
 
-logger = Logger("plugins")
-
+logger = logging.getLogger(__name__)
 
 def load(path: str):
-    logger.log(f"Loading plugin {path}")
+    logger.info(f"Loading plugin {path}")
     spec = importlib.spec_from_file_location("plugin", path)
 
     if not spec or not spec.loader:
@@ -20,7 +19,7 @@ def load(path: str):
 
 
 def loadAll():
-    logger.log("Loading plugins...")
+    logger.info("Loading plugins...")
     for files in readdir(os.path.join("meta", "plugins")):
         if files.endswith(".py"):
             plugin = load(os.path.join("meta", "plugins", files))

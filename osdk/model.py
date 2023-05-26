@@ -1,12 +1,12 @@
 import os
 from enum import Enum
 from typing import Any
+import logging
 
 from osdk.jexpr import Json
-from osdk.logger import Logger
 
 
-logger = Logger("model")
+logger = logging.getLogger(__name__)
 
 Props = dict[str, Any]
 
@@ -259,13 +259,13 @@ class ComponentManifest(Manifest):
     def isEnabled(self, target: TargetManifest) -> tuple[bool, str]:
         for k, v in self.enableIf.items():
             if not k in target.props:
-                logger.log(
+                logger.info(
                     f"Component {self.id} disabled by missing {k} in target")
                 return False, f"Missing props '{k}' in target"
 
             if not target.props[k] in v:
                 vStrs = [f"'{str(x)}'" for x in v]
-                logger.log(
+                logger.info(
                     f"Component {self.id} disabled by {k}={target.props[k]} not in {v}")
                 return False, f"Props missmatch for '{k}': Got '{target.props[k]}' but expected {', '.join(vStrs)}"
 

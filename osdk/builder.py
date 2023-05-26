@@ -1,13 +1,13 @@
 import os
+import logging
 from typing import TextIO
 
 from osdk.model import Props
 from osdk.ninja import Writer
-from osdk.logger import Logger
 from osdk.context import ComponentInstance, Context, contextFor
 from osdk import shell, rules
 
-logger = Logger("builder")
+logger = logging.getLogger(__name__)
 
 
 def gen(out: TextIO, context: Context):
