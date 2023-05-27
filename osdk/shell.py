@@ -179,6 +179,12 @@ def cp(src: str, dst: str):
     shutil.copy(src, dst)
 
 
+def mv(src: str, dst: str):
+    logger.info(f"Moving {src} to {dst}")
+
+    shutil.move(src, dst)
+
+
 def cpTree(src: str, dst: str):
     logger.info(f"Copying {src} to {dst}")
 

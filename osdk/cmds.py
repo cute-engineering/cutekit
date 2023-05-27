@@ -1,9 +1,9 @@
 import os
 import json
 import logging
+import tempfile
 import requests
 
-from pyfzf.pyfzf import FzfPrompt
 from typing import Callable, cast
 
 from osdk import context, shell, const, vt100, builder, graph
@@ -211,20 +211,25 @@ cmds += [Cmd("i", "install", "Install all the external packages", installCmd)]
 
 
 def initCmd(args: Args):
-    logger.info("Fetching registry...")
-    r = requests.get('https://raw.githubusercontent.com/cute-engineering/osdk-template/main/registry.json')
+    template = args.consumeArg()
+    repo = const.DEFAULT_REPO_TEMPLATES if not "repo" in args.opts else args.opts["repo"]
+    list = "list" in args.opts
 
-    if r.status_code != 200:
-        logger.error('Failed to fetch registry')
-        exit(1)
+    if list:
+        logger.info("Fetching registry...")
+        r = requests.get(f'https://raw.githubusercontent.com/{repo}/main/registry.json')
 
-    registry = json.loads(r.text)
-    _fzf = FzfPrompt()
-
-    result = _fzf.prompt([f"{r['id']} - {r['description']}" for r in registry], "--cycle --header='Select a template:'")
-    result = result[0].split(' - ')[0].strip()
-    os.system(f'svn --quiet checkout https://github.com/cute-engineering/osdk-template/trunk/{result}')
-
+        if r.status_code != 200:
+            logger.error('Failed to fetch registry')
+            exit(1)
+        
+        print('\n'.join(f"* {entry['id']} - {entry['description']}" for entry in json.loads(r.text)))
+    else:
+        with tempfile.TemporaryDirectory() as tmp:
+            shell.exec(*["git", "clone", "-n", "--depth=1", "--filter=tree:0", f"https://github.com/{repo}", os.path.join(tmp, "osdk-repo"), "-q"])
+            shell.exec(*["git", "-C", os.path.join(tmp, "osdk-repo"), "sparse-checkout", "set", "--no-cone", template, "-q"])
+            shell.exec(*["git", "-C", os.path.join(tmp, "osdk-repo"), "checkout", "-q"])
+            shell.mv(os.path.join(tmp, "osdk-repo", template), os.path.join(".", template))
 
 cmds += [Cmd("I", "init", "Start a new project", initCmd)]
 
