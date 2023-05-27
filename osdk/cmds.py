@@ -1,13 +1,18 @@
-from typing import Callable, cast
 import os
 import json
+import logging
+import requests
 
+from pyfzf.pyfzf import FzfPrompt
+from typing import Callable, cast
+
+from osdk import context, shell, const, vt100, builder, graph
 from osdk.args import Args
 from osdk.context import contextFor
-from osdk import context, shell, const, vt100, builder, graph
 
 Callback = Callable[[Args], None]
 
+logger = logging.getLogger(__name__)
 
 class Cmd:
     shortName: str | None
@@ -206,142 +211,19 @@ cmds += [Cmd("i", "install", "Install all the external packages", installCmd)]
 
 
 def initCmd(args: Args):
-    """
-    |
-    | - project.json
-    | - src/
-    |   | - project_name/
-    |       | - main.c
-    |       | - manifest.json
-    | - meta/
-    |   | - targets/
-    |   |   | - host-*.json
-    |   | - plugins/
-    |   |   | - run.py
-    | - .gitignore
-    | - README.md
-    |
-    """
+    logger.info("Fetching registry...")
+    r = requests.get('https://raw.githubusercontent.com/cute-engineering/osdk-template/main/registry.json')
 
-    print("This utility will walk you through creating a new project.")
-    print("This only covers the most common items, and tries to give sensible defaults.")
-    print()
-    print("First, let's create a project.json file.")
+    if r.status_code != 200:
+        logger.error('Failed to fetch registry')
+        exit(1)
 
-    project_name = input("Project name: ")
-    description = input("Description: ")
+    registry = json.loads(r.text)
+    _fzf = FzfPrompt()
 
-    to_create = ["src", "meta", os.path.join(
-        "meta", "targets"), os.path.join("meta", "plugins")]
-
-    os.mkdir(project_name.lower())
-    for directory in to_create:
-        os.mkdir(os.path.join(project_name.lower(), directory))
-
-    with open(os.path.join(project_name.lower(), "project.json"), "w") as f:
-        f.write(json.dumps({
-            "$schema": "https://schemas.cute.engineering/latest/osdk.manifest.component",
-            "name": project_name,
-            "type": "project",
-            "description": description,
-            "extern": {},
-        }, indent=4))
-
-    with open(os.path.join(project_name.lower(), ".gitignore"), "w") as f:
-        f.write(".osdk\n.ninja_log\n__pycache__\n")
-
-    with open(os.path.join(project_name.lower(), "README.md"), "w") as f:
-        f.write(f"# {project_name}\n")
-        f.write("I was created using the OSDK!\n")
-        f.write(
-            "You can find more information about the OSDK in its [Repo](https://github.com/cute-engineering/osdk)."
-        )
-
-    with open(os.path.join(project_name.lower(), "src", "main.c"), "w") as f:
-        f.write("#include <stdio.h>\n\n")
-        f.write("int main(void)\n{\n")
-        f.write("    printf(\"Hello, World!\\n\");\n")
-        f.write("    return 0;\n")
-        f.write("}")
-
-    with open(os.path.join(project_name.lower(), "src", "manifest.json"), "w") as f:
-        f.write(json.dumps({
-            "$schema": "https://schemas.cute.engineering/latest/osdk.manifest.component",
-            "id": project_name.lower(),
-            "type": "exe",
-            "description": description,
-        }, indent=4))
-
-    with open(os.path.join(project_name.lower(), "meta", "plugins", "run.py"), "w") as f:
-        f.write("from osdk import builder, shell\n")
-        f.write("from osdk.args import Args\n")
-        f.write("from osdk.cmds import Cmd, append\n\n")
-        f.write("def runCmd(args: Args) -> None:\n")
-        f.write(
-            f"    {project_name.lower()} = builder.build(\"{project_name.lower()}\", \"host-{shell.uname().machine}\").outfile()\n"
-        )
-        f.write(f"    shell.exec(*[{project_name.lower()}])")
-        f.write("\n\nappend(Cmd(\"s\", \"start\", \"Run the project\", runCmd))")
-
-    with open(os.path.join(project_name.lower(), "meta", "targets", f"host-{shell.uname().machine}.json"), "w") as f:
-        f.write(json.dumps({
-            "$schema": "https://schemas.cute.engineering/latest/osdk.manifest.component",
-            "id": f"host-{shell.uname().machine}",
-            "type": "target",
-            "props": {
-                "arch": shell.uname().machine,
-                "toolchain": "clang",
-                "sys": [
-                    "@uname",
-                    "sysname"
-                ],
-                "abi": "unknown",
-                "freestanding": False,
-                "host": True,
-            },
-            "tools": {
-                "cc": {
-                    "cmd": [
-                        "@latest",
-                        "clang"
-                    ],
-                    "args": []
-                },
-                "cxx": {
-                    "cmd": [
-                        "@latest",
-                        "clang++"
-                    ],
-                    "args": []
-                },
-                "ld": {
-                    "cmd": [
-                        "@latest",
-                        "clang++"
-                    ],
-                    "args": [
-                    ]
-                },
-                "ar": {
-                    "cmd": [
-                        "@latest",
-                        "llvm-ar"
-                    ],
-                    "args": [
-                        "rcs"
-                    ]
-                },
-                "as": {
-                    "cmd": "clang",
-                    "args": [
-                        "-c"
-                    ]
-                }
-            }
-        }, indent=4))
-
-        shell.exec(*["git", "init", project_name.lower()])
-        print("Done! Don't forget to add a LICENSE ;)")
+    result = _fzf.prompt([f"{r['id']} - {r['description']}" for r in registry], "--cycle --header='Select a template:'")
+    result = result[0].split(' - ')[0].strip()
+    os.system(f'svn --quiet checkout https://github.com/cute-engineering/osdk-template/trunk/{result}')
 
 
 cmds += [Cmd("I", "init", "Start a new project", initCmd)]
