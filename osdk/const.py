@@ -1,6 +1,5 @@
 import os
 import sys
-import subprocess
 
 VERSION = "0.4.1"
 MODULE_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -12,3 +11,4 @@ EXTERN_DIR = os.path.join(OSDK_DIR, "extern")
 SRC_DIR = "src"
 META_DIR = f"meta"
 TARGETS_DIR = os.path.join(META_DIR, "targets")
+DEFAULT_REPO_TEMPLATES = "cute-engineering/osdk-template"
