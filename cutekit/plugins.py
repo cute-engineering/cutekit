@@ -1,8 +1,9 @@
 import os
 import logging
 
+from cutekit import shell, project
+
 import importlib.util as importlib
-from osdk.shell import readdir
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +21,17 @@ def load(path: str):
 
 def loadAll():
     logger.info("Loading plugins...")
-    for files in readdir(os.path.join("meta", "plugins")):
+
+    projectRoot = project.root()
+    if projectRoot is None:
+        logger.info("Not in project, skipping plugin loading")
+        return
+    
+    pluginDir = os.path.join(projectRoot, "meta/plugins")
+
+    for files in shell.readdir(pluginDir):
         if files.endswith(".py"):
-            plugin = load(os.path.join("meta", "plugins", files))
+            plugin = load(os.path.join(pluginDir, files))
 
             if plugin:
                 print(f"Loaded plugin {plugin.name}")

@@ -1,30 +1,39 @@
-# osdk
-
-The operating system development kit 
+<br/>
+<br/>
+<br/>
+<p align="center">
+    <img src="logo.png" width="200" height="200">
+</p>
+<h1 align="center">CuteKit</h1>
+<p align="center">
+    The Cute build system and package manager
+</p>
+<br/>
+<br/>
+<br/>
 
 ## Table of contents
 
-- [osdk](#osdk)
-  - [Table of contents](#table-of-contents)
-  - [Macros](#macros)
-    - [`@latest`](#latest)
-    - [`@uname`](#uname)
-    - [`@include`](#include)
-    - [`@join`](#join)
-    - [`@concat`](#concat)
-    - [`@exec`](#exec)
-  - [Manifest file format](#manifest-file-format)
-    - [`id`](#id)
-    - [`type`](#type)
-    - [`description`](#description)
-    - [`enabledIf`](#enabledif)
-    - [`requires`](#requires)
-    - [`provides`](#provides)
-  - [Target file format](#target-file-format)
-    - [`id`](#id-1)
-    - [`type`](#type-1)
-    - [`props`](#props)
-    - [`tools`](#tools)
+- [Table of contents](#table-of-contents)
+- [Macros](#macros)
+  - [`@latest`](#latest)
+  - [`@uname`](#uname)
+  - [`@include`](#include)
+  - [`@join`](#join)
+  - [`@concat`](#concat)
+  - [`@exec`](#exec)
+- [Manifest file format](#manifest-file-format)
+  - [`id`](#id)
+  - [`type`](#type)
+  - [`description`](#description)
+  - [`enabledIf`](#enabledif)
+  - [`requires`](#requires)
+  - [`provides`](#provides)
+- [Target file format](#target-file-format)
+  - [`id`](#id-1)
+  - [`type`](#type-1)
+  - [`props`](#props)
+  - [`tools`](#tools)
 
 
 ## Macros
@@ -197,7 +206,7 @@ Exemple:
 }
 ```
 
-Theses values are exposed the translation unit as `__osdk_{prop}__`.
+Theses values are exposed the translation unit as `__ck_{prop}__`.
 
 ### `tools`
 

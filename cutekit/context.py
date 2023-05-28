@@ -4,8 +4,8 @@ from pathlib import Path
 import os
 import logging
 
-from osdk.model import ProjectManifest, TargetManifest, ComponentManifest, Props, Type, Tool, Tools
-from osdk import const, shell, jexpr, utils, rules, mixins
+from cutekit.model import ProjectManifest, TargetManifest, ComponentManifest, Props, Type, Tool, Tools
+from cutekit import const, shell, jexpr, utils, rules, mixins
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +131,7 @@ def loadTarget(id: str) -> TargetManifest:
     try:
         return next(filter(lambda t: t.id == id, loadAllTargets()))
     except StopIteration:
-        raise Exception(f"Target '{id}' not found")
+        raise RuntimeError(f"Target '{id}' not found")
 
 
 def loadAllComponents() -> list[ComponentManifest]:
@@ -181,7 +181,7 @@ def resolveDeps(componentSpec: str, components: list[ComponentManifest], target:
             return False, unresolvedReason,  []
 
         if resolved in stack:
-            raise Exception(f"Dependency loop: {stack} -> {resolved}")
+            raise RuntimeError(f"Dependency loop: {stack} -> {resolved}")
 
         stack.append(resolved)
 

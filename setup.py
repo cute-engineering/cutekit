@@ -1,22 +1,23 @@
 from setuptools import setup
-from osdk.const import VERSION
+from cutekit.const import VERSION_STR, DESCRIPTION
 
 setup(
-    name="osdk",
-    version=VERSION,
+    name="cutekit",
+    version=VERSION_STR,
     python_requires='>=3.10',
-    description="Operating System Development Kit",
+    description=DESCRIPTION,
     author="Cute Engineering",
     author_email="contact@cute.engineering",
     url="https://cute.engineering/",
-    packages=["osdk"],
+    packages=["cutekit"],
     install_requires=[
         "requests",
         "graphviz"
     ],
     entry_points={
         "console_scripts": [
-            "osdk = osdk:main",
+            "ck = cutekit:main",
+            "cutekit = cutekit:main",
         ],
     },
     license="MIT",

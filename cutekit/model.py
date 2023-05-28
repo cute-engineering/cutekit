@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Any
 import logging
 
-from osdk.jexpr import Json
+from cutekit.jexpr import Json
 
 
 logger = logging.getLogger(__name__)
@@ -27,18 +27,18 @@ class Manifest:
     def __init__(self, json: Json = None, path: str = "", strict: bool = True, **kwargs: Any):
         if json is not None:
             if not "id" in json:
-                raise ValueError("Missing id")
+                raise RuntimeError("Missing id")
 
             self.id = json["id"]
 
             if not "type" in json and strict:
-                raise ValueError("Missing type")
+                raise RuntimeError("Missing type")
 
             self.type = Type(json["type"])
 
             self.path = path
         elif strict:
-            raise ValueError("Missing json")
+            raise RuntimeError("Missing json")
 
         for key in kwargs:
             setattr(self, key, kwargs[key])
@@ -67,16 +67,16 @@ class Extern:
     def __init__(self, json: Json = None, strict: bool = True, **kwargs: Any):
         if json is not None:
             if not "git" in json and strict:
-                raise ValueError("Missing git")
+                raise RuntimeError("Missing git")
 
             self.git = json["git"]
 
             if not "tag" in json and strict:
-                raise ValueError("Missing tag")
+                raise RuntimeError("Missing tag")
 
             self.tag = json["tag"]
         elif strict:
-            raise ValueError("Missing json")
+            raise RuntimeError("Missing json")
 
         for key in kwargs:
             setattr(self, key, kwargs[key])
@@ -101,14 +101,14 @@ class ProjectManifest(Manifest):
     def __init__(self, json: Json = None, path: str = "", strict: bool = True, **kwargs: Any):
         if json is not None:
             if not "description" in json and strict:
-                raise ValueError("Missing description")
+                raise RuntimeError("Missing description")
 
             self.description = json["description"]
 
             self.extern = {k: Extern(v)
                            for k, v in json.get("extern", {}).items()}
         elif strict:
-            raise ValueError("Missing json")
+            raise RuntimeError("Missing json")
 
         super().__init__(json, path, strict, **kwargs)
 
@@ -134,18 +134,18 @@ class Tool:
     def __init__(self, json: Json = None, strict: bool = True, **kwargs: Any):
         if json is not None:
             if not "cmd" in json and strict:
-                raise ValueError("Missing cmd")
+                raise RuntimeError("Missing cmd")
 
             self.cmd = json.get("cmd", self.cmd)
 
             if not "args" in json and strict:
-                raise ValueError("Missing args")
+                raise RuntimeError("Missing args")
 
             self.args = json.get("args", [])
 
             self.files = json.get("files", [])
         elif strict:
-            raise ValueError("Missing json")
+            raise RuntimeError("Missing json")
 
         for key in kwargs:
             setattr(self, key, kwargs[key])
@@ -175,12 +175,12 @@ class TargetManifest(Manifest):
     def __init__(self, json: Json = None, path: str = "", strict: bool = True, **kwargs: Any):
         if json is not None:
             if not "props" in json and strict:
-                raise ValueError("Missing props")
+                raise RuntimeError("Missing props")
 
             self.props = json["props"]
 
             if not "tools" in json and strict:
-                raise ValueError("Missing tools")
+                raise RuntimeError("Missing tools")
 
             self.tools = {k: Tool(v) for k, v in json["tools"].items()}
 
@@ -211,9 +211,9 @@ class TargetManifest(Manifest):
             macrovalue = str(prop).lower().replace(" ", "_").replace("-", "_")
             if isinstance(prop, bool):
                 if prop:
-                    defines += [f"-D__osdk_{macroname}__"]
+                    defines += [f"-D__ck_{macroname}__"]
             else:
-                defines += [f"-D__osdk_{macroname}_{macrovalue}__"]
+                defines += [f"-D__ck_{macroname}_{macrovalue}__"]
 
         return defines
 
