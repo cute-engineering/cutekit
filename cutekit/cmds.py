@@ -3,16 +3,18 @@ import json
 import logging
 import tempfile
 import requests
+import sys
 
 from typing import Callable, cast
 
-from osdk import context, shell, const, vt100, builder, graph
-from osdk.args import Args
-from osdk.context import contextFor
+from cutekit import context, shell, const, vt100, builder, graph, project
+from cutekit.args import Args
+from cutekit.context import contextFor
 
 Callback = Callable[[Args], None]
 
 logger = logging.getLogger(__name__)
+
 
 class Cmd:
     shortName: str | None
@@ -38,19 +40,21 @@ def append(cmd: Cmd):
 
 
 def runCmd(args: Args):
+    project.chdir()
+
     targetSpec = cast(str, args.consumeOpt(
         "target", "host-" + shell.uname().machine))
 
     componentSpec = args.consumeArg()
 
     if componentSpec is None:
-        raise Exception("Component not specified")
+        raise RuntimeError("Component not specified")
 
     component = builder.build(componentSpec, targetSpec)
 
-    os.environ["OSDK_TARGET"] = component.context.target.id
-    os.environ["OSDK_COMPONENT"] = component.id()
-    os.environ["OSDK_BUILDDIR"] = component.context.builddir()
+    os.environ["CK_TARGET"] = component.context.target.id
+    os.environ["CK_COMPONENT"] = component.id()
+    os.environ["CK_BUILDDIR"] = component.context.builddir()
 
     shell.exec(component.outfile(), *args.args)
 
@@ -59,6 +63,8 @@ cmds += [Cmd("r", "run", "Run the target", runCmd)]
 
 
 def testCmd(args: Args):
+    project.chdir()
+
     targetSpec = cast(str, args.consumeOpt(
         "target", "host-" + shell.uname().machine))
     builder.testAll(targetSpec)
@@ -68,19 +74,21 @@ cmds += [Cmd("t", "test", "Run all test targets", testCmd)]
 
 
 def debugCmd(args: Args):
+    project.chdir()
+
     targetSpec = cast(str, args.consumeOpt(
         "target", "host-" + shell.uname().machine))
 
     componentSpec = args.consumeArg()
 
     if componentSpec is None:
-        raise Exception("Component not specified")
+        raise RuntimeError("Component not specified")
 
     component = builder.build(componentSpec, targetSpec)
 
-    os.environ["OSDK_TARGET"] = component.context.target.id
-    os.environ["OSDK_COMPONENT"] = component.id()
-    os.environ["OSDK_BUILDDIR"] = component.context.builddir()
+    os.environ["CK_TARGET"] = component.context.target.id
+    os.environ["CK_COMPONENT"] = component.id()
+    os.environ["CK_BUILDDIR"] = component.context.builddir()
 
     shell.exec("lldb", "-o", "run", component.outfile(), *args.args)
 
@@ -89,6 +97,8 @@ cmds += [Cmd("d", "debug", "Debug the target", debugCmd)]
 
 
 def buildCmd(args: Args):
+    project.chdir()
+
     targetSpec = cast(str, args.consumeOpt(
         "target", "host-" + shell.uname().machine))
 
@@ -104,6 +114,8 @@ cmds += [Cmd("b", "build", "Build the target", buildCmd)]
 
 
 def listCmd(args: Args):
+    project.chdir()
+
     components = context.loadAllComponents()
     targets = context.loadAllTargets()
 
@@ -129,6 +141,7 @@ cmds += [Cmd("l", "list", "List the targets", listCmd)]
 
 
 def cleanCmd(args: Args):
+    project.chdir()
     shell.rmrf(const.BUILD_DIR)
 
 
@@ -136,7 +149,8 @@ cmds += [Cmd("c", "clean", "Clean the build directory", cleanCmd)]
 
 
 def nukeCmd(args: Args):
-    shell.rmrf(const.OSDK_DIR)
+    project.chdir()
+    shell.rmrf(const.PROJECT_CK_DIR)
 
 
 cmds += [Cmd("n", "nuke", "Clean the build directory and cache", nukeCmd)]
@@ -148,7 +162,7 @@ def helpCmd(args: Args):
     print()
 
     vt100.title("Description")
-    print("    Operating System Development Kit.")
+    print(f"    {const.DESCRIPTION}")
 
     print()
     vt100.title("Commands")
@@ -161,19 +175,25 @@ def helpCmd(args: Args):
             f" {vt100.GREEN}{cmd.shortName or ' '}{vt100.RESET}  {cmd.longName} - {cmd.helpText} {pluginText}")
 
     print()
+    vt100.title("Logging")
+    print(f"    Logs are stored in:")
+    print(f"     - {const.PROJECT_LOG_FILE}")
+    print(f"     - {const.GLOBAL_LOG_FILE}")
 
 
 cmds += [Cmd("h", "help", "Show this help message", helpCmd)]
 
 
 def versionCmd(args: Args):
-    print(f"OSDK v{const.VERSION}\n")
+    print(f"CuteKit v{const.VERSION_STR}\n")
 
 
 cmds += [Cmd("v", "version", "Show current version", versionCmd)]
 
 
 def graphCmd(args: Args):
+    project.chdir()
+
     targetSpec = cast(str, args.consumeOpt(
         "target", "host-" + shell.uname().machine))
 
@@ -191,10 +211,12 @@ cmds += [Cmd("g", "graph", "Show dependency graph", graphCmd)]
 
 
 def installCmd(args: Args):
-    project = context.loadProject(".")
+    project.chdir()
 
-    for extSpec in project.extern:
-        ext = project.extern[extSpec]
+    pj = context.loadProject(".")
+
+    for extSpec in pj.extern:
+        ext = pj.extern[extSpec]
 
         extPath = os.path.join(const.EXTERN_DIR, extSpec)
 
@@ -212,41 +234,54 @@ cmds += [Cmd("i", "install", "Install all the external packages", installCmd)]
 
 def initCmd(args: Args):
     template = args.consumeArg()
+
+    if template is None:
+        template = "default"
+
     repo = const.DEFAULT_REPO_TEMPLATES if not "repo" in args.opts else args.opts["repo"]
     list = "list" in args.opts
 
     if list:
         logger.info("Fetching registry...")
-        r = requests.get(f'https://raw.githubusercontent.com/{repo}/main/registry.json')
+        r = requests.get(
+            f'https://raw.githubusercontent.com/{repo}/main/registry.json')
 
         if r.status_code != 200:
             logger.error('Failed to fetch registry')
             exit(1)
-        
-        print('\n'.join(f"* {entry['id']} - {entry['description']}" for entry in json.loads(r.text)))
+
+        print('\n'.join(
+            f"* {entry['id']} - {entry['description']}" for entry in json.loads(r.text)))
     else:
         with tempfile.TemporaryDirectory() as tmp:
-            shell.exec(*["git", "clone", "-n", "--depth=1", "--filter=tree:0", f"https://github.com/{repo}", os.path.join(tmp, "osdk-repo"), "-q"])
-            shell.exec(*["git", "-C", os.path.join(tmp, "osdk-repo"), "sparse-checkout", "set", "--no-cone", template, "-q"])
-            shell.exec(*["git", "-C", os.path.join(tmp, "osdk-repo"), "checkout", "-q"])
-            shell.mv(os.path.join(tmp, "osdk-repo", template), os.path.join(".", template))
+            shell.exec(*["git", "clone", "-n", "--depth=1",
+                       "--filter=tree:0", f"https://github.com/{repo}", tmp, "-q"])
+            shell.exec(*["git", "-C", tmp, "sparse-checkout",
+                       "set", "--no-cone", template, "-q"])
+            shell.exec(*["git", "-C", tmp, "checkout", "-q"])
+            shell.mv(os.path.join(tmp, template), os.path.join(".", template))
 
-cmds += [Cmd("I", "init", "Start a new project", initCmd)]
+
+cmds += [Cmd("I", "init", "Initialize a new project", initCmd)]
 
 
 def usage():
     print(f"Usage: {const.ARGV0} <command> [args...]")
 
 
+def error(msg: str) -> None:
+    print(f"{vt100.RED}Error:{vt100.RESET} {msg}\n", file=sys.stderr)
+
+
 def exec(args: Args):
     cmd = args.consumeArg()
 
     if cmd is None:
-        raise Exception("No command specified")
+        raise RuntimeError("No command specified")
 
     for c in cmds:
         if c.shortName == cmd or c.longName == cmd:
             c.callback(args)
             return
 
-    raise Exception(f"Unknown command {cmd}")
+    raise RuntimeError(f"Unknown command {cmd}")

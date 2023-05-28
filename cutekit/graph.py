@@ -1,7 +1,7 @@
 import os
 
-from osdk.context import Context
-from osdk import vt100
+from cutekit.context import Context
+from cutekit import vt100
 
 
 def view(context: Context, scope: str | None = None, showExe: bool = True, showDisabled: bool = False):

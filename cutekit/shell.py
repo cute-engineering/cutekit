@@ -10,7 +10,7 @@ import fnmatch
 import platform
 import logging
 
-from osdk import const
+from cutekit import const
 
 logger = logging.getLogger(__name__)
 
@@ -131,16 +131,16 @@ def exec(*args: str):
         proc = subprocess.run(args)
 
     except FileNotFoundError:
-        raise Exception(f"{args[0]}: Command not found")
+        raise RuntimeError(f"{args[0]}: Command not found")
 
     except KeyboardInterrupt:
-        raise Exception(f"{args[0]}: Interrupted")
+        raise RuntimeError(f"{args[0]}: Interrupted")
 
     if proc.returncode == -signal.SIGSEGV:
-        raise Exception(f"{args[0]}: Segmentation fault")
+        raise RuntimeError(f"{args[0]}: Segmentation fault")
 
     if proc.returncode != 0:
-        raise Exception(
+        raise RuntimeError(
             f"{args[0]}: Process exited with code {proc.returncode}")
 
     return True
@@ -152,13 +152,13 @@ def popen(*args: str) -> str:
     try:
         proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=sys.stderr)
     except FileNotFoundError:
-        raise Exception(f"{args[0]}: Command not found")
+        raise RuntimeError(f"{args[0]}: Command not found")
 
     if proc.returncode == -signal.SIGSEGV:
-        raise Exception(f"{args[0]}: Segmentation fault")
+        raise RuntimeError(f"{args[0]}: Segmentation fault")
 
     if proc.returncode != 0:
-        raise Exception(
+        raise RuntimeError(
             f"{args[0]}: Process exited with code {proc.returncode}")
 
     return proc.stdout.decode('utf-8')
@@ -221,7 +221,7 @@ def latest(cmd: str) -> str:
                     versions.append(f)
 
     if len(versions) == 0:
-        raise Exception(f"{cmd} not found")
+        raise RuntimeError(f"{cmd} not found")
 
     versions.sort()
     chosen = versions[-1]

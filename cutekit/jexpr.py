@@ -1,7 +1,8 @@
 from typing import Any, cast, Callable, Final
 import json
 
-import osdk.shell as shell
+import cutekit.shell as shell
+from cutekit.compat import ensureSupportedManifest
 
 Json = Any
 Builtin = Callable[..., Json]
@@ -32,7 +33,7 @@ def eval(jexpr: Json) -> Json:
             if funcName in BUILTINS:
                 return BUILTINS[funcName](*eval(jexpr[1:]))
 
-            raise Exception(f"Unknown macro {funcName}")
+            raise RuntimeError(f"Unknown macro {funcName}")
         else:
             return list(map(eval, jexpr))
     else:
@@ -44,8 +45,10 @@ def read(path: str) -> Json:
         with open(path, "r") as f:
             return json.load(f)
     except:
-        raise Exception(f"Failed to read {path}")
+        raise RuntimeError(f"Failed to read {path}")
 
 
 def evalRead(path: str) -> Json:
-    return eval(read(path))
+    data = read(path)
+    ensureSupportedManifest(data, path)
+    return eval(data)

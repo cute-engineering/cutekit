@@ -1,5 +1,5 @@
 from typing import Callable
-from osdk.model import TargetManifest, Tools
+from cutekit.model import TargetManifest, Tools
 
 Mixin = Callable[[TargetManifest, Tools], Tools]
 

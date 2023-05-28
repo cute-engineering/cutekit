@@ -25,7 +25,7 @@ use Python.
 import textwrap
 from typing import TextIO, Union
 
-from osdk.utils import asList
+from cutekit.utils import asList
 
 
 def escapePath(word: str) -> str:

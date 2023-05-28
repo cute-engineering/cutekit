@@ -2,10 +2,10 @@ import os
 import logging
 from typing import TextIO
 
-from osdk.model import Props
-from osdk.ninja import Writer
-from osdk.context import ComponentInstance, Context, contextFor
-from osdk import shell, rules
+from cutekit.model import Props
+from cutekit.ninja import Writer
+from cutekit.context import ComponentInstance, Context, contextFor
+from cutekit import shell, rules
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ def gen(out: TextIO, context: Context):
         for obj in objects:
             r = rules.byFileIn(obj[0])
             if r is None:
-                raise Exception(f"Unknown rule for file {obj[0]}")
+                raise RuntimeError(f"Unknown rule for file {obj[0]}")
             t = target.tools[r.id]
             writer.build(obj[1], r.id,  obj[0], order_only=t.files)
 
@@ -73,10 +73,10 @@ def gen(out: TextIO, context: Context):
                 reqInstance = context.componentByName(req)
 
                 if reqInstance is None:
-                    raise Exception(f"Component {req} not found")
+                    raise RuntimeError(f"Component {req} not found")
 
                 if not reqInstance.isLib():
-                    raise Exception(f"Component {req} is not a library")
+                    raise RuntimeError(f"Component {req} is not a library")
 
                 libraries.append(reqInstance.outfile())
 
@@ -105,10 +105,10 @@ def build(componentSpec: str, targetSpec: str, props: Props = {}) -> ComponentIn
     instance = context.componentByName(componentSpec)
 
     if instance is None:
-        raise Exception(f"Component {componentSpec} not found")
+        raise RuntimeError(f"Component {componentSpec} not found")
 
     if not instance.enabled:
-        raise Exception(
+        raise RuntimeError(
             f"Component {componentSpec} is disabled: {instance.disableReason}")
 
     shell.exec(f"ninja", "-v", "-f", ninjaPath, instance.outfile())
