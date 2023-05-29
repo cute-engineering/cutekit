@@ -1,7 +1,7 @@
 import os
 import logging
 
-from cutekit import shell, project
+from cutekit import shell, project, const, context
 
 import importlib.util as importlib
 
@@ -23,16 +23,21 @@ def loadAll():
     logger.info("Loading plugins...")
 
     projectRoot = project.root()
+    pj = context.loadProject(projectRoot)
+    paths = list(map(lambda e: os.path.join(const.EXTERN_DIR, e),  pj.extern.keys())) + ["."]
+
     if projectRoot is None:
         logger.info("Not in project, skipping plugin loading")
         return
-    
-    pluginDir = os.path.join(projectRoot, "meta/plugins")
 
-    for files in shell.readdir(pluginDir):
-        if files.endswith(".py"):
-            plugin = load(os.path.join(pluginDir, files))
+    for dirname in paths:
+        pluginDir = os.path.join(projectRoot, dirname, const.META_DIR, "plugins")
 
-            if plugin:
-                print(f"Loaded plugin {plugin.name}")
-                plugin.init()
+        for files in shell.readdir(pluginDir):
+            if files.endswith(".py"):
+                plugin = load(os.path.join(pluginDir, files))
+
+                if plugin:
+                    logger.info(f"Loaded plugin {plugin.name}")
+                    plugin.init()
+
