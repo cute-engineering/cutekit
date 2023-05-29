@@ -241,7 +241,7 @@ def initCmd(args: Args):
     template = args.consumeArg()
 
     if template is None:
-        template = "default"
+        raise RuntimeError("No template was provided")
 
     repo = const.DEFAULT_REPO_TEMPLATES if not "repo" in args.opts else args.opts["repo"]
     list = "list" in args.opts
