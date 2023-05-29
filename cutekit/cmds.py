@@ -9,6 +9,7 @@ from typing import Callable, cast
 
 from cutekit import context, shell, const, vt100, builder, graph, project
 from cutekit.args import Args
+from cutekit.model import Extern
 from cutekit.context import contextFor
 
 Callback = Callable[[Args], None]
@@ -210,14 +211,8 @@ def graphCmd(args: Args):
 cmds += [Cmd("g", "graph", "Show dependency graph", graphCmd)]
 
 
-def installCmd(args: Args):
-    project.chdir()
-
-    pj = context.loadProject(".")
-
-    for extSpec in pj.extern:
-        ext = pj.extern[extSpec]
-
+def grabExtern(extern: dict[str, Extern]):
+    for extSpec, ext in extern.items():
         extPath = os.path.join(const.EXTERN_DIR, extSpec)
 
         if os.path.exists(extPath):
@@ -227,6 +222,16 @@ def installCmd(args: Args):
         print(f"Installing {extSpec}-{ext.tag} from {ext.git}...")
         shell.popen("git", "clone", "--depth", "1", "--branch",
                     ext.tag, ext.git, extPath)
+        
+        if os.path.exists(os.path.join(extPath, "project.json")):
+            grabExtern(context.loadProject(extPath).extern)
+
+
+def installCmd(args: Args):
+    project.chdir()
+
+    pj = context.loadProject(".")
+    grabExtern(pj.extern)
 
 
 cmds += [Cmd("i", "install", "Install all the external packages", installCmd)]
