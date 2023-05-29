@@ -5,7 +5,7 @@ import os
 import logging
 
 from cutekit.model import ProjectManifest, TargetManifest, ComponentManifest, Props, Type, Tool, Tools
-from cutekit import const, shell, jexpr, utils, rules, mixins
+from cutekit import const, shell, jexpr, utils, rules, mixins, project
 
 logger = logging.getLogger(__name__)
 
@@ -117,9 +117,18 @@ class Context(IContext):
 
 
 def loadAllTargets() -> list[TargetManifest]:
-    files = shell.find(const.TARGETS_DIR, ["*.json"])
-    return list(
-        map(lambda path: TargetManifest(jexpr.evalRead(path), path), files))
+    projectRoot = project.root()
+    pj = loadProject(projectRoot)
+    paths = list(
+        map(lambda e: os.path.join(const.EXTERN_DIR, e, const.TARGETS_DIR),  pj.extern.keys())
+    ) + [const.TARGETS_DIR]
+
+    ret = []
+    for entry in paths:
+        files = shell.find(entry, ["*.json"])
+        ret += list(map(lambda path: TargetManifest(jexpr.evalRead(path), path), files))
+
+    return ret
 
 
 def loadProject(path: str) -> ProjectManifest:
