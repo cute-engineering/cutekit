@@ -1,5 +1,4 @@
 import os
-import json
 import logging
 import tempfile
 import requests
@@ -246,18 +245,23 @@ def initCmd(args: Args):
     repo = const.DEFAULT_REPO_TEMPLATES if not "repo" in args.opts else args.opts["repo"]
     list = "list" in args.opts
 
+    logger.info("Fetching registry...")
+    r = requests.get(
+        f'https://raw.githubusercontent.com/{repo}/main/registry.json')
+
+    if r.status_code != 200:
+        logger.error('Failed to fetch registry')
+        exit(1)
+
+    registry = r.json()
+
     if list:
-        logger.info("Fetching registry...")
-        r = requests.get(
-            f'https://raw.githubusercontent.com/{repo}/main/registry.json')
-
-        if r.status_code != 200:
-            logger.error('Failed to fetch registry')
-            exit(1)
-
         print('\n'.join(
-            f"* {entry['id']} - {entry['description']}" for entry in json.loads(r.text)))
+            f"* {entry['id']} - {entry['description']}" for entry in registry))
     else:
+        if not any(filter(lambda t: t['id'] == template, registry)):
+            raise RuntimeError(f"Unknown template {template}")
+        
         with tempfile.TemporaryDirectory() as tmp:
             shell.exec(*["git", "clone", "-n", "--depth=1",
                        "--filter=tree:0", f"https://github.com/{repo}", tmp, "-q"])
