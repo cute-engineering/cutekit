@@ -118,6 +118,9 @@ class Context(IContext):
 
 def loadAllTargets() -> list[TargetManifest]:
     projectRoot = project.root()
+    if projectRoot is None:
+        return []
+    
     pj = loadProject(projectRoot)
     paths = list(
         map(lambda e: os.path.join(const.EXTERN_DIR, e, const.TARGETS_DIR),  pj.extern.keys())
