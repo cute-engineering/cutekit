@@ -23,12 +23,13 @@ def loadAll():
     logger.info("Loading plugins...")
 
     projectRoot = project.root()
-    pj = context.loadProject(projectRoot)
-    paths = list(map(lambda e: os.path.join(const.EXTERN_DIR, e),  pj.extern.keys())) + ["."]
-
+    
     if projectRoot is None:
         logger.info("Not in project, skipping plugin loading")
         return
+    
+    pj = context.loadProject(projectRoot)
+    paths = list(map(lambda e: os.path.join(const.EXTERN_DIR, e),  pj.extern.keys())) + ["."]
 
     for dirname in paths:
         pluginDir = os.path.join(projectRoot, dirname, const.META_DIR, "plugins")
