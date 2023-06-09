@@ -1,3 +1,4 @@
+import os
 from typing import Any, TypeVar, cast, Optional, Union
 import json
 import hashlib
@@ -56,3 +57,7 @@ def asList(i: Optional[Union[T, list[T]]]) -> list[T]:
     if isinstance(i, list):
         return cast(list[T], i)
     return [i]
+
+
+def isNewer(path1: str, path2: str) -> bool:
+    return not os.path.exists(path2) or os.path.getmtime(path1) > os.path.getmtime(path2)
