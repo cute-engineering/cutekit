@@ -20,7 +20,7 @@ class Args:
                 del self.opts[key]
         return result
 
-    def consumeOpt(self, key: str, default: Value) -> Value:
+    def consumeOpt(self, key: str, default: Value = False) -> Value:
         if key in self.opts:
             result = self.opts[key]
             del self.opts[key]
@@ -34,9 +34,9 @@ class Args:
             return result
         return None
 
-    def consumeArg(self) -> Optional[str]:
+    def consumeArg(self, default: Optional[str] = None) -> Optional[str]:
         if len(self.args) == 0:
-            return None
+            return default
 
         first = self.args[0]
         del self.args[0]

@@ -1,6 +1,5 @@
 import os
 import logging
-import tempfile
 import requests
 import sys
 
@@ -220,8 +219,7 @@ def grabExtern(extern: dict[str, Extern]):
             continue
 
         print(f"Installing {extSpec}-{ext.tag} from {ext.git}...")
-        shell.popen("git", "clone", "--depth", "1", "--branch",
-                    ext.tag, ext.git, extPath)
+        git.Repo.clone_from(ext.git, extPath, branch=ext.tag, depth=1)
 
         if os.path.exists(os.path.join(extPath, "project.json")):
             grabExtern(context.loadProject(extPath).extern)
@@ -238,13 +236,11 @@ cmds += [Cmd("i", "install", "Install all the external packages", installCmd)]
 
 
 def initCmd(args: Args):
+    repo = args.consumeOpt('repo', const.DEFAULT_REPO_TEMPLATES)
+    list = args.consumeOpt('list')
+
     template = args.consumeArg()
-
-    if template is None:
-        raise RuntimeError("No template was provided")
-
-    repo = const.DEFAULT_REPO_TEMPLATES if not "repo" in args.opts else args.opts["repo"]
-    list = "list" in args.opts
+    name = args.consumeArg()
 
     logger.info("Fetching registry...")
     r = requests.get(
@@ -257,20 +253,35 @@ def initCmd(args: Args):
     registry = r.json()
 
     if list:
-        print('\n'.join(
-            f"* {entry['id']} - {entry['description']}" for entry in registry))
-    else:
-        template_match: Callable[[Json], str] = lambda t: t['id'] == template
-        if not any(filter(template_match, registry)):
-            raise RuntimeError(f"Unknown template {template}")
+        logger.info("Fetching registry...")
+        r = requests.get(
+            f'https://raw.githubusercontent.com/{repo}/main/registry.json')
 
-        with tempfile.TemporaryDirectory() as tmp:
-            shell.exec(*["git", "clone", "-n", "--depth=1",
-                       "--filter=tree:0", f"https://github.com/{repo}", tmp, "-q"])
-            shell.exec(*["git", "-C", tmp, "sparse-checkout",
-                       "set", "--no-cone", template, "-q"])
-            shell.exec(*["git", "-C", tmp, "checkout", "-q"])
-            shell.mv(os.path.join(tmp, template), os.path.join(".", template))
+        if r.status_code != 200:
+            raise RuntimeError('Failed to fetch registry')
+
+        print('\n'.join(
+            f"* {entry['id']} - {entry['description']}" for entry in json.loads(r.text)))
+        return
+
+    if not template:
+        raise RuntimeError('Template not specified')
+
+    if not name:
+        raise RuntimeError('Name not specified')
+
+    if os.path.exists(name):
+        raise RuntimeError(f"Directory {name} already exists")
+
+    print(f"Creating project {name} from template {template}...")
+    shell.cloneDir(f"https://github.com/{repo}", template, name)
+    print(f"Project {name} created\n")
+
+    print("We suggest that you begin by typing:")
+    print(f"  {vt100.GREEN}cd {name}{vt100.RESET}")
+    print(f"  {vt100.GREEN}cutekit install{vt100.BRIGHT_BLACK} # Install external packages{vt100.RESET}")
+    print(
+        f"  {vt100.GREEN}cutekit build{vt100.BRIGHT_BLACK}  # Build the project{vt100.RESET}")
 
 
 cmds += [Cmd("I", "init", "Initialize a new project", initCmd)]

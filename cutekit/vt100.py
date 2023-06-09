@@ -1,19 +1,22 @@
-BLACK = "\033[0;30m"
-RED = "\033[0;31m"
-GREEN = "\033[0;32m"
-BROWN = "\033[0;33m"
-BLUE = "\033[0;34m"
-PURPLE = "\033[0;35m"
-CYAN = "\033[0;36m"
-LIGHT_GRAY = "\033[0;37m"
-DARK_GRAY = "\033[1;30m"
-LIGHT_RED = "\033[1;31m"
-LIGHT_GREEN = "\033[1;32m"
-YELLOW = "\033[1;33m"
-LIGHT_BLUE = "\033[1;34m"
-LIGHT_PURPLE = "\033[1;35m"
-LIGHT_CYAN = "\033[1;36m"
-LIGHT_WHITE = "\033[1;37m"
+BLACK = "\033[30m"
+RED = "\033[31m"
+GREEN = "\033[32m"
+BROWN = "\033[33m"
+BLUE = "\033[34m"
+PURPLE = "\033[35m"
+CYAN = "\033[36m"
+WHITE = "\033[37m"
+
+
+BRIGHT_BLACK = "\033[90m"
+BRIGHT_RED = "\033[91m"
+BRIGHT_GREEN = "\033[92m"
+BRIGHT_BROWN = "\033[93m"
+BRIGHT_BLUE = "\033[94m"
+BRIGHT_PURPLE = "\033[95m"
+BRIGHT_CYAN = "\033[96m"
+BRIGHT_WHITE = "\033[97m"
+
 BOLD = "\033[1m"
 FAINT = "\033[2m"
 ITALIC = "\033[3m"
@@ -25,7 +28,7 @@ RESET = "\033[0m"
 
 
 def title(text: str):
-    print(f"{LIGHT_WHITE}{text}{RESET}:")
+    print(f"{BOLD}{text}{RESET}:")
 
 
 def wordwrap(text: str, width: int = 60, newline: str = "\n") -> str:

@@ -9,6 +9,8 @@ import shutil
 import fnmatch
 import platform
 import logging
+import tempfile
+
 
 from typing import Optional
 from cutekit import const
@@ -125,11 +127,18 @@ def wget(url: str, path: Optional[str] = None) -> str:
     return path
 
 
-def exec(*args: str):
+def exec(*args: str, quiet: bool = False) -> bool:
     logger.info(f"Executing {args}")
 
     try:
-        proc = subprocess.run(args)
+        proc = subprocess.run(
+            args, stdout=sys.stdout if not quiet else subprocess.PIPE, stderr=sys.stderr if not quiet else subprocess.PIPE)
+
+        if proc.stdout:
+            logger.info(proc.stdout.decode('utf-8'))
+
+        if proc.stderr:
+            logger.error(proc.stderr.decode('utf-8'))
 
     except FileNotFoundError:
         raise RuntimeError(f"{args[0]}: Command not found")
@@ -190,6 +199,19 @@ def cpTree(src: str, dst: str):
     logger.info(f"Copying {src} to {dst}")
 
     shutil.copytree(src, dst, dirs_exist_ok=True)
+
+
+def cloneDir(url: str, path: str, dest: str) -> str:
+    with tempfile.TemporaryDirectory() as tmp:
+        mkdir(tmp)
+        exec(*["git", "clone", "-n", "--depth=1",
+               "--filter=tree:0", url, tmp, "-q"], quiet=True)
+        exec(*["git", "-C", tmp, "sparse-checkout",
+               "set", "--no-cone", path, "-q"], quiet=True)
+        exec(*["git", "-C", tmp, "checkout", "-q", "--no-progress"], quiet=True)
+        mv(os.path.join(tmp, path), dest)
+
+    return dest
 
 
 LATEST_CACHE: dict[str, str] = {}
