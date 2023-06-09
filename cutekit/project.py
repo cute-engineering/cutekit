@@ -1,6 +1,8 @@
 import os
+from typing import Optional
 
-def root() -> str | None:
+
+def root() -> Optional[str]:
     cwd = os.getcwd()
     while cwd != "/":
         if os.path.isfile(os.path.join(cwd, "project.json")):
@@ -12,6 +14,7 @@ def root() -> str | None:
 def chdir() -> None:
     projectRoot = root()
     if projectRoot is None:
-        raise RuntimeError("No project.json found in this directory or any parent directory")
-    
+        raise RuntimeError(
+            "No project.json found in this directory or any parent directory")
+
     os.chdir(projectRoot)

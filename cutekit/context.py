@@ -1,4 +1,4 @@
-from typing import cast, Protocol, Iterable
+from typing import cast, Optional, Protocol, Iterable
 from itertools import chain
 from pathlib import Path
 import os
@@ -95,7 +95,7 @@ class Context(IContext):
         self.instances = instances
         self.tools = tools
 
-    def componentByName(self, name: str) -> ComponentInstance | None:
+    def componentByName(self, name: str) -> Optional[ComponentInstance]:
         result = list(filter(lambda x: x.manifest.id == name, self.instances))
         if len(result) == 0:
             return None
@@ -120,10 +120,11 @@ def loadAllTargets() -> list[TargetManifest]:
     projectRoot = project.root()
     if projectRoot is None:
         return []
-    
+
     pj = loadProject(projectRoot)
     paths = list(
-        map(lambda e: os.path.join(const.EXTERN_DIR, e, const.TARGETS_DIR),  pj.extern.keys())
+        map(lambda e: os.path.join(const.EXTERN_DIR,
+            e, const.TARGETS_DIR),  pj.extern.keys())
     ) + [const.TARGETS_DIR]
 
     ret = []
@@ -161,7 +162,7 @@ def filterDisabled(components: list[ComponentManifest], target: TargetManifest) 
         list(filter(lambda c: not c.isEnabled(target)[0], components))
 
 
-def providerFor(what: str, components: list[ComponentManifest]) -> tuple[str | None, str]:
+def providerFor(what: str, components: list[ComponentManifest]) -> tuple[Optional[str], str]:
     result: list[ComponentManifest] = list(
         filter(lambda c: c.id == what, components))
 
@@ -217,7 +218,7 @@ def resolveDeps(componentSpec: str, components: list[ComponentManifest], target:
     return enabled, unresolvedReason, resolved
 
 
-def instanciate(componentSpec: str, components: list[ComponentManifest], target: TargetManifest) -> ComponentInstance | None:
+def instanciate(componentSpec: str, components: list[ComponentManifest], target: TargetManifest) -> Optional[ComponentInstance]:
     manifest = next(filter(lambda c: c.id == componentSpec, components))
     wildcards = set(
         chain(*map(lambda rule: rule.fileIn, rules.rules.values())))

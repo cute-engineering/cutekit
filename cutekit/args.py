@@ -1,4 +1,7 @@
-Value = str | bool | int
+from typing import Optional, Union
+
+
+Value = Union[str, bool, int]
 
 
 class Args:
@@ -24,14 +27,14 @@ class Args:
             return result
         return default
 
-    def tryConsumeOpt(self, key: str) -> Value | None:
+    def tryConsumeOpt(self, key: str) -> Optional[Value]:
         if key in self.opts:
             result = self.opts[key]
             del self.opts[key]
             return result
         return None
 
-    def consumeArg(self) -> str | None:
+    def consumeArg(self) -> Optional[str]:
         if len(self.args) == 0:
             return None
 
