@@ -1,10 +1,11 @@
 import os
 
+from typing import Optional
 from cutekit.context import Context
 from cutekit import vt100
 
 
-def view(context: Context, scope: str | None = None, showExe: bool = True, showDisabled: bool = False):
+def view(context: Context, scope: Optional[str] = None, showExe: bool = True, showDisabled: bool = False):
     from graphviz import Digraph
 
     g = Digraph(context.target.id, filename='graph.gv')

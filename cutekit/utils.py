@@ -1,4 +1,4 @@
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar, cast, Optional, Union
 import json
 import hashlib
 
@@ -14,7 +14,7 @@ def uniq(l: list[str]) -> list[str]:
     return result
 
 
-def hash(obj: Any, keys: list[str] = [], cls: type[json.JSONEncoder] | None = None) -> str:
+def hash(obj: Any, keys: list[str] = [], cls: Optional[type[json.JSONEncoder]] = None) -> str:
     toHash = {}
     if len(keys) == 0:
         toHash = obj
@@ -50,7 +50,7 @@ def key(obj: Any, keys: list[str] = []) -> str:
     return "-".join(k)
 
 
-def asList(i: T | list[T] | None) -> list[T]:
+def asList(i: Optional[Union[T, list[T]]]) -> list[T]:
     if i is None:
         return []
     if isinstance(i, list):

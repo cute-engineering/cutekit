@@ -14,11 +14,11 @@ BUILTINS: Final[dict[str, Builtin]] = {
     "evalRead": lambda arg, ctx: evalRead(arg),
     "join": lambda lhs, rhs, ctx: cast(Json, {**lhs, **rhs} if isinstance(lhs, dict) else lhs + rhs),
     "concat": lambda *args, ctx: "".join(args),
-    "eval": lambda arg, ctx: eval(arg),
+    "eval": lambda arg, ctx: eval(arg, ctx["filepath"]),
     "read": lambda arg, ctx: read(arg),
     "exec": lambda *args, ctx: shell.popen(*args).splitlines(),
     "latest": lambda arg, ctx: shell.latest(arg),
-    "abspath": lambda *args, ctx: os.path.normpath(os.path.join(os.path.dirname(ctx["filepath"]), *args)) 
+    "abspath": lambda *args, ctx: os.path.normpath(os.path.join(os.path.dirname(ctx["filepath"]), *args))
 }
 
 

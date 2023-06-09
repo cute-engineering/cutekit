@@ -4,10 +4,11 @@ import tempfile
 import requests
 import sys
 
-from typing import Callable, cast
+from typing import Callable, cast, Optional, NoReturn
 
 from cutekit import context, shell, const, vt100, builder, graph, project
 from cutekit.args import Args
+from cutekit.jexpr import Json
 from cutekit.model import Extern
 from cutekit.context import contextFor
 
@@ -17,13 +18,13 @@ logger = logging.getLogger(__name__)
 
 
 class Cmd:
-    shortName: str | None
+    shortName: Optional[str]
     longName: str
     helpText: str
-    callback: Callable[[Args], None]
+    callback: Callable[[Args], NoReturn]
     isPlugin: bool = False
 
-    def __init__(self, shortName: str | None, longName: str, helpText: str, callback: Callable[[Args], None]):
+    def __init__(self, shortName: Optional[str], longName: str, helpText: str, callback: Callable[[Args], NoReturn]):
         self.shortName = shortName
         self.longName = longName
         self.helpText = helpText
@@ -197,7 +198,7 @@ def graphCmd(args: Args):
     targetSpec = cast(str, args.consumeOpt(
         "target", "host-" + shell.uname().machine))
 
-    scope: str | None = cast(str | None, args.tryConsumeOpt("scope"))
+    scope: Optional[str] = cast(Optional[str], args.tryConsumeOpt("scope"))
     onlyLibs: bool = args.consumeOpt("only-libs", False) == True
     showDisabled: bool = args.consumeOpt("show-disabled", False) == True
 
@@ -221,7 +222,7 @@ def grabExtern(extern: dict[str, Extern]):
         print(f"Installing {extSpec}-{ext.tag} from {ext.git}...")
         shell.popen("git", "clone", "--depth", "1", "--branch",
                     ext.tag, ext.git, extPath)
-        
+
         if os.path.exists(os.path.join(extPath, "project.json")):
             grabExtern(context.loadProject(extPath).extern)
 
@@ -259,9 +260,10 @@ def initCmd(args: Args):
         print('\n'.join(
             f"* {entry['id']} - {entry['description']}" for entry in registry))
     else:
-        if not any(filter(lambda t: t['id'] == template, registry)):
+        template_match: Callable[[Json], str] = lambda t: t['id'] == template
+        if not any(filter(template_match, registry)):
             raise RuntimeError(f"Unknown template {template}")
-        
+
         with tempfile.TemporaryDirectory() as tmp:
             shell.exec(*["git", "clone", "-n", "--depth=1",
                        "--filter=tree:0", f"https://github.com/{repo}", tmp, "-q"])

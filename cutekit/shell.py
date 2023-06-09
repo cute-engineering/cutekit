@@ -10,6 +10,7 @@ import fnmatch
 import platform
 import logging
 
+from typing import Optional
 from cutekit import const
 
 logger = logging.getLogger(__name__)
@@ -100,7 +101,7 @@ def rmrf(path: str) -> bool:
     return True
 
 
-def wget(url: str, path: str | None = None) -> str:
+def wget(url: str, path: Optional[str] = None) -> str:
     import requests
 
     if path is None:
