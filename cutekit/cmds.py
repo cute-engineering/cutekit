@@ -253,22 +253,20 @@ def initCmd(args: Args):
     registry = r.json()
 
     if list:
-        logger.info("Fetching registry...")
-        r = requests.get(
-            f'https://raw.githubusercontent.com/{repo}/main/registry.json')
-
-        if r.status_code != 200:
-            raise RuntimeError('Failed to fetch registry')
-
         print('\n'.join(
-            f"* {entry['id']} - {entry['description']}" for entry in json.loads(r.text)))
+            f"* {entry['id']} - {entry['description']}" for entry in registry))
         return
 
     if not template:
         raise RuntimeError('Template not specified')
+   
+    template_match: Callable[[Json], str] = lambda t: t['id'] == template
+    if not any(filter(template_match, registry)):
+        raise LookupError(f"Couldn't find a template named {template}")
 
     if not name:
-        raise RuntimeError('Name not specified')
+        logger.info(f"No name was provided, defaulting to {template}")
+        name = template
 
     if os.path.exists(name):
         raise RuntimeError(f"Directory {name} already exists")
