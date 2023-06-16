@@ -219,7 +219,8 @@ def grabExtern(extern: dict[str, Extern]):
             continue
 
         print(f"Installing {extSpec}-{ext.tag} from {ext.git}...")
-        git.Repo.clone_from(ext.git, extPath, branch=ext.tag, depth=1)
+        shell.popen("git", "clone", "--depth", "1", "--branch",
+                    ext.tag, ext.git, extPath)
 
         if os.path.exists(os.path.join(extPath, "project.json")):
             grabExtern(context.loadProject(extPath).extern)
@@ -259,7 +260,7 @@ def initCmd(args: Args):
 
     if not template:
         raise RuntimeError('Template not specified')
-   
+
     template_match: Callable[[Json], str] = lambda t: t['id'] == template
     if not any(filter(template_match, registry)):
         raise LookupError(f"Couldn't find a template named {template}")
