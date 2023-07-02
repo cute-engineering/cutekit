@@ -18,6 +18,7 @@ setup(
         "console_scripts": [
             "ck = cutekit:main",
             "cutekit = cutekit:main",
+            "cute-engineering-cutekit = cutekit:main",
         ],
     },
     license="MIT",
