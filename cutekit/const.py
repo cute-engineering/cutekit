@@ -1,7 +1,7 @@
 import os
 import sys
 
-VERSION = (0, 5, 0, "dev")
+VERSION = (0, 5, 0, "stable")
 VERSION_STR = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}{'-' + VERSION[3] if VERSION[3] else ''}"
 MODULE_DIR = os.path.dirname(os.path.realpath(__file__))
 ARGV0 = os.path.basename(sys.argv[0])
