@@ -234,7 +234,12 @@ def latest(cmd: str) -> str:
 
     logger.info(f"Finding latest version of {cmd}")
 
-    regex = re.compile(r"^" + re.escape(cmd) + r"(-.[0-9]+)?(\.exe)?$")
+    regex: re.Pattern[str]
+
+    if platform.system() == "Windows":
+        regex = re.compile(r"^" + re.escape(cmd) + r"(-.[0-9]+)?(\.exe)?$")
+    else:
+        regex = re.compile(r"^" + re.escape(cmd) + r"(-[0-9]+)?$")
 
     versions: list[str] = []
     for path in os.environ["PATH"].split(os.pathsep):
