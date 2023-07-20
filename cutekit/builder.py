@@ -111,7 +111,7 @@ def build(componentSpec: str, targetSpec: str, props: Props = {}) -> ComponentIn
         raise RuntimeError(
             f"Component {componentSpec} is disabled: {instance.disableReason}")
 
-    shell.exec(f"ninja", "-v", "-f", ninjaPath, instance.outfile())
+    shell.exec(f"ninja", "-f", ninjaPath, instance.outfile())
 
     return instance
 
