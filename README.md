@@ -30,6 +30,21 @@
 - ✨ It's **easy**: the [**templates**](./doc/templates.md) help the user quick-start a project.
 - ✨ It's **portable**: Cutekit can run on MacOS Gnu/Linux and Windows.
 
+## Installation 
+
+To install Cutekit, you may use your favourite package manager if it is available. Or you can install it manually by following the instructions below.
+
+```bash
+$ git clone https://github.com/cute-engineering/cutekit
+
+$ cd cutekit
+
+# If you want to use the latest version of Cutekit, you can switch to the dev branch.
+# $ git switch dev
+
+$ pip install --user -e .
+```
+
 ## Quick-start 
 
 -> If you directly want to start using Cutekit for a new project, you can just run `$ ck I host` and it will create a new project in the host directory (you can rename it later). 
