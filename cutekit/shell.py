@@ -254,3 +254,10 @@ def latest(cmd: str) -> str:
     LATEST_CACHE[cmd] = chosen
 
     return chosen
+
+
+def which(cmd: str) -> str | None:
+    """
+    Find the path of a command
+    """
+    return shutil.which(cmd)
