@@ -1,6 +1,5 @@
 import os
 import logging
-import requests
 import sys
 
 from typing import Callable, cast, Optional, NoReturn
@@ -237,6 +236,8 @@ cmds += [Cmd("i", "install", "Install all the external packages", installCmd)]
 
 
 def initCmd(args: Args):
+    import requests
+
     repo = args.consumeOpt('repo', const.DEFAULT_REPO_TEMPLATES)
     list = args.consumeOpt('list')
 
