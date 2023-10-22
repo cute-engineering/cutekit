@@ -1,5 +1,6 @@
 [build-system]
 requires = ["setuptools ~= 68.0"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "cutekit"
@@ -16,10 +17,16 @@ license = { text = "MIT" }
 dependencies = ["requests ~= 2.28.0", "graphviz ~= 0.20.1"]
 dynamic = ["version"]
 
-[tool.setuptools.dynamic]
-version = { attr = "cutekit.const.VERSION" }
-
 [project.scripts]
 ck = "cutekit:main"
 cutekit = "cutekit:main"
 cute-engineering-cutekit = "cutekit:main"
+
+[tool.setuptools]
+packages = ["cutekit"]
+
+[tool.setuptools.dynamic]
+version = { attr = "cutekit.const.VERSION" }
+
+[tool.setuptools.package-data]
+"cutekit" = ["py.typed"]
