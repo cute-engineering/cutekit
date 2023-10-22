@@ -14,9 +14,10 @@ class Args:
 
     def consumePrefix(self, prefix: str) -> dict[str, Value]:
         result: dict[str, Value] = {}
-        for key, value in self.opts.items():
+        copy = self.opts.copy()
+        for key, value in copy.items():
             if key.startswith(prefix):
-                result[key[len(prefix):]] = value
+                result[key[len(prefix) :]] = value
                 del self.opts[key]
         return result
 

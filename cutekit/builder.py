@@ -21,8 +21,7 @@ def gen(out: TextIO, context: Context):
 
     writer.separator("Tools")
 
-    writer.variable("cincs", " ".join(
-        map(lambda i: f"-I{i}", context.cincls())))
+    writer.variable("cincs", " ".join(map(lambda i: f"-I{i}", context.cincls())))
 
     writer.variable("cdefs", " ".join(context.cdefs()))
 
@@ -35,10 +34,12 @@ def gen(out: TextIO, context: Context):
         tool = target.tools[i]
         rule = rules.rules[i]
         writer.variable(i, tool.cmd)
-        writer.variable(
-            i + "flags", " ".join(rule.args + tool.args))
+        writer.variable(i + "flags", " ".join(rule.args + tool.args))
         writer.rule(
-            i, f"{tool.cmd} {rule.rule.replace('$flags',f'${i}flags')}", depfile=rule.deps)
+            i,
+            f"{tool.cmd} {rule.rule.replace('$flags',f'${i}flags')}",
+            depfile=rule.deps,
+        )
         writer.newline()
 
     writer.separator("Components")
@@ -56,7 +57,7 @@ def gen(out: TextIO, context: Context):
             if r is None:
                 raise RuntimeError(f"Unknown rule for file {obj[0]}")
             t = target.tools[r.id]
-            writer.build(obj[1], r.id,  obj[0], order_only=t.files)
+            writer.build(obj[1], r.id, obj[0], order_only=t.files)
 
         for asset in assets:
             writer.build(asset[1], "cp", asset[0])
@@ -64,8 +65,12 @@ def gen(out: TextIO, context: Context):
         writer.newline()
 
         if instance.isLib():
-            writer.build(instance.outfile(), "ar",
-                         list(map(lambda o: o[1], objects)), implicit=list(map(lambda o: o[1], assets)))
+            writer.build(
+                instance.outfile(),
+                "ar",
+                list(map(lambda o: o[1], objects)),
+                implicit=list(map(lambda o: o[1], assets)),
+            )
         else:
             libraries: list[str] = []
 
@@ -80,8 +85,12 @@ def gen(out: TextIO, context: Context):
 
                 libraries.append(reqInstance.outfile())
 
-            writer.build(instance.outfile(), "ld", list(
-                map(lambda o: o[1], objects)) + libraries, implicit=list(map(lambda o: o[1], assets)))
+            writer.build(
+                instance.outfile(),
+                "ld",
+                list(map(lambda o: o[1], objects)) + libraries,
+                implicit=list(map(lambda o: o[1], assets)),
+            )
 
             all.append(instance.outfile())
 
@@ -109,9 +118,10 @@ def build(componentSpec: str, targetSpec: str, props: Props = {}) -> ComponentIn
 
     if not instance.enabled:
         raise RuntimeError(
-            f"Component {componentSpec} is disabled: {instance.disableReason}")
+            f"Component {componentSpec} is disabled: {instance.disableReason}"
+        )
 
-    shell.exec(f"ninja", "-f", ninjaPath, instance.outfile())
+    shell.exec("ninja", "-f", ninjaPath, instance.outfile())
 
     return instance
 
@@ -127,8 +137,8 @@ class Paths:
         self.obj = obj
 
 
-def buildAll(targetSpec: str) -> Context:
-    context = contextFor(targetSpec)
+def buildAll(targetSpec: str, props: Props = {}) -> Context:
+    context = contextFor(targetSpec, props)
 
     shell.mkdir(context.builddir())
     ninjaPath = os.path.join(context.builddir(), "build.ninja")
@@ -136,7 +146,7 @@ def buildAll(targetSpec: str) -> Context:
     with open(ninjaPath, "w") as f:
         gen(f, context)
 
-    shell.exec(f"ninja", "-v", "-f", ninjaPath)
+    shell.exec("ninja", "-v", "-f", ninjaPath)
 
     return context
 
@@ -150,7 +160,7 @@ def testAll(targetSpec: str):
     with open(ninjaPath, "w") as f:
         gen(f, context)
 
-    shell.exec(f"ninja", "-v", "-f", ninjaPath, "all")
+    shell.exec("ninja", "-v", "-f", ninjaPath, "all")
 
     for instance in context.enabledInstances():
         if instance.isLib():

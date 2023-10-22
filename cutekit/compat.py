@@ -21,13 +21,13 @@ UNSUPORTED_MANIFEST = {
 
 
 def ensureSupportedManifest(manifest: Any, path: str):
-    if not "$schema" in manifest:
+    if "$schema" not in manifest:
         raise RuntimeError(f"Missing $schema in {path}")
 
     if manifest["$schema"] in UNSUPORTED_MANIFEST:
         raise RuntimeError(
             f"Unsupported manifest schema {manifest['$schema']} in {path}: {UNSUPORTED_MANIFEST[manifest['$schema']]}")
 
-    if not manifest["$schema"] in SUPPORTED_MANIFEST:
+    if manifest["$schema"] not in SUPPORTED_MANIFEST:
         raise RuntimeError(
             f"Unsupported manifest schema {manifest['$schema']} in {path}")

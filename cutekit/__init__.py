@@ -27,14 +27,14 @@ def setupLogger(verbose: bool):
             level=logging.INFO,
             filename=logFile,
             filemode="w",
-            format=f"%(asctime)s %(levelname)s %(name)s: %(message)s",
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
 
 def main() -> int:
     try:
         a = parse(sys.argv[1:])
-        setupLogger(a.consumeOpt("verbose", False) == True)
+        setupLogger(a.consumeOpt("verbose", False) is True)
         plugins.loadAll()
         cmds.exec(a)
         print()

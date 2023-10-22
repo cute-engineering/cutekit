@@ -288,7 +288,7 @@ def contextFor(targetSpec: str, props: Props = {}) -> Context:
     instances: list[ComponentInstance] = list(
         map(lambda c: instanciateDisabled(c, target), disabled))
 
-    instances += cast(list[ComponentInstance], list(filter(lambda e: e != None, map(lambda c: instanciate(
+    instances += cast(list[ComponentInstance], list(filter(lambda e: e is not None, map(lambda c: instanciate(
         c.id, components, target), components))))
 
     context[targetSpec] = Context(

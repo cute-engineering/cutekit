@@ -22,7 +22,13 @@ class Cmd:
     callback: Callable[[Args], NoReturn]
     isPlugin: bool = False
 
-    def __init__(self, shortName: Optional[str], longName: str, helpText: str, callback: Callable[[Args], NoReturn]):
+    def __init__(
+        self,
+        shortName: Optional[str],
+        longName: str,
+        helpText: str,
+        callback: Callable[[Args], NoReturn],
+    ):
         self.shortName = shortName
         self.longName = longName
         self.helpText = helpText
@@ -41,15 +47,15 @@ def append(cmd: Cmd):
 def runCmd(args: Args):
     project.chdir()
 
-    targetSpec = cast(str, args.consumeOpt(
-        "target", "host-" + shell.uname().machine))
+    targetSpec = cast(str, args.consumeOpt("target", "host-" + shell.uname().machine))
+    props = args.consumePrefix("prop:")
 
     componentSpec = args.consumeArg()
 
     if componentSpec is None:
         raise RuntimeError("Component not specified")
 
-    component = builder.build(componentSpec, targetSpec)
+    component = builder.build(componentSpec, targetSpec, props)
 
     os.environ["CK_TARGET"] = component.context.target.id
     os.environ["CK_COMPONENT"] = component.id()
@@ -64,8 +70,7 @@ cmds += [Cmd("r", "run", "Run the target", runCmd)]
 def testCmd(args: Args):
     project.chdir()
 
-    targetSpec = cast(str, args.consumeOpt(
-        "target", "host-" + shell.uname().machine))
+    targetSpec = cast(str, args.consumeOpt("target", "host-" + shell.uname().machine))
     builder.testAll(targetSpec)
 
 
@@ -75,15 +80,15 @@ cmds += [Cmd("t", "test", "Run all test targets", testCmd)]
 def debugCmd(args: Args):
     project.chdir()
 
-    targetSpec = cast(str, args.consumeOpt(
-        "target", "host-" + shell.uname().machine))
+    targetSpec = cast(str, args.consumeOpt("target", "host-" + shell.uname().machine))
+    props = args.consumePrefix("prop:")
 
     componentSpec = args.consumeArg()
 
     if componentSpec is None:
         raise RuntimeError("Component not specified")
 
-    component = builder.build(componentSpec, targetSpec)
+    component = builder.build(componentSpec, targetSpec, props)
 
     os.environ["CK_TARGET"] = component.context.target.id
     os.environ["CK_COMPONENT"] = component.id()
@@ -98,15 +103,14 @@ cmds += [Cmd("d", "debug", "Debug the target", debugCmd)]
 def buildCmd(args: Args):
     project.chdir()
 
-    targetSpec = cast(str, args.consumeOpt(
-        "target", "host-" + shell.uname().machine))
-
+    targetSpec = cast(str, args.consumeOpt("target", "host-" + shell.uname().machine))
+    props = args.consumePrefix("prop:")
     componentSpec = args.consumeArg()
 
     if componentSpec is None:
-        builder.buildAll(targetSpec)
+        builder.buildAll(targetSpec, props)
     else:
-        builder.build(componentSpec, targetSpec)
+        builder.build(componentSpec, targetSpec, props)
 
 
 cmds += [Cmd("b", "build", "Build the target", buildCmd)]
@@ -120,16 +124,15 @@ def listCmd(args: Args):
 
     vt100.title("Components")
     if len(components) == 0:
-        print(f"   (No components available)")
+        print("   (No components available)")
     else:
-        print(vt100.indent(vt100.wordwrap(
-            ", ".join(map(lambda m: m.id, components)))))
+        print(vt100.indent(vt100.wordwrap(", ".join(map(lambda m: m.id, components)))))
     print()
 
     vt100.title("Targets")
 
     if len(targets) == 0:
-        print(f"   (No targets available)")
+        print("   (No targets available)")
     else:
         print(vt100.indent(vt100.wordwrap(", ".join(map(lambda m: m.id, targets)))))
 
@@ -171,11 +174,12 @@ def helpCmd(args: Args):
             pluginText = f"{vt100.CYAN}(plugin){vt100.RESET}"
 
         print(
-            f" {vt100.GREEN}{cmd.shortName or ' '}{vt100.RESET}  {cmd.longName} - {cmd.helpText} {pluginText}")
+            f" {vt100.GREEN}{cmd.shortName or ' '}{vt100.RESET}  {cmd.longName} - {cmd.helpText} {pluginText}"
+        )
 
     print()
     vt100.title("Logging")
-    print(f"    Logs are stored in:")
+    print("    Logs are stored in:")
     print(f"     - {const.PROJECT_LOG_FILE}")
     print(f"     - {const.GLOBAL_LOG_FILE}")
 
@@ -193,17 +197,15 @@ cmds += [Cmd("v", "version", "Show current version", versionCmd)]
 def graphCmd(args: Args):
     project.chdir()
 
-    targetSpec = cast(str, args.consumeOpt(
-        "target", "host-" + shell.uname().machine))
+    targetSpec = cast(str, args.consumeOpt("target", "host-" + shell.uname().machine))
 
     scope: Optional[str] = cast(Optional[str], args.tryConsumeOpt("scope"))
-    onlyLibs: bool = args.consumeOpt("only-libs", False) == True
-    showDisabled: bool = args.consumeOpt("show-disabled", False) == True
+    onlyLibs: bool = args.consumeOpt("only-libs", False) is True
+    showDisabled: bool = args.consumeOpt("show-disabled", False) is True
 
     context = contextFor(targetSpec)
 
-    graph.view(context, scope=scope, showExe=not onlyLibs,
-               showDisabled=showDisabled)
+    graph.view(context, scope=scope, showExe=not onlyLibs, showDisabled=showDisabled)
 
 
 cmds += [Cmd("g", "graph", "Show dependency graph", graphCmd)]
@@ -218,8 +220,9 @@ def grabExtern(extern: dict[str, Extern]):
             continue
 
         print(f"Installing {extSpec}-{ext.tag} from {ext.git}...")
-        shell.popen("git", "clone", "--depth", "1", "--branch",
-                    ext.tag, ext.git, extPath)
+        shell.popen(
+            "git", "clone", "--depth", "1", "--branch", ext.tag, ext.git, extPath
+        )
 
         if os.path.exists(os.path.join(extPath, "project.json")):
             grabExtern(context.loadProject(extPath).extern)
@@ -238,31 +241,33 @@ cmds += [Cmd("i", "install", "Install all the external packages", installCmd)]
 def initCmd(args: Args):
     import requests
 
-    repo = args.consumeOpt('repo', const.DEFAULT_REPO_TEMPLATES)
-    list = args.consumeOpt('list')
+    repo = args.consumeOpt("repo", const.DEFAULT_REPO_TEMPLATES)
+    list = args.consumeOpt("list")
 
     template = args.consumeArg()
     name = args.consumeArg()
 
     logger.info("Fetching registry...")
-    r = requests.get(
-        f'https://raw.githubusercontent.com/{repo}/main/registry.json')
+    r = requests.get(f"https://raw.githubusercontent.com/{repo}/main/registry.json")
 
     if r.status_code != 200:
-        logger.error('Failed to fetch registry')
+        logger.error("Failed to fetch registry")
         exit(1)
 
     registry = r.json()
 
     if list:
-        print('\n'.join(
-            f"* {entry['id']} - {entry['description']}" for entry in registry))
+        print(
+            "\n".join(f"* {entry['id']} - {entry['description']}" for entry in registry)
+        )
         return
 
     if not template:
-        raise RuntimeError('Template not specified')
+        raise RuntimeError("Template not specified")
 
-    template_match: Callable[[Json], str] = lambda t: t['id'] == template
+    def template_match(t: Json) -> str:
+        return t["id"] == template
+
     if not any(filter(template_match, registry)):
         raise LookupError(f"Couldn't find a template named {template}")
 
@@ -279,9 +284,12 @@ def initCmd(args: Args):
 
     print("We suggest that you begin by typing:")
     print(f"  {vt100.GREEN}cd {name}{vt100.RESET}")
-    print(f"  {vt100.GREEN}cutekit install{vt100.BRIGHT_BLACK} # Install external packages{vt100.RESET}")
     print(
-        f"  {vt100.GREEN}cutekit build{vt100.BRIGHT_BLACK}  # Build the project{vt100.RESET}")
+        f"  {vt100.GREEN}cutekit install{vt100.BRIGHT_BLACK} # Install external packages{vt100.RESET}"
+    )
+    print(
+        f"  {vt100.GREEN}cutekit build{vt100.BRIGHT_BLACK}  # Build the project{vt100.RESET}"
+    )
 
 
 cmds += [Cmd("I", "init", "Initialize a new project", initCmd)]
