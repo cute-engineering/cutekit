@@ -188,7 +188,7 @@ cmds += [Cmd("h", "help", "Show this help message", helpCmd)]
 
 
 def versionCmd(args: Args):
-    print(f"CuteKit v{const.VERSION_STR}\n")
+    print(f"CuteKit v{const.VERSION_STR}")
 
 
 cmds += [Cmd("v", "version", "Show current version", versionCmd)]
