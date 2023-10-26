@@ -42,7 +42,8 @@ $ cd cutekit
 # If you want to use the latest version of Cutekit, you can switch to the dev branch.
 # $ git switch dev
 
-$ pip install --user -e .
+$ pipx install .
+$ pipx ensurepath
 ```
 
 ## Quick-start 
