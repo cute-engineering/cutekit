@@ -1,6 +1,7 @@
 import os
 from typing import Optional
 
+
 def root() -> Optional[str]:
     cwd = os.getcwd()
     while cwd != "/" and cwd != os.path.splitdrive(cwd)[0]:
@@ -8,6 +9,7 @@ def root() -> Optional[str]:
             return cwd
         cwd = os.path.dirname(cwd)
     return None
+
 
 def chdir() -> None:
     projectRoot = root()
