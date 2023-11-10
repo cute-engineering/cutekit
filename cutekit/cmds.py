@@ -1,8 +1,9 @@
+from dataclasses import dataclass
 import os
 import logging
 import sys
 
-from typing import Callable, cast, Optional, NoReturn
+from typing import Callable, Unpack, cast, Optional, NoReturn
 
 from cutekit import context, shell, const, vt100, builder, graph, project
 from cutekit.args import Args
@@ -15,24 +16,13 @@ Callback = Callable[[Args], None]
 _logger = logging.getLogger(__name__)
 
 
+@dataclass
 class Cmd:
-    shortName: Optional[str]
-    longName: str
-    helpText: str
-    callback: Callable[[Args], NoReturn]
+    shortName: Optional[str] = None
+    longName: Optional[str] = None
+    helpText: Optional[str] = None
+    callback: Optional[Callable[[Args], None]] = None
     isPlugin: bool = False
-
-    def __init__(
-        self,
-        shortName: Optional[str],
-        longName: str,
-        helpText: str,
-        callback: Callable[[Args], NoReturn],
-    ):
-        self.shortName = shortName
-        self.longName = longName
-        self.helpText = helpText
-        self.callback = callback
 
 
 cmds: list[Cmd] = []
@@ -44,6 +34,19 @@ def append(cmd: Cmd):
     cmds.sort(key=lambda c: c.shortName or c.longName)
 
 
+def command(**kwargs: Unpack[Cmd]):
+    def wrapper(callback):
+        cmds.append(Cmd(**kwargs, callback=callback))
+
+    return wrapper
+
+
+@command(
+    shortName="p",
+    longName="project",
+    helpText="Show project information",
+    isPlugin=False,
+)
 def runCmd(args: Args):
     project.chdir()
 
@@ -64,9 +67,12 @@ def runCmd(args: Args):
     shell.exec(component.outfile(), *args.args)
 
 
-cmds += [Cmd("r", "run", "Run the target", runCmd)]
-
-
+@command(
+    shortName="t",
+    longName="test",
+    helpText="Run all test targets",
+    isPlugin=False,
+)
 def testCmd(args: Args):
     project.chdir()
 
@@ -74,9 +80,12 @@ def testCmd(args: Args):
     builder.testAll(targetSpec)
 
 
-cmds += [Cmd("t", "test", "Run all test targets", testCmd)]
-
-
+@command(
+    shortName="d",
+    longName="debug",
+    helpText="Debug the target",
+    isPlugin=False,
+)
 def debugCmd(args: Args):
     project.chdir()
 
@@ -97,9 +106,12 @@ def debugCmd(args: Args):
     shell.exec("lldb", "-o", "run", component.outfile(), *args.args)
 
 
-cmds += [Cmd("d", "debug", "Debug the target", debugCmd)]
-
-
+@command(
+    shortName="b",
+    longName="build",
+    helpText="Build a component or all components",
+    isPlugin=False,
+)
 def buildCmd(args: Args):
     project.chdir()
 
@@ -113,9 +125,12 @@ def buildCmd(args: Args):
         builder.build(componentSpec, targetSpec, props)
 
 
-cmds += [Cmd("b", "build", "Build the target", buildCmd)]
-
-
+@command(
+    shortName="l",
+    longName="list",
+    helpText="List all targets and components",
+    isPlugin=False,
+)
 def listCmd(args: Args):
     project.chdir()
 
@@ -139,25 +154,34 @@ def listCmd(args: Args):
     print()
 
 
-cmds += [Cmd("l", "list", "List the targets", listCmd)]
-
-
+@command(
+    shortName="c",
+    longName="clean",
+    helpText="Remove all build files",
+    isPlugin=False,
+)
 def cleanCmd(args: Args):
     project.chdir()
     shell.rmrf(const.BUILD_DIR)
 
 
-cmds += [Cmd("c", "clean", "Clean the build directory", cleanCmd)]
-
-
+@command(
+    shortName="n",
+    longName="nuke",
+    helpText="Clean all build files and caches",
+    isPlugin=False,
+)
 def nukeCmd(args: Args):
     project.chdir()
     shell.rmrf(const.PROJECT_CK_DIR)
 
 
-cmds += [Cmd("n", "nuke", "Clean the build directory and cache", nukeCmd)]
-
-
+@command(
+    shortName="h",
+    longName="help",
+    helpText="Show this help message",
+    isPlugin=False,
+)
 def helpCmd(args: Args):
     usage()
 
@@ -184,16 +208,22 @@ def helpCmd(args: Args):
     print(f"     - {const.GLOBAL_LOG_FILE}")
 
 
-cmds += [Cmd("h", "help", "Show this help message", helpCmd)]
-
-
+@command(
+    shortName="v",
+    longName="version",
+    helpText="Show current version",
+    isPlugin=False,
+)
 def versionCmd(args: Args):
     print(f"CuteKit v{const.VERSION_STR}")
 
 
-cmds += [Cmd("v", "version", "Show current version", versionCmd)]
-
-
+@command(
+    shortName="g",
+    longName="graph",
+    helpText="Show dependency graph",
+    isPlugin=False,
+)
 def graphCmd(args: Args):
     project.chdir()
 
@@ -206,9 +236,6 @@ def graphCmd(args: Args):
     context = contextFor(targetSpec)
 
     graph.view(context, scope=scope, showExe=not onlyLibs, showDisabled=showDisabled)
-
-
-cmds += [Cmd("g", "graph", "Show dependency graph", graphCmd)]
 
 
 def grabExtern(extern: dict[str, Extern]):
@@ -228,6 +255,12 @@ def grabExtern(extern: dict[str, Extern]):
             grabExtern(context.loadProject(extPath).extern)
 
 
+@command(
+    shortName="i",
+    longName="install",
+    helpText="Install all external packages",
+    isPlugin=False,
+)
 def installCmd(args: Args):
     project.chdir()
 
@@ -235,9 +268,12 @@ def installCmd(args: Args):
     grabExtern(pj.extern)
 
 
-cmds += [Cmd("i", "install", "Install all the external packages", installCmd)]
-
-
+@command(
+    shortName="I",
+    longName="init",
+    helpText="Initialize a new project",
+    isPlugin=False,
+)
 def initCmd(args: Args):
     import requests
 
@@ -290,9 +326,6 @@ def initCmd(args: Args):
     print(
         f"  {vt100.GREEN}cutekit build{vt100.BRIGHT_BLACK}  # Build the project{vt100.RESET}"
     )
-
-
-cmds += [Cmd("I", "init", "Initialize a new project", initCmd)]
 
 
 def usage():
