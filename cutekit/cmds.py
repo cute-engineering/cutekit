@@ -12,7 +12,7 @@ from cutekit.context import contextFor
 
 Callback = Callable[[Args], None]
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 class Cmd:
@@ -247,11 +247,11 @@ def initCmd(args: Args):
     template = args.consumeArg()
     name = args.consumeArg()
 
-    logger.info("Fetching registry...")
+    _logger.info("Fetching registry...")
     r = requests.get(f"https://raw.githubusercontent.com/{repo}/main/registry.json")
 
     if r.status_code != 200:
-        logger.error("Failed to fetch registry")
+        _logger.error("Failed to fetch registry")
         exit(1)
 
     registry = r.json()
@@ -272,7 +272,7 @@ def initCmd(args: Args):
         raise LookupError(f"Couldn't find a template named {template}")
 
     if not name:
-        logger.info(f"No name was provided, defaulting to {template}")
+        _logger.info(f"No name was provided, defaulting to {template}")
         name = template
 
     if os.path.exists(name):

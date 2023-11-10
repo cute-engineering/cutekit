@@ -6,7 +6,7 @@ import logging
 from cutekit.jexpr import Json
 
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 Props = dict[str, Any]
 
@@ -267,12 +267,12 @@ class ComponentManifest(Manifest):
     def isEnabled(self, target: TargetManifest) -> tuple[bool, str]:
         for k, v in self.enableIf.items():
             if k not in target.props:
-                logger.info(f"Component {self.id} disabled by missing {k} in target")
+                _logger.info(f"Component {self.id} disabled by missing {k} in target")
                 return False, f"Missing props '{k}' in target"
 
             if target.props[k] not in v:
                 vStrs = [f"'{str(x)}'" for x in v]
-                logger.info(
+                _logger.info(
                     f"Component {self.id} disabled by {k}={target.props[k]} not in {v}"
                 )
                 return (

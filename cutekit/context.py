@@ -4,10 +4,18 @@ from pathlib import Path
 import os
 import logging
 
-from cutekit.model import ProjectManifest, TargetManifest, ComponentManifest, Props, Type, Tool, Tools
+from cutekit.model import (
+    ProjectManifest,
+    TargetManifest,
+    ComponentManifest,
+    Props,
+    Type,
+    Tool,
+    Tools,
+)
 from cutekit import const, shell, jexpr, utils, rules, mixins, project
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 class IContext(Protocol):
@@ -27,13 +35,14 @@ class ComponentInstance:
     context: IContext
 
     def __init__(
-            self,
-            enabled: bool,
-            disableReason: str,
-            manifest: ComponentManifest,
-            sources: list[str],
-            res: list[str],
-            resolved: list[str]):
+        self,
+        enabled: bool,
+        disableReason: str,
+        manifest: ComponentManifest,
+        sources: list[str],
+        res: list[str],
+        resolved: list[str],
+    ):
         self.enabled = enabled
         self.disableReason = disableReason
         self.manifest = manifest
@@ -55,23 +64,34 @@ class ComponentInstance:
 
     def objsfiles(self) -> list[tuple[str, str]]:
         def toOFile(s: str) -> str:
-            return os.path.join(self.objdir(), s.replace(os.path.join(self.manifest.dirname(), ''), '') + ".o")
+            return os.path.join(
+                self.objdir(),
+                s.replace(os.path.join(self.manifest.dirname(), ""), "") + ".o",
+            )
+
         return list(map(lambda s: (s, toOFile(s)), self.sources))
 
     def resfiles(self) -> list[tuple[str, str, str]]:
         def toAssetFile(s: str) -> str:
-            return os.path.join(self.resdir(), s.replace(os.path.join(self.manifest.dirname(), 'res/'), ''))
+            return os.path.join(
+                self.resdir(),
+                s.replace(os.path.join(self.manifest.dirname(), "res/"), ""),
+            )
 
         def toAssetId(s: str) -> str:
-            return s.replace(os.path.join(self.manifest.dirname(), 'res/'), '')
+            return s.replace(os.path.join(self.manifest.dirname(), "res/"), "")
 
         return list(map(lambda s: (s, toAssetFile(s), toAssetId(s)), self.res))
 
     def outfile(self) -> str:
         if self.isLib():
-            return os.path.join(self.context.builddir(), self.manifest.id, f"lib/{self.manifest.id}.a")
+            return os.path.join(
+                self.context.builddir(), self.manifest.id, f"lib/{self.manifest.id}.a"
+            )
         else:
-            return os.path.join(self.context.builddir(), self.manifest.id, f"bin/{self.manifest.id}.out")
+            return os.path.join(
+                self.context.builddir(), self.manifest.id, f"bin/{self.manifest.id}.out"
+            )
 
     def cinclude(self) -> str:
         if "cpp-root-include" in self.manifest.props:
@@ -90,7 +110,9 @@ class Context(IContext):
     def enabledInstances(self) -> Iterable[ComponentInstance]:
         return filter(lambda x: x.enabled, self.instances)
 
-    def __init__(self, target: TargetManifest, instances: list[ComponentInstance], tools: Tools):
+    def __init__(
+        self, target: TargetManifest, instances: list[ComponentInstance], tools: Tools
+    ):
         self.target = target
         self.instances = instances
         self.tools = tools
@@ -102,15 +124,20 @@ class Context(IContext):
         return result[0]
 
     def cincls(self) -> list[str]:
-        includes = list(filter(lambda x: x != "", map(
-            lambda x: x.cinclude(), self.enabledInstances())))
+        includes = list(
+            filter(
+                lambda x: x != "", map(lambda x: x.cinclude(), self.enabledInstances())
+            )
+        )
         return utils.uniq(includes)
 
     def cdefs(self) -> list[str]:
         return self.target.cdefs()
 
     def hashid(self) -> str:
-        return utils.hash((self.target.props, [self.tools[t].toJson() for t in self.tools]))[0:8]
+        return utils.hash(
+            (self.target.props, [self.tools[t].toJson() for t in self.tools])
+        )[0:8]
 
     def builddir(self) -> str:
         return os.path.join(const.BUILD_DIR, f"{self.target.id}-{self.hashid()[:8]}")
@@ -123,8 +150,10 @@ def loadAllTargets() -> list[TargetManifest]:
 
     pj = loadProject(projectRoot)
     paths = list(
-        map(lambda e: os.path.join(const.EXTERN_DIR,
-            e, const.TARGETS_DIR),  pj.extern.keys())
+        map(
+            lambda e: os.path.join(const.EXTERN_DIR, e, const.TARGETS_DIR),
+            pj.extern.keys(),
+        )
     ) + [const.TARGETS_DIR]
 
     ret = []
@@ -151,47 +180,50 @@ def loadAllComponents() -> list[ComponentManifest]:
     files = shell.find(const.SRC_DIR, ["manifest.json"])
     files += shell.find(const.EXTERN_DIR, ["manifest.json"])
 
-    return list(
-        map(
-            lambda path: ComponentManifest(jexpr.evalRead(path), path),
-            files))
+    return list(map(lambda path: ComponentManifest(jexpr.evalRead(path), path), files))
 
 
-def filterDisabled(components: list[ComponentManifest], target: TargetManifest) -> tuple[list[ComponentManifest], list[ComponentManifest]]:
-    return list(filter(lambda c: c.isEnabled(target)[0], components)), \
-        list(filter(lambda c: not c.isEnabled(target)[0], components))
+def filterDisabled(
+    components: list[ComponentManifest], target: TargetManifest
+) -> tuple[list[ComponentManifest], list[ComponentManifest]]:
+    return list(filter(lambda c: c.isEnabled(target)[0], components)), list(
+        filter(lambda c: not c.isEnabled(target)[0], components)
+    )
 
 
-def providerFor(what: str, components: list[ComponentManifest]) -> tuple[Optional[str], str]:
-    result: list[ComponentManifest] = list(
-        filter(lambda c: c.id == what, components))
+def providerFor(
+    what: str, components: list[ComponentManifest]
+) -> tuple[Optional[str], str]:
+    result: list[ComponentManifest] = list(filter(lambda c: c.id == what, components))
 
     if len(result) == 0:
         # Try to find a provider
         result = list(filter(lambda x: (what in x.provides), components))
 
     if len(result) == 0:
-        logger.error(f"No provider for '{what}'")
+        _logger.error(f"No provider for '{what}'")
         return (None, f"No provider for '{what}'")
 
     if len(result) > 1:
         ids = list(map(lambda x: x.id, result))
-        logger.error(f"Multiple providers for '{what}': {result}")
+        _logger.error(f"Multiple providers for '{what}': {result}")
         return (None, f"Multiple providers for '{what}': {','.join(ids)}")
 
     return (result[0].id, "")
 
 
-def resolveDeps(componentSpec: str, components: list[ComponentManifest], target: TargetManifest) -> tuple[bool, str,  list[str]]:
+def resolveDeps(
+    componentSpec: str, components: list[ComponentManifest], target: TargetManifest
+) -> tuple[bool, str, list[str]]:
     mapping = dict(map(lambda c: (c.id, c), components))
 
-    def resolveInner(what: str, stack: list[str] = []) -> tuple[bool, str,  list[str]]:
+    def resolveInner(what: str, stack: list[str] = []) -> tuple[bool, str, list[str]]:
         result: list[str] = []
         what = target.route(what)
         resolved, unresolvedReason = providerFor(what, components)
 
         if resolved is None:
-            return False, unresolvedReason,  []
+            return False, unresolvedReason, []
 
         if resolved in stack:
             raise RuntimeError(f"Dependency loop: {stack} -> {resolved}")
@@ -199,12 +231,12 @@ def resolveDeps(componentSpec: str, components: list[ComponentManifest], target:
         stack.append(resolved)
 
         for req in mapping[resolved].requires:
-            keep, unresolvedReason,  reqs = resolveInner(req, stack)
+            keep, unresolvedReason, reqs = resolveInner(req, stack)
 
             if not keep:
                 stack.pop()
-                logger.error(f"Dependency '{req}' not met for '{resolved}'")
-                return False, unresolvedReason,  []
+                _logger.error(f"Dependency '{req}' not met for '{resolved}'")
+                return False, unresolvedReason, []
 
             result.extend(reqs)
 
@@ -218,29 +250,33 @@ def resolveDeps(componentSpec: str, components: list[ComponentManifest], target:
     return enabled, unresolvedReason, resolved
 
 
-def instanciate(componentSpec: str, components: list[ComponentManifest], target: TargetManifest) -> Optional[ComponentInstance]:
+def instanciate(
+    componentSpec: str, components: list[ComponentManifest], target: TargetManifest
+) -> Optional[ComponentInstance]:
     manifest = next(filter(lambda c: c.id == componentSpec, components))
-    wildcards = set(
-        chain(*map(lambda rule: rule.fileIn, rules.rules.values())))
-    sources = shell.find(
-        manifest.subdirs, list(wildcards), recusive=False)
+    wildcards = set(chain(*map(lambda rule: rule.fileIn, rules.rules.values())))
+    sources = shell.find(manifest.subdirs, list(wildcards), recusive=False)
 
     res = shell.find(os.path.join(manifest.dirname(), "res"))
 
-    enabled, unresolvedReason, resolved = resolveDeps(
-        componentSpec, components, target)
+    enabled, unresolvedReason, resolved = resolveDeps(componentSpec, components, target)
 
-    return ComponentInstance(enabled, unresolvedReason, manifest, sources, res, resolved[1:])
+    return ComponentInstance(
+        enabled, unresolvedReason, manifest, sources, res, resolved[1:]
+    )
 
 
-def instanciateDisabled(component: ComponentManifest,  target: TargetManifest) -> ComponentInstance:
+def instanciateDisabled(
+    component: ComponentManifest, target: TargetManifest
+) -> ComponentInstance:
     return ComponentInstance(
         enabled=False,
         disableReason=component.isEnabled(target)[1],
         manifest=component,
         sources=[],
         res=[],
-        resolved=[])
+        resolved=[],
+    )
 
 
 context: dict[str, Context] = {}
@@ -250,7 +286,7 @@ def contextFor(targetSpec: str, props: Props = {}) -> Context:
     if targetSpec in context:
         return context[targetSpec]
 
-    logger.info(f"Loading context for '{targetSpec}'")
+    _logger.info(f"Loading context for '{targetSpec}'")
 
     targetEls = targetSpec.split(":")
 
@@ -269,10 +305,8 @@ def contextFor(targetSpec: str, props: Props = {}) -> Context:
         tool = target.tools[toolSpec]
 
         tools[toolSpec] = Tool(
-            strict=False,
-            cmd=tool.cmd,
-            args=tool.args,
-            files=tool.files)
+            strict=False, cmd=tool.cmd, args=tool.args, files=tool.files
+        )
 
         tools[toolSpec].args += rules.rules[toolSpec].args
 
@@ -286,10 +320,18 @@ def contextFor(targetSpec: str, props: Props = {}) -> Context:
             tools[toolSpec].args += tool.args
 
     instances: list[ComponentInstance] = list(
-        map(lambda c: instanciateDisabled(c, target), disabled))
+        map(lambda c: instanciateDisabled(c, target), disabled)
+    )
 
-    instances += cast(list[ComponentInstance], list(filter(lambda e: e is not None, map(lambda c: instanciate(
-        c.id, components, target), components))))
+    instances += cast(
+        list[ComponentInstance],
+        list(
+            filter(
+                lambda e: e is not None,
+                map(lambda c: instanciate(c.id, components, target), components),
+            )
+        ),
+    )
 
     context[targetSpec] = Context(
         target,

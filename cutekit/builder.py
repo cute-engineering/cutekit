@@ -7,7 +7,7 @@ from cutekit.ninja import Writer
 from cutekit.context import ComponentInstance, Context, contextFor
 from cutekit import shell, rules
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 def gen(out: TextIO, context: Context):
