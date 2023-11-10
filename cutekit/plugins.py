@@ -5,14 +5,15 @@ from cutekit import shell, project, const, context
 
 import importlib.util as importlib
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
+
 
 def load(path: str):
-    logger.info(f"Loading plugin {path}")
+    _logger.info(f"Loading plugin {path}")
     spec = importlib.spec_from_file_location("plugin", path)
 
     if not spec or not spec.loader:
-        logger.error(f"Failed to load plugin {path}")
+        _logger.error(f"Failed to load plugin {path}")
         return None
 
     module = importlib.module_from_spec(spec)
@@ -20,16 +21,18 @@ def load(path: str):
 
 
 def loadAll():
-    logger.info("Loading plugins...")
+    _logger.info("Loading plugins...")
 
     projectRoot = project.root()
 
     if projectRoot is None:
-        logger.info("Not in project, skipping plugin loading")
+        _logger.info("Not in project, skipping plugin loading")
         return
 
     pj = context.loadProject(projectRoot)
-    paths = list(map(lambda e: os.path.join(const.EXTERN_DIR, e),  pj.extern.keys())) + ["."]
+    paths = list(map(lambda e: os.path.join(const.EXTERN_DIR, e), pj.extern.keys())) + [
+        "."
+    ]
 
     for dirname in paths:
         pluginDir = os.path.join(projectRoot, dirname, const.META_DIR, "plugins")
@@ -39,6 +42,5 @@ def loadAll():
                 plugin = load(os.path.join(pluginDir, files))
 
                 if plugin:
-                    logger.info(f"Loaded plugin {plugin.name}")
+                    _logger.info(f"Loaded plugin {plugin.name}")
                     plugin.init()
-

@@ -15,11 +15,13 @@ import tempfile
 from typing import Optional
 from cutekit import const
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 class Uname:
-    def __init__(self, sysname: str, nodename: str, release: str, version: str, machine: str):
+    def __init__(
+        self, sysname: str, nodename: str, release: str, version: str, machine: str
+    ):
         self.sysname = sysname
         self.nodename = nodename
         self.release = release
@@ -47,8 +49,10 @@ def sha256sum(path: str) -> str:
         return hashlib.sha256(f.read()).hexdigest()
 
 
-def find(path: str | list[str], wildcards: list[str] = [], recusive: bool = True) -> list[str]:
-    logger.info(f"Looking for files in {path} matching {wildcards}")
+def find(
+    path: str | list[str], wildcards: list[str] = [], recusive: bool = True
+) -> list[str]:
+    _logger.info(f"Looking for files in {path} matching {wildcards}")
 
     result: list[str] = []
 
@@ -84,7 +88,7 @@ def find(path: str | list[str], wildcards: list[str] = [], recusive: bool = True
 
 
 def mkdir(path: str) -> str:
-    logger.info(f"Creating directory {path}")
+    _logger.info(f"Creating directory {path}")
 
     try:
         os.makedirs(path)
@@ -95,7 +99,7 @@ def mkdir(path: str) -> str:
 
 
 def rmrf(path: str) -> bool:
-    logger.info(f"Removing directory {path}")
+    _logger.info(f"Removing directory {path}")
 
     if not os.path.exists(path):
         return False
@@ -108,18 +112,18 @@ def wget(url: str, path: Optional[str] = None) -> str:
 
     if path is None:
         path = os.path.join(
-            const.CACHE_DIR,
-            hashlib.sha256(url.encode('utf-8')).hexdigest())
+            const.CACHE_DIR, hashlib.sha256(url.encode("utf-8")).hexdigest()
+        )
 
     if os.path.exists(path):
         return path
 
-    logger.info(f"Downloading {url} to {path}")
+    _logger.info(f"Downloading {url} to {path}")
 
     r = requests.get(url, stream=True)
     r.raise_for_status()
     mkdir(os.path.dirname(path))
-    with open(path, 'wb') as f:
+    with open(path, "wb") as f:
         for chunk in r.iter_content(chunk_size=8192):
             if chunk:
                 f.write(chunk)
@@ -128,17 +132,20 @@ def wget(url: str, path: Optional[str] = None) -> str:
 
 
 def exec(*args: str, quiet: bool = False) -> bool:
-    logger.info(f"Executing {args}")
+    _logger.info(f"Executing {args}")
 
     try:
         proc = subprocess.run(
-            args, stdout=sys.stdout if not quiet else subprocess.PIPE, stderr=sys.stderr if not quiet else subprocess.PIPE)
+            args,
+            stdout=sys.stdout if not quiet else subprocess.PIPE,
+            stderr=sys.stderr if not quiet else subprocess.PIPE,
+        )
 
         if proc.stdout:
-            logger.info(proc.stdout.decode('utf-8'))
+            _logger.info(proc.stdout.decode("utf-8"))
 
         if proc.stderr:
-            logger.error(proc.stderr.decode('utf-8'))
+            _logger.error(proc.stderr.decode("utf-8"))
 
     except FileNotFoundError:
         raise RuntimeError(f"{args[0]}: Command not found")
@@ -150,14 +157,13 @@ def exec(*args: str, quiet: bool = False) -> bool:
         raise RuntimeError(f"{args[0]}: Segmentation fault")
 
     if proc.returncode != 0:
-        raise RuntimeError(
-            f"{args[0]}: Process exited with code {proc.returncode}")
+        raise RuntimeError(f"{args[0]}: Process exited with code {proc.returncode}")
 
     return True
 
 
 def popen(*args: str) -> str:
-    logger.info(f"Executing {args}")
+    _logger.info(f"Executing {args}")
 
     try:
         proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=sys.stderr)
@@ -168,14 +174,13 @@ def popen(*args: str) -> str:
         raise RuntimeError(f"{args[0]}: Segmentation fault")
 
     if proc.returncode != 0:
-        raise RuntimeError(
-            f"{args[0]}: Process exited with code {proc.returncode}")
+        raise RuntimeError(f"{args[0]}: Process exited with code {proc.returncode}")
 
-    return proc.stdout.decode('utf-8')
+    return proc.stdout.decode("utf-8")
 
 
 def readdir(path: str) -> list[str]:
-    logger.info(f"Reading directory {path}")
+    _logger.info(f"Reading directory {path}")
 
     try:
         return os.listdir(path)
@@ -184,19 +189,19 @@ def readdir(path: str) -> list[str]:
 
 
 def cp(src: str, dst: str):
-    logger.info(f"Copying {src} to {dst}")
+    _logger.info(f"Copying {src} to {dst}")
 
     shutil.copy(src, dst)
 
 
 def mv(src: str, dst: str):
-    logger.info(f"Moving {src} to {dst}")
+    _logger.info(f"Moving {src} to {dst}")
 
     shutil.move(src, dst)
 
 
 def cpTree(src: str, dst: str):
-    logger.info(f"Copying {src} to {dst}")
+    _logger.info(f"Copying {src} to {dst}")
 
     shutil.copytree(src, dst, dirs_exist_ok=True)
 
@@ -204,10 +209,14 @@ def cpTree(src: str, dst: str):
 def cloneDir(url: str, path: str, dest: str) -> str:
     with tempfile.TemporaryDirectory() as tmp:
         mkdir(tmp)
-        exec(*["git", "clone", "-n", "--depth=1",
-               "--filter=tree:0", url, tmp, "-q"], quiet=True)
-        exec(*["git", "-C", tmp, "sparse-checkout",
-               "set", "--no-cone", path, "-q"], quiet=True)
+        exec(
+            *["git", "clone", "-n", "--depth=1", "--filter=tree:0", url, tmp, "-q"],
+            quiet=True,
+        )
+        exec(
+            *["git", "-C", tmp, "sparse-checkout", "set", "--no-cone", path, "-q"],
+            quiet=True,
+        )
         exec(*["git", "-C", tmp, "checkout", "-q", "--no-progress"], quiet=True)
         mv(os.path.join(tmp, path), dest)
 
@@ -232,7 +241,7 @@ def latest(cmd: str) -> str:
     if cmd in LATEST_CACHE:
         return LATEST_CACHE[cmd]
 
-    logger.info(f"Finding latest version of {cmd}")
+    _logger.info(f"Finding latest version of {cmd}")
 
     regex: re.Pattern[str]
 
@@ -254,7 +263,7 @@ def latest(cmd: str) -> str:
     versions.sort()
     chosen = versions[-1]
 
-    logger.info(f"Chosen {chosen} as latest version of {cmd}")
+    _logger.info(f"Chosen {chosen} as latest version of {cmd}")
 
     LATEST_CACHE[cmd] = chosen
 
