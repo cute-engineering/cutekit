@@ -2,7 +2,7 @@ import sys
 import os
 import logging
 
-from cutekit import const, project, vt100, plugins, cmds, cli
+from . import const, model, vt100, plugins, cmds, cli
 
 
 def setupLogger(verbose: bool):
@@ -13,7 +13,7 @@ def setupLogger(verbose: bool):
             datefmt="%Y-%m-%d %H:%M:%S",
         )
     else:
-        projectRoot = project.root()
+        projectRoot = model.Project.root()
         logFile = const.GLOBAL_LOG_FILE
         if projectRoot is not None:
             logFile = os.path.join(projectRoot, const.PROJECT_LOG_FILE)

@@ -1,7 +1,7 @@
 import os
 import logging
 
-from cutekit import shell, project, const, context
+from . import shell, model, const, context
 
 import importlib.util as importlib
 
@@ -23,7 +23,7 @@ def load(path: str):
 def loadAll():
     _logger.info("Loading plugins...")
 
-    projectRoot = project.root()
+    projectRoot = model.Project.root()
 
     if projectRoot is None:
         _logger.info("Not in project, skipping plugin loading")

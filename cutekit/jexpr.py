@@ -1,9 +1,8 @@
 import os
-from typing import Any, cast, Callable, Final
 import json
 
-import cutekit.shell as shell
-from cutekit.compat import ensureSupportedManifest
+from typing import Any, cast, Callable, Final
+from . import shell, compat
 
 Json = Any
 Builtin = Callable[..., Json]
@@ -61,5 +60,5 @@ def read(path: str) -> Json:
 def evalRead(path: str, compatibilityCheck: bool = True) -> Json:
     data = read(path)
     if compatibilityCheck:
-        ensureSupportedManifest(data, path)
+        compat.ensureSupportedManifest(data, path)
     return eval(data, path)
