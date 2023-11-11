@@ -89,7 +89,7 @@ class Extern:
         return f"Extern({self.git})"
 
 
-class ProjectManifest(Manifest):
+class Project(Manifest):
     description: str = ""
     extern: dict[str, Extern] = {}
 
@@ -159,7 +159,7 @@ class Tool:
 Tools = dict[str, Tool]
 
 
-class TargetManifest(Manifest):
+class Target(Manifest):
     props: Props
     tools: Tools
     routing: dict[str, str]
@@ -219,7 +219,7 @@ class TargetManifest(Manifest):
         return defines
 
 
-class ComponentManifest(Manifest):
+class Component(Manifest):
     decription: str = "(No description)"
     props: Props = {}
     tools: Tools = {}
@@ -264,7 +264,7 @@ class ComponentManifest(Manifest):
     def __repr__(self):
         return f"ComponentManifest({self.id})"
 
-    def isEnabled(self, target: TargetManifest) -> tuple[bool, str]:
+    def isEnabled(self, target: Target) -> tuple[bool, str]:
         for k, v in self.enableIf.items():
             if k not in target.props:
                 _logger.info(f"Component {self.id} disabled by missing {k} in target")
