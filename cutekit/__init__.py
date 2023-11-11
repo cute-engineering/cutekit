@@ -2,7 +2,14 @@ import sys
 import os
 import logging
 
-from . import const, model, vt100, plugins, cmds, cli
+from . import (
+    cli,
+    const,
+    model,
+    plugins,
+    vt100,
+    cmds,  # noqa: F401
+)
 
 
 def setupLogger(verbose: bool):
@@ -37,13 +44,13 @@ def main() -> int:
         a = cli.parse(sys.argv[1:])
         setupLogger(a.consumeOpt("verbose", False) is True)
         plugins.loadAll()
-        cmds.exec(a)
+        cli.exec(a)
         print()
         return 0
     except RuntimeError as e:
         logging.exception(e)
-        cmds.error(str(e))
-        cmds.usage()
+        cli.error(str(e))
+        cli.usage()
         print()
         return 1
     except KeyboardInterrupt:
