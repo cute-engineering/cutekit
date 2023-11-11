@@ -14,7 +14,11 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-dependencies = ["requests ~= 2.28.0", "graphviz ~= 0.20.1"]
+dependencies = [
+    "requests ~= 2.28.0",
+    "graphviz ~= 0.20.1",
+    "dataclasses-json ~= 0.6.2",
+]
 dynamic = ["version"]
 
 [project.scripts]
