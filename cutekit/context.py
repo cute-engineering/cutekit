@@ -5,7 +5,7 @@ import os
 import logging
 
 
-from . import const, shell, jexpr, utils, rules, mixins, project, model
+from . import const, shell, jexpr, utils, rules, mixins, model
 
 _logger = logging.getLogger(__name__)
 
