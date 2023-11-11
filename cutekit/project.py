@@ -5,7 +5,7 @@ from pathlib import Path
 
 def root() -> str | None:
     cwd = Path.cwd()
-    while cwd != Path.root:
+    while str(cwd) != cwd.root:
         if (cwd / "project.json").is_file():
             return str(cwd)
         cwd = cwd.parent

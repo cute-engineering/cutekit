@@ -5,6 +5,7 @@ import logging
 from cutekit import const, project, vt100, plugins, cmds
 from cutekit.args import parse
 
+
 def setupLogger(verbose: bool):
     if verbose:
         logging.basicConfig(
@@ -30,6 +31,7 @@ def setupLogger(verbose: bool):
             format="%(asctime)s %(levelname)s %(name)s: %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
+
 
 def main() -> int:
     try:
