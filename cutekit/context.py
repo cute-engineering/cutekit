@@ -5,9 +5,9 @@ import os
 import logging
 
 from cutekit.model import (
-    ProjectManifest,
-    TargetManifest,
-    ComponentManifest,
+    Project,
+    Target,
+    Component,
     Props,
     Type,
     Tool,
@@ -19,7 +19,7 @@ _logger = logging.getLogger(__name__)
 
 
 class IContext(Protocol):
-    target: TargetManifest
+    target: Target
 
     def builddir(self) -> str:
         ...
@@ -28,7 +28,7 @@ class IContext(Protocol):
 class ComponentInstance:
     enabled: bool = True
     disableReason = ""
-    manifest: ComponentManifest
+    manifest: Component
     sources: list[str] = []
     res: list[str] = []
     resolved: list[str] = []
@@ -38,7 +38,7 @@ class ComponentInstance:
         self,
         enabled: bool,
         disableReason: str,
-        manifest: ComponentManifest,
+        manifest: Component,
         sources: list[str],
         res: list[str],
         resolved: list[str],
@@ -103,7 +103,7 @@ class ComponentInstance:
 
 
 class Context(IContext):
-    target: TargetManifest
+    target: Target
     instances: list[ComponentInstance]
     tools: Tools
 
@@ -111,7 +111,7 @@ class Context(IContext):
         return filter(lambda x: x.enabled, self.instances)
 
     def __init__(
-        self, target: TargetManifest, instances: list[ComponentInstance], tools: Tools
+        self, target: Target, instances: list[ComponentInstance], tools: Tools
     ):
         self.target = target
         self.instances = instances
@@ -143,7 +143,7 @@ class Context(IContext):
         return os.path.join(const.BUILD_DIR, f"{self.target.id}-{self.hashid()[:8]}")
 
 
-def loadAllTargets() -> list[TargetManifest]:
+def loadAllTargets() -> list[Target]:
     projectRoot = project.root()
     if projectRoot is None:
         return []
@@ -159,42 +159,40 @@ def loadAllTargets() -> list[TargetManifest]:
     ret = []
     for entry in paths:
         files = shell.find(entry, ["*.json"])
-        ret += list(map(lambda path: TargetManifest(jexpr.evalRead(path), path), files))
+        ret += list(map(lambda path: Target(jexpr.evalRead(path), path), files))
 
     return ret
 
 
-def loadProject(path: str) -> ProjectManifest:
+def loadProject(path: str) -> Project:
     path = os.path.join(path, "project.json")
-    return ProjectManifest(jexpr.evalRead(path), path)
+    return Project(jexpr.evalRead(path), path)
 
 
-def loadTarget(id: str) -> TargetManifest:
+def loadTarget(id: str) -> Target:
     try:
         return next(filter(lambda t: t.id == id, loadAllTargets()))
     except StopIteration:
         raise RuntimeError(f"Target '{id}' not found")
 
 
-def loadAllComponents() -> list[ComponentManifest]:
+def loadAllComponents() -> list[Component]:
     files = shell.find(const.SRC_DIR, ["manifest.json"])
     files += shell.find(const.EXTERN_DIR, ["manifest.json"])
 
-    return list(map(lambda path: ComponentManifest(jexpr.evalRead(path), path), files))
+    return list(map(lambda path: Component(jexpr.evalRead(path), path), files))
 
 
 def filterDisabled(
-    components: list[ComponentManifest], target: TargetManifest
-) -> tuple[list[ComponentManifest], list[ComponentManifest]]:
+    components: list[Component], target: Target
+) -> tuple[list[Component], list[Component]]:
     return list(filter(lambda c: c.isEnabled(target)[0], components)), list(
         filter(lambda c: not c.isEnabled(target)[0], components)
     )
 
 
-def providerFor(
-    what: str, components: list[ComponentManifest]
-) -> tuple[Optional[str], str]:
-    result: list[ComponentManifest] = list(filter(lambda c: c.id == what, components))
+def providerFor(what: str, components: list[Component]) -> tuple[Optional[str], str]:
+    result: list[Component] = list(filter(lambda c: c.id == what, components))
 
     if len(result) == 0:
         # Try to find a provider
@@ -213,7 +211,7 @@ def providerFor(
 
 
 def resolveDeps(
-    componentSpec: str, components: list[ComponentManifest], target: TargetManifest
+    componentSpec: str, components: list[Component], target: Target
 ) -> tuple[bool, str, list[str]]:
     mapping = dict(map(lambda c: (c.id, c), components))
 
@@ -251,7 +249,7 @@ def resolveDeps(
 
 
 def instanciate(
-    componentSpec: str, components: list[ComponentManifest], target: TargetManifest
+    componentSpec: str, components: list[Component], target: Target
 ) -> Optional[ComponentInstance]:
     manifest = next(filter(lambda c: c.id == componentSpec, components))
     wildcards = set(chain(*map(lambda rule: rule.fileIn, rules.rules.values())))
@@ -266,9 +264,7 @@ def instanciate(
     )
 
 
-def instanciateDisabled(
-    component: ComponentManifest, target: TargetManifest
-) -> ComponentInstance:
+def instanciateDisabled(component: Component, target: Target) -> ComponentInstance:
     return ComponentInstance(
         enabled=False,
         disableReason=component.isEnabled(target)[1],
