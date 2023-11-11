@@ -1,18 +1,21 @@
 import os
 import logging
 
-from enum import Enum
-from typing import Any
-from pathlib import Path
-from . import jexpr
 
+from enum import Enum
+from typing import Any, Type, cast
+from pathlib import Path
+from dataclasses_json import DataClassJsonMixin, config
+from dataclasses import dataclass, field
+
+from . import jexpr, compat, utils
 
 _logger = logging.getLogger(__name__)
 
 Props = dict[str, Any]
 
 
-class Type(Enum):
+class Kind(Enum):
     UNKNOWN = "unknown"
     PROJECT = "project"
     TARGET = "target"
@@ -20,115 +23,46 @@ class Type(Enum):
     EXE = "exe"
 
 
-class Manifest:
-    id: str = ""
-    type: Type = Type.UNKNOWN
-    path: str = ""
+@dataclass
+class Manifest(DataClassJsonMixin):
+    id: str
+    type: Kind = field(default=Kind.UNKNOWN)
+    path: str = field(default="")
 
-    def __init__(
-        self,
-        json: jexpr.Json = None,
-        path: str = "",
-        strict: bool = True,
-        **kwargs: Any,
-    ):
-        if json is not None:
-            if "id" not in json:
-                raise RuntimeError("Missing id")
+    @staticmethod
+    def parse(path: Path, data: dict[str, Any]) -> "Manifest":
+        compat.ensureSupportedManifest(data, path)
+        kind = Kind(data["type"])
+        del data["$schema"]
+        obj = KINDS[kind].from_dict(data)
+        obj.path = str(path)
+        return obj
 
-            self.id = json["id"]
-
-            if "type" not in json and strict:
-                raise RuntimeError("Missing type")
-
-            self.type = Type(json["type"])
-
-            self.path = path
-        elif strict:
-            raise RuntimeError("Missing json")
-
-        for key in kwargs:
-            setattr(self, key, kwargs[key])
-
-    def toJson(self) -> jexpr.Json:
-        return {"id": self.id, "type": self.type.value, "path": self.path}
-
-    def __str__(self):
-        return f"Manifest(id={self.id}, type={self.type}, path={self.path})"
-
-    def __repr__(self):
-        return f"Manifest({id})"
+    @staticmethod
+    def load(path: Path) -> "Manifest":
+        return Manifest.parse(path, jexpr.evalRead(path))
 
     def dirname(self) -> str:
         return os.path.dirname(self.path)
 
-
-class Extern:
-    git: str = ""
-    tag: str = ""
-
-    def __init__(self, json: jexpr.Json = None, strict: bool = True, **kwargs: Any):
-        if json is not None:
-            if "git" not in json and strict:
-                raise RuntimeError("Missing git")
-
-            self.git = json["git"]
-
-            if "tag" not in json and strict:
-                raise RuntimeError("Missing tag")
-
-            self.tag = json["tag"]
-        elif strict:
-            raise RuntimeError("Missing json")
-
-        for key in kwargs:
-            setattr(self, key, kwargs[key])
-
-    def toJson(self) -> jexpr.Json:
-        return {"git": self.git, "tag": self.tag}
-
-    def __str__(self):
-        return f"Extern(git={self.git}, tag={self.tag})"
-
-    def __repr__(self):
-        return f"Extern({self.git})"
+    def ensureType(self, t: Type[utils.T]) -> utils.T:
+        if not isinstance(self, t):
+            raise RuntimeError(
+                f"{self.path} should be a {type.__name__} manifest but is a {self.__class__.__name__} manifest"
+            )
+        return cast(utils.T, self)
 
 
+@dataclass
+class Extern(DataClassJsonMixin):
+    git: str
+    tag: str
+
+
+@dataclass
 class Project(Manifest):
-    description: str = ""
-    extern: dict[str, Extern] = {}
-
-    def __init__(
-        self,
-        json: jexpr.Json = None,
-        path: str = "",
-        strict: bool = True,
-        **kwargs: Any,
-    ):
-        if json is not None:
-            if "description" not in json and strict:
-                raise RuntimeError("Missing description")
-
-            self.description = json["description"]
-
-            self.extern = {k: Extern(v) for k, v in json.get("extern", {}).items()}
-        elif strict:
-            raise RuntimeError("Missing json")
-
-        super().__init__(json, path, strict, **kwargs)
-
-    def toJson(self) -> jexpr.Json:
-        return {
-            **super().toJson(),
-            "description": self.description,
-            "extern": {k: v.toJson() for k, v in self.extern.items()},
-        }
-
-    def __str__(self):
-        return f"ProjectManifest(id={self.id}, type={self.type}, path={self.path}, description={self.description}, extern={self.extern})"
-
-    def __repr__(self):
-        return f"ProjectManifest({self.id})"
+    description: str = field(default="(No description)")
+    extern: dict[str, Extern] = field(default_factory=dict)
 
     @staticmethod
     def root() -> str | None:
@@ -149,80 +83,21 @@ class Project(Manifest):
         os.chdir(path)
 
 
-class Tool:
-    cmd: str = ""
-    args: list[str] = []
-    files: list[str] = []
-
-    def __init__(self, json: jexpr.Json = None, strict: bool = True, **kwargs: Any):
-        if json is not None:
-            if "cmd" not in json and strict:
-                raise RuntimeError("Missing cmd")
-
-            self.cmd = json.get("cmd", self.cmd)
-
-            if "args" not in json and strict:
-                raise RuntimeError("Missing args")
-
-            self.args = json.get("args", [])
-
-            self.files = json.get("files", [])
-        elif strict:
-            raise RuntimeError("Missing json")
-
-        for key in kwargs:
-            setattr(self, key, kwargs[key])
-
-    def toJson(self) -> jexpr.Json:
-        return {"cmd": self.cmd, "args": self.args, "files": self.files}
-
-    def __str__(self):
-        return f"Tool(cmd={self.cmd}, args={self.args}, files={self.files})"
-
-    def __repr__(self):
-        return f"Tool({self.cmd})"
+@dataclass
+class Tool(DataClassJsonMixin):
+    cmd: str = field(default="")
+    args: list[str] = field(default_factory=list)
+    files: list[str] = field(default_factory=list)
 
 
 Tools = dict[str, Tool]
 
 
+@dataclass
 class Target(Manifest):
-    props: Props
-    tools: Tools
-    routing: dict[str, str]
-
-    def __init__(
-        self,
-        json: jexpr.Json = None,
-        path: str = "",
-        strict: bool = True,
-        **kwargs: Any,
-    ):
-        if json is not None:
-            if "props" not in json and strict:
-                raise RuntimeError("Missing props")
-
-            self.props = json["props"]
-
-            if "tools" not in json and strict:
-                raise RuntimeError("Missing tools")
-
-            self.tools = {k: Tool(v) for k, v in json["tools"].items()}
-
-            self.routing = json.get("routing", {})
-
-        super().__init__(json, path, strict, **kwargs)
-
-    def toJson(self) -> jexpr.Json:
-        return {
-            **super().toJson(),
-            "props": self.props,
-            "tools": {k: v.toJson() for k, v in self.tools.items()},
-            "routing": self.routing,
-        }
-
-    def __repr__(self):
-        return f"TargetManifest({self.id})"
+    props: Props = field(default_factory=dict)
+    tools: Tools = field(default_factory=dict)
+    routing: dict[str, str] = field(default_factory=dict)
 
     def route(self, componentSpec: str):
         return (
@@ -250,54 +125,15 @@ class Target(Manifest):
         return defines
 
 
+@dataclass
 class Component(Manifest):
-    decription: str = "(No description)"
-    props: Props = {}
-    tools: Tools = {}
-    enableIf: dict[str, list[Any]] = {}
-    requires: list[str] = []
-    provides: list[str] = []
-    subdirs: list[str] = []
-
-    def __init__(
-        self,
-        json: jexpr.Json = None,
-        path: str = "",
-        strict: bool = True,
-        **kwargs: Any,
-    ):
-        if json is not None:
-            self.decription = json.get("description", self.decription)
-            self.props = json.get("props", self.props)
-            self.tools = {
-                k: Tool(v, strict=False) for k, v in json.get("tools", {}).items()
-            }
-            self.enableIf = json.get("enableIf", self.enableIf)
-            self.requires = json.get("requires", self.requires)
-            self.provides = json.get("provides", self.provides)
-            self.subdirs = list(
-                map(
-                    lambda x: os.path.join(os.path.dirname(path), x),
-                    json.get("subdirs", [""]),
-                )
-            )
-
-        super().__init__(json, path, strict, **kwargs)
-
-    def toJson(self) -> jexpr.Json:
-        return {
-            **super().toJson(),
-            "description": self.decription,
-            "props": self.props,
-            "tools": {k: v.toJson() for k, v in self.tools.items()},
-            "enableIf": self.enableIf,
-            "requires": self.requires,
-            "provides": self.provides,
-            "subdirs": self.subdirs,
-        }
-
-    def __repr__(self):
-        return f"ComponentManifest({self.id})"
+    decription: str = field(default="(No description)")
+    props: Props = field(default_factory=dict)
+    tools: Tools = field(default_factory=dict)
+    enableIf: dict[str, list[Any]] = field(default_factory=dict)
+    requires: list[str] = field(default_factory=list)
+    provides: list[str] = field(default_factory=list)
+    subdirs: list[str] = field(default_factory=list)
 
     def isEnabled(self, target: Target) -> tuple[bool, str]:
         for k, v in self.enableIf.items():
@@ -316,3 +152,11 @@ class Component(Manifest):
                 )
 
         return True, ""
+
+
+KINDS: dict[Kind, Type[Manifest]] = {
+    Kind.PROJECT: Project,
+    Kind.TARGET: Target,
+    Kind.LIB: Component,
+    Kind.EXE: Component,
+}

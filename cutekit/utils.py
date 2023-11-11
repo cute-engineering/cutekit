@@ -3,11 +3,11 @@ from typing import Any, TypeVar, cast, Optional, Union
 import json
 import hashlib
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
-def uniq(l: list[str]) -> list[str]:
-    result: list[str] = []
+def uniq(l: list[T]) -> list[T]:
+    result: list[T] = []
     for i in l:
         if i in result:
             result.remove(i)
@@ -15,7 +15,9 @@ def uniq(l: list[str]) -> list[str]:
     return result
 
 
-def hash(obj: Any, keys: list[str] = [], cls: Optional[type[json.JSONEncoder]] = None) -> str:
+def hash(
+    obj: Any, keys: list[str] = [], cls: Optional[type[json.JSONEncoder]] = None
+) -> str:
     toHash = {}
     if len(keys) == 0:
         toHash = obj
@@ -28,7 +30,7 @@ def hash(obj: Any, keys: list[str] = [], cls: Optional[type[json.JSONEncoder]] =
 
 
 def camelCase(s: str) -> str:
-    s = ''.join(x for x in s.title() if x != '_' and x != '-')
+    s = "".join(x for x in s.title() if x != "_" and x != "-")
     s = s[0].lower() + s[1:]
     return s
 
@@ -60,4 +62,6 @@ def asList(i: Optional[Union[T, list[T]]]) -> list[T]:
 
 
 def isNewer(path1: str, path2: str) -> bool:
-    return not os.path.exists(path2) or os.path.getmtime(path1) > os.path.getmtime(path2)
+    return not os.path.exists(path2) or os.path.getmtime(path1) > os.path.getmtime(
+        path2
+    )
