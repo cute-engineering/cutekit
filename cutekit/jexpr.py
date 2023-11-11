@@ -1,5 +1,6 @@
 import os
 import json
+from pathlib import Path
 
 from typing import Any, cast, Callable, Final
 from . import shell, compat
@@ -9,8 +10,8 @@ Builtin = Callable[..., Json]
 
 BUILTINS: Final[dict[str, Builtin]] = {
     "uname": lambda arg, ctx: getattr(shell.uname(), arg).lower(),
-    "include": lambda arg, ctx: evalRead(arg, compatibilityCheck=False),
-    "evalRead": lambda arg, ctx: evalRead(arg, compatibilityCheck=False),
+    "include": lambda arg, ctx: evalRead(arg),
+    "evalRead": lambda arg, ctx: evalRead(arg),
     "join": lambda lhs, rhs, ctx: cast(
         Json, {**lhs, **rhs} if isinstance(lhs, dict) else lhs + rhs
     ),
@@ -27,7 +28,7 @@ BUILTINS: Final[dict[str, Builtin]] = {
 }
 
 
-def eval(jexpr: Json, filePath: str) -> Json:
+def eval(jexpr: Json, filePath: Path) -> Json:
     if isinstance(jexpr, dict):
         result = {}
         for k in cast(dict[str, Json], jexpr):
@@ -49,7 +50,7 @@ def eval(jexpr: Json, filePath: str) -> Json:
         return jexpr
 
 
-def read(path: str) -> Json:
+def read(path: Path) -> Json:
     try:
         with open(path, "r") as f:
             return json.load(f)
@@ -57,8 +58,6 @@ def read(path: str) -> Json:
         raise RuntimeError(f"Failed to read {path}")
 
 
-def evalRead(path: str, compatibilityCheck: bool = True) -> Json:
+def evalRead(path: Path) -> Json:
     data = read(path)
-    if compatibilityCheck:
-        compat.ensureSupportedManifest(data, path)
     return eval(data, path)

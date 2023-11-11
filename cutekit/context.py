@@ -46,7 +46,7 @@ class ComponentInstance:
         return self.manifest.id
 
     def isLib(self):
-        return self.manifest.type == model.Type.LIB
+        return self.manifest.type == model.Kind.LIB
 
     def objdir(self) -> str:
         return os.path.join(self.context.builddir(), f"{self.manifest.id}/obj")
@@ -88,7 +88,7 @@ class ComponentInstance:
     def cinclude(self) -> str:
         if "cpp-root-include" in self.manifest.props:
             return self.manifest.dirname()
-        elif self.manifest.type == model.Type.LIB:
+        elif self.manifest.type == model.Kind.LIB:
             return str(Path(self.manifest.dirname()).parent)
         else:
             return ""
@@ -131,7 +131,7 @@ class Context(IContext):
 
     def hashid(self) -> str:
         return utils.hash(
-            (self.target.props, [self.tools[t].toJson() for t in self.tools])
+            (self.target.props, [self.tools[t].to_dict() for t in self.tools])
         )[0:8]
 
     def builddir(self) -> str:
@@ -154,14 +154,19 @@ def loadAllTargets() -> list[model.Target]:
     ret = []
     for entry in paths:
         files = shell.find(entry, ["*.json"])
-        ret += list(map(lambda path: model.Target(jexpr.evalRead(path), path), files))
+        ret += list(
+            map(
+                lambda path: model.Manifest.load(Path(path)).ensureType(model.Target),
+                files,
+            )
+        )
 
     return ret
 
 
 def loadProject(path: str) -> model.Project:
     path = os.path.join(path, "project.json")
-    return model.Project(jexpr.evalRead(path), path)
+    return model.Manifest.load(Path(path)).ensureType(model.Project)
 
 
 def loadTarget(id: str) -> model.Target:
@@ -175,7 +180,12 @@ def loadAllComponents() -> list[model.Component]:
     files = shell.find(const.SRC_DIR, ["manifest.json"])
     files += shell.find(const.EXTERN_DIR, ["manifest.json"])
 
-    return list(map(lambda path: model.Component(jexpr.evalRead(path), path), files))
+    return list(
+        map(
+            lambda path: model.Manifest.load(Path(path)).ensureType(model.Component),
+            files,
+        )
+    )
 
 
 def filterDisabled(
@@ -242,7 +252,7 @@ def resolveDeps(
 
     enabled, unresolvedReason, resolved = resolveInner(componentSpec)
 
-    return enabled, unresolvedReason, resolved
+    return enabled, unresolvedReason, utils.uniq(resolved)
 
 
 def instanciate(
@@ -250,7 +260,10 @@ def instanciate(
 ) -> Optional[ComponentInstance]:
     manifest = next(filter(lambda c: c.id == componentSpec, components))
     wildcards = set(chain(*map(lambda rule: rule.fileIn, rules.rules.values())))
-    sources = shell.find(manifest.subdirs, list(wildcards), recusive=False)
+    dirs = [manifest.dirname()] + list(
+        map(lambda d: os.path.join(manifest.dirname(), d), manifest.subdirs)
+    )
+    sources = shell.find(dirs, list(wildcards), recusive=False)
 
     res = shell.find(os.path.join(manifest.dirname(), "res"))
 
@@ -299,9 +312,7 @@ def contextFor(targetSpec: str, props: model.Props = {}) -> Context:
     for toolSpec in target.tools:
         tool = target.tools[toolSpec]
 
-        tools[toolSpec] = model.Tool(
-            strict=False, cmd=tool.cmd, args=tool.args, files=tool.files
-        )
+        tools[toolSpec] = model.Tool(cmd=tool.cmd, args=tool.args, files=tool.files)
 
         tools[toolSpec].args += rules.rules[toolSpec].args
 
