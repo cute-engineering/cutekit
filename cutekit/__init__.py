@@ -12,6 +12,19 @@ from . import (
 )
 
 
+def ensure(version: tuple[int, int, int]):
+    if (
+        const.VERSION[0] == version[0]
+        and const.VERSION[1] == version[1]
+        and const.VERSION[2] >= version[2]
+    ):
+        return
+
+    raise RuntimeError(
+        f"Expected cutekit version {version[0]}.{version[1]}.{version[2]} but found {const.VERSION_STR}"
+    )
+
+
 def setupLogger(verbose: bool):
     if verbose:
         logging.basicConfig(
