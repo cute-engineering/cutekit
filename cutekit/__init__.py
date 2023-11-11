@@ -2,8 +2,7 @@ import sys
 import os
 import logging
 
-from cutekit import const, project, vt100, plugins, cmds
-from cutekit.args import parse
+from cutekit import const, project, vt100, plugins, cmds, cli
 
 
 def setupLogger(verbose: bool):
@@ -35,7 +34,7 @@ def setupLogger(verbose: bool):
 
 def main() -> int:
     try:
-        a = parse(sys.argv[1:])
+        a = cli.parse(sys.argv[1:])
         setupLogger(a.consumeOpt("verbose", False) is True)
         plugins.loadAll()
         cmds.exec(a)

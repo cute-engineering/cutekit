@@ -1,4 +1,7 @@
-from typing import Optional, Union
+import inspect
+
+from typing import Optional, Union, Callable
+from dataclasses import dataclass
 
 
 Value = Union[str, bool, int]
@@ -58,3 +61,37 @@ def parse(args: list[str]) -> Args:
             result.args.append(arg)
 
     return result
+
+
+Callback = Callable[[Args], None]
+
+
+@dataclass
+class Command:
+    shortName: str
+    longName: str
+    helpText: str
+    isPlugin: bool
+    callback: Callback
+
+
+commands: list[Command] = []
+
+
+def append(command: Command):
+    command.isPlugin = True
+    commands.append(command)
+    commands.sort(key=lambda c: c.shortName or c.longName)
+
+
+def command(shortName: str, longName: str, helpText: str):
+    curframe = inspect.currentframe()
+    calframe = inspect.getouterframes(curframe, 2)
+
+    def wrap(fn: Callable[[Args], None]):
+        commands.append(
+            Command(shortName, longName, helpText, calframe[1].filename != __file__, fn)
+        )
+        return fn
+
+    return wrap
