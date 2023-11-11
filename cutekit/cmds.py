@@ -1,58 +1,29 @@
-import inspect
 import logging
 import os
 import sys
 
-from dataclasses import dataclass
-from typing import Callable, cast, Optional
 
-from cutekit import context, shell, const, vt100, builder, graph, project
-from cutekit.args import Args
-from cutekit.context import contextFor
-from cutekit.jexpr import Json
-from cutekit.model import Extern
+from cutekit import (
+    context,
+    shell,
+    const,
+    vt100,
+    builder,
+    project,
+    cli,
+    model,
+    jexpr,
+)
 
-Callback = Callable[[Args], None]
 
 _logger = logging.getLogger(__name__)
 
 
-@dataclass
-class Cmd:
-    shortName: str
-    longName: str
-    helpText: str
-    isPlugin: bool
-    callback: Callback
-
-
-cmds: list[Cmd] = []
-
-
-def append(cmd: Cmd):
-    cmd.isPlugin = True
-    cmds.append(cmd)
-    cmds.sort(key=lambda c: c.shortName or c.longName)
-
-
-def cmd(shortName: str, longName: str, helpText: str):
-    curframe = inspect.currentframe()
-    calframe = inspect.getouterframes(curframe, 2)
-
-    def wrap(fn: Callable[[Args], None]):
-        cmds.append(
-            Cmd(shortName, longName, helpText, calframe[1].filename != __file__, fn)
-        )
-        return fn
-
-    return wrap
-
-
-@cmd("p", "project", "Show project information")
-def runCmd(args: Args):
+@cli.command("p", "project", "Show project information")
+def runCmd(args: cli.Args):
     project.chdir()
 
-    targetSpec = cast(str, args.consumeOpt("target", "host-" + shell.uname().machine))
+    targetSpec = str(args.consumeOpt("target", "host-" + shell.uname().machine))
     props = args.consumePrefix("prop:")
 
     componentSpec = args.consumeArg()
@@ -69,19 +40,19 @@ def runCmd(args: Args):
     shell.exec(component.outfile(), *args.args)
 
 
-@cmd("t", "test", "Run all test targets")
-def testCmd(args: Args):
+@cli.command("t", "test", "Run all test targets")
+def testCmd(args: cli.Args):
     project.chdir()
 
-    targetSpec = cast(str, args.consumeOpt("target", "host-" + shell.uname().machine))
+    targetSpec = str(args.consumeOpt("target", "host-" + shell.uname().machine))
     builder.testAll(targetSpec)
 
 
-@cmd("d", "debug", "Debug a component")
-def debugCmd(args: Args):
+@cli.command("d", "debug", "Debug a component")
+def debugCmd(args: cli.Args):
     project.chdir()
 
-    targetSpec = cast(str, args.consumeOpt("target", "host-" + shell.uname().machine))
+    targetSpec = str(args.consumeOpt("target", "host-" + shell.uname().machine))
     props = args.consumePrefix("prop:")
 
     componentSpec = args.consumeArg()
@@ -98,11 +69,11 @@ def debugCmd(args: Args):
     shell.exec("lldb", "-o", "run", component.outfile(), *args.args)
 
 
-@cmd("b", "build", "Build a component or all components")
-def buildCmd(args: Args):
+@cli.command("b", "build", "Build a component or all components")
+def buildCmd(args: cli.Args):
     project.chdir()
 
-    targetSpec = cast(str, args.consumeOpt("target", "host-" + shell.uname().machine))
+    targetSpec = str(args.consumeOpt("target", "host-" + shell.uname().machine))
     props = args.consumePrefix("prop:")
     componentSpec = args.consumeArg()
 
@@ -112,8 +83,8 @@ def buildCmd(args: Args):
         builder.build(componentSpec, targetSpec, props)
 
 
-@cmd("l", "list", "List all components and targets")
-def listCmd(args: Args):
+@cli.command("l", "list", "List all components and targets")
+def listCmd(args: cli.Args):
     project.chdir()
 
     components = context.loadAllComponents()
@@ -136,20 +107,20 @@ def listCmd(args: Args):
     print()
 
 
-@cmd("c", "clean", "Clean build files")
-def cleanCmd(args: Args):
+@cli.command("c", "clean", "Clean build files")
+def cleanCmd(args: cli.Args):
     project.chdir()
     shell.rmrf(const.BUILD_DIR)
 
 
-@cmd("n", "nuke", "Clean all build files and caches")
-def nukeCmd(args: Args):
+@cli.command("n", "nuke", "Clean all build files and caches")
+def nukeCmd(args: cli.Args):
     project.chdir()
     shell.rmrf(const.PROJECT_CK_DIR)
 
 
-@cmd("h", "help", "Show this help message")
-def helpCmd(args: Args):
+@cli.command("h", "help", "Show this help message")
+def helpCmd(args: cli.Args):
     usage()
 
     print()
@@ -159,7 +130,7 @@ def helpCmd(args: Args):
 
     print()
     vt100.title("Commands")
-    for cmd in cmds:
+    for cmd in cli.commands:
         pluginText = ""
         if cmd.isPlugin:
             pluginText = f"{vt100.CYAN}(plugin){vt100.RESET}"
@@ -175,27 +146,12 @@ def helpCmd(args: Args):
     print(f"     - {const.GLOBAL_LOG_FILE}")
 
 
-@cmd("v", "version", "Show current version")
-def versionCmd(args: Args):
+@cli.command("v", "version", "Show current version")
+def versionCmd(args: cli.Args):
     print(f"CuteKit v{const.VERSION_STR}\n")
 
 
-@cmd("g", "graph", "Show the dependency graph")
-def graphCmd(args: Args):
-    project.chdir()
-
-    targetSpec = cast(str, args.consumeOpt("target", "host-" + shell.uname().machine))
-
-    scope: Optional[str] = cast(Optional[str], args.tryConsumeOpt("scope"))
-    onlyLibs: bool = args.consumeOpt("only-libs", False) is True
-    showDisabled: bool = args.consumeOpt("show-disabled", False) is True
-
-    context = contextFor(targetSpec)
-
-    graph.view(context, scope=scope, showExe=not onlyLibs, showDisabled=showDisabled)
-
-
-def grabExtern(extern: dict[str, Extern]):
+def grabExtern(extern: dict[str, model.Extern]):
     for extSpec, ext in extern.items():
         extPath = os.path.join(const.EXTERN_DIR, extSpec)
 
@@ -212,16 +168,16 @@ def grabExtern(extern: dict[str, Extern]):
             grabExtern(context.loadProject(extPath).extern)
 
 
-@cmd("i", "install", "Install required external packages")
-def installCmd(args: Args):
+@cli.command("i", "install", "Install required external packages")
+def installCmd(args: cli.Args):
     project.chdir()
 
     pj = context.loadProject(".")
     grabExtern(pj.extern)
 
 
-@cmd("I", "init", "Initialize a new project")
-def initCmd(args: Args):
+@cli.command("I", "init", "Initialize a new project")
+def initCmd(args: cli.Args):
     import requests
 
     repo = args.consumeOpt("repo", const.DEFAULT_REPO_TEMPLATES)
@@ -248,7 +204,7 @@ def initCmd(args: Args):
     if not template:
         raise RuntimeError("Template not specified")
 
-    def template_match(t: Json) -> str:
+    def template_match(t: jexpr.Json) -> str:
         return t["id"] == template
 
     if not any(filter(template_match, registry)):
@@ -283,13 +239,13 @@ def error(msg: str) -> None:
     print(f"{vt100.RED}Error:{vt100.RESET} {msg}\n", file=sys.stderr)
 
 
-def exec(args: Args):
+def exec(args: cli.Args):
     cmd = args.consumeArg()
 
     if cmd is None:
         raise RuntimeError("No command specified")
 
-    for c in cmds:
+    for c in cli.commands:
         if c.shortName == cmd or c.longName == cmd:
             c.callback(args)
             return
