@@ -13,7 +13,7 @@ import tempfile
 
 
 from typing import Optional
-from cutekit import const
+from . import const
 
 _logger = logging.getLogger(__name__)
 

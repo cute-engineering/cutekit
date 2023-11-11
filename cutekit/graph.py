@@ -1,7 +1,7 @@
 import os
 
 from typing import cast
-from . import vt100, context, project, cli, shell
+from . import vt100, context, cli, shell, model
 
 
 def view(
@@ -10,7 +10,7 @@ def view(
     showExe: bool = True,
     showDisabled: bool = False,
 ):
-    from graphviz import Digraph
+    from graphviz import Digraph  # type: ignore
 
     g = Digraph(context.target.id, filename="graph.gv")
 
@@ -83,7 +83,7 @@ def view(
 
 @cli.command("g", "graph", "Show the dependency graph")
 def graphCmd(args: cli.Args):
-    project.chdir()
+    model.Project.chdir()
 
     targetSpec = str(args.consumeOpt("target", "host-" + shell.uname().machine))
 

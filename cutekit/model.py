@@ -1,9 +1,10 @@
 import os
-from enum import Enum
-from typing import Any
 import logging
 
-from cutekit.jexpr import Json
+from enum import Enum
+from typing import Any
+from pathlib import Path
+from . import jexpr
 
 
 _logger = logging.getLogger(__name__)
@@ -25,7 +26,11 @@ class Manifest:
     path: str = ""
 
     def __init__(
-        self, json: Json = None, path: str = "", strict: bool = True, **kwargs: Any
+        self,
+        json: jexpr.Json = None,
+        path: str = "",
+        strict: bool = True,
+        **kwargs: Any,
     ):
         if json is not None:
             if "id" not in json:
@@ -45,7 +50,7 @@ class Manifest:
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
-    def toJson(self) -> Json:
+    def toJson(self) -> jexpr.Json:
         return {"id": self.id, "type": self.type.value, "path": self.path}
 
     def __str__(self):
@@ -62,7 +67,7 @@ class Extern:
     git: str = ""
     tag: str = ""
 
-    def __init__(self, json: Json = None, strict: bool = True, **kwargs: Any):
+    def __init__(self, json: jexpr.Json = None, strict: bool = True, **kwargs: Any):
         if json is not None:
             if "git" not in json and strict:
                 raise RuntimeError("Missing git")
@@ -79,7 +84,7 @@ class Extern:
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
-    def toJson(self) -> Json:
+    def toJson(self) -> jexpr.Json:
         return {"git": self.git, "tag": self.tag}
 
     def __str__(self):
@@ -94,7 +99,11 @@ class Project(Manifest):
     extern: dict[str, Extern] = {}
 
     def __init__(
-        self, json: Json = None, path: str = "", strict: bool = True, **kwargs: Any
+        self,
+        json: jexpr.Json = None,
+        path: str = "",
+        strict: bool = True,
+        **kwargs: Any,
     ):
         if json is not None:
             if "description" not in json and strict:
@@ -108,7 +117,7 @@ class Project(Manifest):
 
         super().__init__(json, path, strict, **kwargs)
 
-    def toJson(self) -> Json:
+    def toJson(self) -> jexpr.Json:
         return {
             **super().toJson(),
             "description": self.description,
@@ -121,13 +130,31 @@ class Project(Manifest):
     def __repr__(self):
         return f"ProjectManifest({self.id})"
 
+    @staticmethod
+    def root() -> str | None:
+        cwd = Path.cwd()
+        while str(cwd) != cwd.root:
+            if (cwd / "project.json").is_file():
+                return str(cwd)
+            cwd = cwd.parent
+        return None
+
+    @staticmethod
+    def chdir() -> None:
+        path = Project.root()
+        if path is None:
+            raise RuntimeError(
+                "No project.json found in this directory or any parent directory"
+            )
+        os.chdir(path)
+
 
 class Tool:
     cmd: str = ""
     args: list[str] = []
     files: list[str] = []
 
-    def __init__(self, json: Json = None, strict: bool = True, **kwargs: Any):
+    def __init__(self, json: jexpr.Json = None, strict: bool = True, **kwargs: Any):
         if json is not None:
             if "cmd" not in json and strict:
                 raise RuntimeError("Missing cmd")
@@ -146,7 +173,7 @@ class Tool:
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
-    def toJson(self) -> Json:
+    def toJson(self) -> jexpr.Json:
         return {"cmd": self.cmd, "args": self.args, "files": self.files}
 
     def __str__(self):
@@ -165,7 +192,11 @@ class Target(Manifest):
     routing: dict[str, str]
 
     def __init__(
-        self, json: Json = None, path: str = "", strict: bool = True, **kwargs: Any
+        self,
+        json: jexpr.Json = None,
+        path: str = "",
+        strict: bool = True,
+        **kwargs: Any,
     ):
         if json is not None:
             if "props" not in json and strict:
@@ -182,7 +213,7 @@ class Target(Manifest):
 
         super().__init__(json, path, strict, **kwargs)
 
-    def toJson(self) -> Json:
+    def toJson(self) -> jexpr.Json:
         return {
             **super().toJson(),
             "props": self.props,
@@ -229,7 +260,11 @@ class Component(Manifest):
     subdirs: list[str] = []
 
     def __init__(
-        self, json: Json = None, path: str = "", strict: bool = True, **kwargs: Any
+        self,
+        json: jexpr.Json = None,
+        path: str = "",
+        strict: bool = True,
+        **kwargs: Any,
     ):
         if json is not None:
             self.decription = json.get("description", self.decription)
@@ -249,7 +284,7 @@ class Component(Manifest):
 
         super().__init__(json, path, strict, **kwargs)
 
-    def toJson(self) -> Json:
+    def toJson(self) -> jexpr.Json:
         return {
             **super().toJson(),
             "description": self.decription,

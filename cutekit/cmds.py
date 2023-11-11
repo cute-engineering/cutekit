@@ -3,13 +3,12 @@ import os
 import sys
 
 
-from cutekit import (
+from . import (
     context,
     shell,
     const,
     vt100,
     builder,
-    project,
     cli,
     model,
     jexpr,
@@ -21,7 +20,7 @@ _logger = logging.getLogger(__name__)
 
 @cli.command("p", "project", "Show project information")
 def runCmd(args: cli.Args):
-    project.chdir()
+    model.Project.chdir()
 
     targetSpec = str(args.consumeOpt("target", "host-" + shell.uname().machine))
     props = args.consumePrefix("prop:")
@@ -42,7 +41,7 @@ def runCmd(args: cli.Args):
 
 @cli.command("t", "test", "Run all test targets")
 def testCmd(args: cli.Args):
-    project.chdir()
+    model.Project.chdir()
 
     targetSpec = str(args.consumeOpt("target", "host-" + shell.uname().machine))
     builder.testAll(targetSpec)
@@ -50,7 +49,7 @@ def testCmd(args: cli.Args):
 
 @cli.command("d", "debug", "Debug a component")
 def debugCmd(args: cli.Args):
-    project.chdir()
+    model.Project.chdir()
 
     targetSpec = str(args.consumeOpt("target", "host-" + shell.uname().machine))
     props = args.consumePrefix("prop:")
@@ -71,7 +70,7 @@ def debugCmd(args: cli.Args):
 
 @cli.command("b", "build", "Build a component or all components")
 def buildCmd(args: cli.Args):
-    project.chdir()
+    model.Project.chdir()
 
     targetSpec = str(args.consumeOpt("target", "host-" + shell.uname().machine))
     props = args.consumePrefix("prop:")
@@ -85,7 +84,7 @@ def buildCmd(args: cli.Args):
 
 @cli.command("l", "list", "List all components and targets")
 def listCmd(args: cli.Args):
-    project.chdir()
+    model.Project.chdir()
 
     components = context.loadAllComponents()
     targets = context.loadAllTargets()
@@ -109,13 +108,13 @@ def listCmd(args: cli.Args):
 
 @cli.command("c", "clean", "Clean build files")
 def cleanCmd(args: cli.Args):
-    project.chdir()
+    model.Project.chdir()
     shell.rmrf(const.BUILD_DIR)
 
 
 @cli.command("n", "nuke", "Clean all build files and caches")
 def nukeCmd(args: cli.Args):
-    project.chdir()
+    model.Project.chdir()
     shell.rmrf(const.PROJECT_CK_DIR)
 
 
@@ -170,8 +169,7 @@ def grabExtern(extern: dict[str, model.Extern]):
 
 @cli.command("i", "install", "Install required external packages")
 def installCmd(args: cli.Args):
-    project.chdir()
-
+    model.Project.chdir()
     pj = context.loadProject(".")
     grabExtern(pj.extern)
 

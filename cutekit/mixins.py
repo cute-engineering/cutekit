@@ -1,25 +1,26 @@
 from typing import Callable
-from cutekit.model import Target, Tools
 
-Mixin = Callable[[Target, Tools], Tools]
+from . import model
+
+Mixin = Callable[[model.Target, model.Tools], model.Tools]
 
 
-def patchToolArgs(tools: Tools, toolSpec: str, args: list[str]):
+def patchToolArgs(tools: model.Tools, toolSpec: str, args: list[str]):
     tools[toolSpec].args += args
 
 
-def prefixToolCmd(tools: Tools, toolSpec: str, prefix: str):
+def prefixToolCmd(tools: model.Tools, toolSpec: str, prefix: str):
     tools[toolSpec].cmd = prefix + " " + tools[toolSpec].cmd
 
 
-def mixinCache(target: Target, tools: Tools) -> Tools:
+def mixinCache(target: model.Target, tools: model.Tools) -> model.Tools:
     prefixToolCmd(tools, "cc", "ccache")
     prefixToolCmd(tools, "cxx", "ccache")
     return tools
 
 
 def makeMixinSan(san: str) -> Mixin:
-    def mixinSan(target: Target, tools: Tools) -> Tools:
+    def mixinSan(target: model.Target, tools: model.Tools) -> model.Tools:
         patchToolArgs(tools, "cc", [f"-fsanitize={san}"])
         patchToolArgs(tools, "cxx", [f"-fsanitize={san}"])
         patchToolArgs(tools, "ld", [f"-fsanitize={san}"])
@@ -30,7 +31,7 @@ def makeMixinSan(san: str) -> Mixin:
 
 
 def makeMixinOptimize(level: str) -> Mixin:
-    def mixinOptimize(target: Target, tools: Tools) -> Tools:
+    def mixinOptimize(target: model.Target, tools: model.Tools) -> model.Tools:
         patchToolArgs(tools, "cc", [f"-O{level}"])
         patchToolArgs(tools, "cxx", [f"-O{level}"])
 
@@ -39,7 +40,7 @@ def makeMixinOptimize(level: str) -> Mixin:
     return mixinOptimize
 
 
-def mixinDebug(target: Target, tools: Tools) -> Tools:
+def mixinDebug(target: model.Target, tools: model.Tools) -> model.Tools:
     patchToolArgs(tools, "cc", ["-g", "-gdwarf-4"])
     patchToolArgs(tools, "cxx", ["-g", "-gdwarf-4"])
 
@@ -47,7 +48,7 @@ def mixinDebug(target: Target, tools: Tools) -> Tools:
 
 
 def makeMixinTune(tune: str) -> Mixin:
-    def mixinTune(target: Target, tools: Tools) -> Tools:
+    def mixinTune(target: model.Target, tools: model.Tools) -> model.Tools:
         patchToolArgs(tools, "cc", [f"-mtune={tune}"])
         patchToolArgs(tools, "cxx", [f"-mtune={tune}"])
 

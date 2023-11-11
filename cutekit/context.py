@@ -4,22 +4,14 @@ from pathlib import Path
 import os
 import logging
 
-from cutekit.model import (
-    Project,
-    Target,
-    Component,
-    Props,
-    Type,
-    Tool,
-    Tools,
-)
-from cutekit import const, shell, jexpr, utils, rules, mixins, project
+
+from . import const, shell, jexpr, utils, rules, mixins, project, model
 
 _logger = logging.getLogger(__name__)
 
 
 class IContext(Protocol):
-    target: Target
+    target: model.Target
 
     def builddir(self) -> str:
         ...
@@ -28,7 +20,7 @@ class IContext(Protocol):
 class ComponentInstance:
     enabled: bool = True
     disableReason = ""
-    manifest: Component
+    manifest: model.Component
     sources: list[str] = []
     res: list[str] = []
     resolved: list[str] = []
@@ -38,7 +30,7 @@ class ComponentInstance:
         self,
         enabled: bool,
         disableReason: str,
-        manifest: Component,
+        manifest: model.Component,
         sources: list[str],
         res: list[str],
         resolved: list[str],
@@ -54,7 +46,7 @@ class ComponentInstance:
         return self.manifest.id
 
     def isLib(self):
-        return self.manifest.type == Type.LIB
+        return self.manifest.type == model.Type.LIB
 
     def objdir(self) -> str:
         return os.path.join(self.context.builddir(), f"{self.manifest.id}/obj")
@@ -96,22 +88,25 @@ class ComponentInstance:
     def cinclude(self) -> str:
         if "cpp-root-include" in self.manifest.props:
             return self.manifest.dirname()
-        elif self.manifest.type == Type.LIB:
+        elif self.manifest.type == model.Type.LIB:
             return str(Path(self.manifest.dirname()).parent)
         else:
             return ""
 
 
 class Context(IContext):
-    target: Target
+    target: model.Target
     instances: list[ComponentInstance]
-    tools: Tools
+    tools: model.Tools
 
     def enabledInstances(self) -> Iterable[ComponentInstance]:
         return filter(lambda x: x.enabled, self.instances)
 
     def __init__(
-        self, target: Target, instances: list[ComponentInstance], tools: Tools
+        self,
+        target: model.Target,
+        instances: list[ComponentInstance],
+        tools: model.Tools,
     ):
         self.target = target
         self.instances = instances
@@ -143,8 +138,8 @@ class Context(IContext):
         return os.path.join(const.BUILD_DIR, f"{self.target.id}-{self.hashid()[:8]}")
 
 
-def loadAllTargets() -> list[Target]:
-    projectRoot = project.root()
+def loadAllTargets() -> list[model.Target]:
+    projectRoot = model.Project.root()
     if projectRoot is None:
         return []
 
@@ -159,40 +154,42 @@ def loadAllTargets() -> list[Target]:
     ret = []
     for entry in paths:
         files = shell.find(entry, ["*.json"])
-        ret += list(map(lambda path: Target(jexpr.evalRead(path), path), files))
+        ret += list(map(lambda path: model.Target(jexpr.evalRead(path), path), files))
 
     return ret
 
 
-def loadProject(path: str) -> Project:
+def loadProject(path: str) -> model.Project:
     path = os.path.join(path, "project.json")
-    return Project(jexpr.evalRead(path), path)
+    return model.Project(jexpr.evalRead(path), path)
 
 
-def loadTarget(id: str) -> Target:
+def loadTarget(id: str) -> model.Target:
     try:
         return next(filter(lambda t: t.id == id, loadAllTargets()))
     except StopIteration:
         raise RuntimeError(f"Target '{id}' not found")
 
 
-def loadAllComponents() -> list[Component]:
+def loadAllComponents() -> list[model.Component]:
     files = shell.find(const.SRC_DIR, ["manifest.json"])
     files += shell.find(const.EXTERN_DIR, ["manifest.json"])
 
-    return list(map(lambda path: Component(jexpr.evalRead(path), path), files))
+    return list(map(lambda path: model.Component(jexpr.evalRead(path), path), files))
 
 
 def filterDisabled(
-    components: list[Component], target: Target
-) -> tuple[list[Component], list[Component]]:
+    components: list[model.Component], target: model.Target
+) -> tuple[list[model.Component], list[model.Component]]:
     return list(filter(lambda c: c.isEnabled(target)[0], components)), list(
         filter(lambda c: not c.isEnabled(target)[0], components)
     )
 
 
-def providerFor(what: str, components: list[Component]) -> tuple[Optional[str], str]:
-    result: list[Component] = list(filter(lambda c: c.id == what, components))
+def providerFor(
+    what: str, components: list[model.Component]
+) -> tuple[Optional[str], str]:
+    result: list[model.Component] = list(filter(lambda c: c.id == what, components))
 
     if len(result) == 0:
         # Try to find a provider
@@ -211,7 +208,7 @@ def providerFor(what: str, components: list[Component]) -> tuple[Optional[str], 
 
 
 def resolveDeps(
-    componentSpec: str, components: list[Component], target: Target
+    componentSpec: str, components: list[model.Component], target: model.Target
 ) -> tuple[bool, str, list[str]]:
     mapping = dict(map(lambda c: (c.id, c), components))
 
@@ -249,7 +246,7 @@ def resolveDeps(
 
 
 def instanciate(
-    componentSpec: str, components: list[Component], target: Target
+    componentSpec: str, components: list[model.Component], target: model.Target
 ) -> Optional[ComponentInstance]:
     manifest = next(filter(lambda c: c.id == componentSpec, components))
     wildcards = set(chain(*map(lambda rule: rule.fileIn, rules.rules.values())))
@@ -264,7 +261,9 @@ def instanciate(
     )
 
 
-def instanciateDisabled(component: Component, target: Target) -> ComponentInstance:
+def instanciateDisabled(
+    component: model.Component, target: model.Target
+) -> ComponentInstance:
     return ComponentInstance(
         enabled=False,
         disableReason=component.isEnabled(target)[1],
@@ -278,7 +277,7 @@ def instanciateDisabled(component: Component, target: Target) -> ComponentInstan
 context: dict[str, Context] = {}
 
 
-def contextFor(targetSpec: str, props: Props = {}) -> Context:
+def contextFor(targetSpec: str, props: model.Props = {}) -> Context:
     if targetSpec in context:
         return context[targetSpec]
 
@@ -295,12 +294,12 @@ def contextFor(targetSpec: str, props: Props = {}) -> Context:
     components = loadAllComponents()
     components, disabled = filterDisabled(components, target)
 
-    tools: Tools = {}
+    tools: model.Tools = {}
 
     for toolSpec in target.tools:
         tool = target.tools[toolSpec]
 
-        tools[toolSpec] = Tool(
+        tools[toolSpec] = model.Tool(
             strict=False, cmd=tool.cmd, args=tool.args, files=tool.files
         )
 

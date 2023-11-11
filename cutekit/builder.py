@@ -2,16 +2,13 @@ import os
 import logging
 from typing import TextIO
 
-from cutekit.model import Props
-from cutekit.ninja import Writer
-from cutekit.context import ComponentInstance, Context, contextFor
-from cutekit import shell, rules
+from . import shell, rules, model, ninja, context
 
 _logger = logging.getLogger(__name__)
 
 
-def gen(out: TextIO, context: Context):
-    writer = Writer(out)
+def gen(out: TextIO, context: context.Context):
+    writer = ninja.Writer(out)
 
     target = context.target
 
@@ -102,16 +99,18 @@ def gen(out: TextIO, context: Context):
     writer.default("all")
 
 
-def build(componentSpec: str, targetSpec: str, props: Props = {}) -> ComponentInstance:
-    context = contextFor(targetSpec, props)
+def build(
+    componentSpec: str, targetSpec: str, props: model.Props = {}
+) -> context.ComponentInstance:
+    ctx = context.contextFor(targetSpec, props)
 
-    shell.mkdir(context.builddir())
-    ninjaPath = os.path.join(context.builddir(), "build.ninja")
+    shell.mkdir(ctx.builddir())
+    ninjaPath = os.path.join(ctx.builddir(), "build.ninja")
 
     with open(ninjaPath, "w") as f:
-        gen(f, context)
+        gen(f, ctx)
 
-    instance = context.componentByName(componentSpec)
+    instance = ctx.componentByName(componentSpec)
 
     if instance is None:
         raise RuntimeError(f"Component {componentSpec} not found")
@@ -137,32 +136,32 @@ class Paths:
         self.obj = obj
 
 
-def buildAll(targetSpec: str, props: Props = {}) -> Context:
-    context = contextFor(targetSpec, props)
+def buildAll(targetSpec: str, props: model.Props = {}) -> context.Context:
+    ctx = context.contextFor(targetSpec, props)
 
-    shell.mkdir(context.builddir())
-    ninjaPath = os.path.join(context.builddir(), "build.ninja")
+    shell.mkdir(ctx.builddir())
+    ninjaPath = os.path.join(ctx.builddir(), "build.ninja")
 
     with open(ninjaPath, "w") as f:
-        gen(f, context)
+        gen(f, ctx)
 
     shell.exec("ninja", "-v", "-f", ninjaPath)
 
-    return context
+    return ctx
 
 
 def testAll(targetSpec: str):
-    context = contextFor(targetSpec)
+    ctx = context.contextFor(targetSpec)
 
-    shell.mkdir(context.builddir())
-    ninjaPath = os.path.join(context.builddir(), "build.ninja")
+    shell.mkdir(ctx.builddir())
+    ninjaPath = os.path.join(ctx.builddir(), "build.ninja")
 
     with open(ninjaPath, "w") as f:
-        gen(f, context)
+        gen(f, ctx)
 
     shell.exec("ninja", "-v", "-f", ninjaPath, "all")
 
-    for instance in context.enabledInstances():
+    for instance in ctx.enabledInstances():
         if instance.isLib():
             continue
 
