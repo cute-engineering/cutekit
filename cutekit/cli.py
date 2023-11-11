@@ -1,8 +1,10 @@
 import inspect
+import sys
 
 from typing import Optional, Union, Callable
 from dataclasses import dataclass
 
+from . import const, vt100
 
 Value = Union[str, bool, int]
 
@@ -95,3 +97,61 @@ def command(shortName: str, longName: str, helpText: str):
         return fn
 
     return wrap
+
+
+# --- Builtins Commands ------------------------------------------------------ #
+
+
+@command("u", "usage", "Show usage information")
+def usage(args: Args | None = None):
+    print(f"Usage: {const.ARGV0} <command> [args...]")
+
+
+def error(msg: str) -> None:
+    print(f"{vt100.RED}Error:{vt100.RESET} {msg}\n", file=sys.stderr)
+
+
+@command("h", "help", "Show this help message")
+def helpCmd(args: Args):
+    usage()
+
+    print()
+
+    vt100.title("Description")
+    print(f"    {const.DESCRIPTION}")
+
+    print()
+    vt100.title("Commands")
+    for cmd in commands:
+        pluginText = ""
+        if cmd.isPlugin:
+            pluginText = f"{vt100.CYAN}(plugin){vt100.RESET}"
+
+        print(
+            f" {vt100.GREEN}{cmd.shortName or ' '}{vt100.RESET}  {cmd.longName} - {cmd.helpText} {pluginText}"
+        )
+
+    print()
+    vt100.title("Logging")
+    print("    Logs are stored in:")
+    print(f"     - {const.PROJECT_LOG_FILE}")
+    print(f"     - {const.GLOBAL_LOG_FILE}")
+
+
+@command("v", "version", "Show current version")
+def versionCmd(args: Args):
+    print(f"CuteKit v{const.VERSION_STR}\n")
+
+
+def exec(args: Args):
+    cmd = args.consumeArg()
+
+    if cmd is None:
+        raise RuntimeError("No command specified")
+
+    for c in commands:
+        if c.shortName == cmd or c.longName == cmd:
+            c.callback(args)
+            return
+
+    raise RuntimeError(f"Unknown command {cmd}")

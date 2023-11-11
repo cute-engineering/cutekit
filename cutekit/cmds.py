@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 
 
 from . import (
@@ -118,38 +117,6 @@ def nukeCmd(args: cli.Args):
     shell.rmrf(const.PROJECT_CK_DIR)
 
 
-@cli.command("h", "help", "Show this help message")
-def helpCmd(args: cli.Args):
-    usage()
-
-    print()
-
-    vt100.title("Description")
-    print(f"    {const.DESCRIPTION}")
-
-    print()
-    vt100.title("Commands")
-    for cmd in cli.commands:
-        pluginText = ""
-        if cmd.isPlugin:
-            pluginText = f"{vt100.CYAN}(plugin){vt100.RESET}"
-
-        print(
-            f" {vt100.GREEN}{cmd.shortName or ' '}{vt100.RESET}  {cmd.longName} - {cmd.helpText} {pluginText}"
-        )
-
-    print()
-    vt100.title("Logging")
-    print("    Logs are stored in:")
-    print(f"     - {const.PROJECT_LOG_FILE}")
-    print(f"     - {const.GLOBAL_LOG_FILE}")
-
-
-@cli.command("v", "version", "Show current version")
-def versionCmd(args: cli.Args):
-    print(f"CuteKit v{const.VERSION_STR}\n")
-
-
 def grabExtern(extern: dict[str, model.Extern]):
     for extSpec, ext in extern.items():
         extPath = os.path.join(const.EXTERN_DIR, extSpec)
@@ -227,25 +194,3 @@ def initCmd(args: cli.Args):
     print(
         f"  {vt100.GREEN}cutekit build{vt100.BRIGHT_BLACK}  # Build the project{vt100.RESET}"
     )
-
-
-def usage():
-    print(f"Usage: {const.ARGV0} <command> [args...]")
-
-
-def error(msg: str) -> None:
-    print(f"{vt100.RED}Error:{vt100.RESET} {msg}\n", file=sys.stderr)
-
-
-def exec(args: cli.Args):
-    cmd = args.consumeArg()
-
-    if cmd is None:
-        raise RuntimeError("No command specified")
-
-    for c in cli.commands:
-        if c.shortName == cmd or c.longName == cmd:
-            c.callback(args)
-            return
-
-    raise RuntimeError(f"Unknown command {cmd}")
