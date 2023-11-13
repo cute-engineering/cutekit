@@ -2,10 +2,9 @@ import os
 import logging
 from pathlib import Path
 from dataclasses import dataclass
-from itertools import chain
-from typing import Generator, TextIO, Union, cast
+from typing import TextIO, Union
 
-from . import shell, rules, model, ninja, const, utils, cli
+from . import shell, rules, model, ninja, const, cli
 
 _logger = logging.getLogger(__name__)
 
@@ -46,28 +45,26 @@ def buildpath(target: model.Target, component: model.Component, path) -> Path:
 # --- Compilation ------------------------------------------------------------ #
 
 
-def listSrc(component: model.Component) -> list[str]:
-    wildcards = set(chain(*map(lambda rule: rule.fileIn, rules.rules.values())))
+def wilcard(component: model.Component, wildcards: list[str]) -> list[str]:
     dirs = [component.dirname()] + list(
         map(lambda d: os.path.join(component.dirname(), d), component.subdirs)
     )
     return shell.find(dirs, list(wildcards), recusive=False)
 
 
-def compileSrc(
-    w: ninja.Writer, target: model.Target, component: model.Component
+def compile(
+    w: ninja.Writer,
+    target: model.Target,
+    component: model.Component,
+    rule: str,
+    srcs: list[str],
 ) -> list[str]:
     res: list[str] = []
-    for src in listSrc(component):
+    for src in srcs:
         rel = Path(src).relative_to(component.dirname())
-
-        r = rules.byFileIn(src)
-        if r is None:
-            raise RuntimeError(f"Unknown rule for file {src}")
-
-        dest = buildpath(target, component, "obj") / rel.with_suffix(r.fileOut[0][1:])
-        t = target.tools[r.id]
-        w.build(str(dest), r.id, inputs=src, order_only=t.files)
+        dest = buildpath(target, component, "obj") / rel.with_suffix(".o")
+        t = target.tools[rule]
+        w.build(str(dest), rule, inputs=src, order_only=t.files)
         res.append(str(dest))
     return res
 
@@ -127,7 +124,16 @@ def link(
 ) -> str:
     w.newline()
     out = outfile(target, component)
-    objs: list[str] = compileSrc(w, target, component)
+
+    objs = []
+    objs += compile(w, target, component, "cc", wilcard(component, ["*.c"]))
+    objs += compile(
+        w, target, component, "cxx", wilcard(component, ["*.cpp", "*.cc", "*.cxx"])
+    )
+    objs += compile(
+        w, target, component, "as", wilcard(component, ["*.s", "*.asm", "*.S"])
+    )
+
     res = compileRes(w, target, component)
     libs = collectLibs(registry, target, component)
     if component.type == model.Kind.LIB:
@@ -239,7 +245,7 @@ def buildCmd(args: cli.Args):
     build(target, registry, component)[0]
 
 
-@cli.command("p", "project", "Show project information")
+@cli.command("r", "run", "Run a component")
 def runCmd(args: cli.Args):
     registry = model.Registry.use(args)
     target = model.Target.use(args)
