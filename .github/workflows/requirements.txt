@@ -1,4 +1,4 @@
-requests ~= 2.28.0
+requests ~= 2.31.0
 graphviz ~= 0.20.1
 dataclasses-json ~= 0.6.2
 mypy ~= 1.7.0
