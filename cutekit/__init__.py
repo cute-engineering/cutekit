@@ -3,12 +3,20 @@ import os
 import logging
 
 from . import (
+    builder,
     cli,
+    compat,
     const,
+    graph,
+    jexpr,
+    mixins,
     model,
+    ninja,
     plugins,
+    rules,
+    shell,
+    utils,
     vt100,
-    cmds,  # noqa: F401
 )
 
 

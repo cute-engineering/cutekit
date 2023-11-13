@@ -1,7 +1,7 @@
 import os
 import logging
 
-from . import shell, model, const, context
+from . import shell, model, const
 
 import importlib.util as importlib
 
@@ -23,19 +23,19 @@ def load(path: str):
 def loadAll():
     _logger.info("Loading plugins...")
 
-    projectRoot = model.Project.root()
+    root = model.Project.root()
 
-    if projectRoot is None:
+    if root is None:
         _logger.info("Not in project, skipping plugin loading")
         return
 
-    pj = context.loadProject(projectRoot)
-    paths = list(map(lambda e: os.path.join(const.EXTERN_DIR, e), pj.extern.keys())) + [
-        "."
-    ]
+    project = model.Project.at(root)
+    paths = list(
+        map(lambda e: os.path.join(const.EXTERN_DIR, e), project.extern.keys())
+    ) + ["."]
 
     for dirname in paths:
-        pluginDir = os.path.join(projectRoot, dirname, const.META_DIR, "plugins")
+        pluginDir = os.path.join(root, dirname, const.META_DIR, "plugins")
 
         for files in shell.readdir(pluginDir):
             if files.endswith(".py"):

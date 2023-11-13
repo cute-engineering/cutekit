@@ -70,7 +70,7 @@ Callback = Callable[[Args], None]
 
 @dataclass
 class Command:
-    shortName: str
+    shortName: Optional[str]
     longName: str
     helpText: str
     isPlugin: bool
@@ -86,7 +86,7 @@ def append(command: Command):
     commands.sort(key=lambda c: c.shortName or c.longName)
 
 
-def command(shortName: str, longName: str, helpText: str):
+def command(shortName: Optional[str], longName: str, helpText: str):
     curframe = inspect.currentframe()
     calframe = inspect.getouterframes(curframe, 2)
 
@@ -103,7 +103,7 @@ def command(shortName: str, longName: str, helpText: str):
 
 
 @command("u", "usage", "Show usage information")
-def usage(args: Args | None = None):
+def usage(args: Optional[Args] = None):
     print(f"Usage: {const.ARGV0} <command> [args...]")
 
 
@@ -122,7 +122,7 @@ def helpCmd(args: Args):
 
     print()
     vt100.title("Commands")
-    for cmd in commands:
+    for cmd in sorted(commands, key=lambda c: c.shortName or c.longName):
         pluginText = ""
         if cmd.isPlugin:
             pluginText = f"{vt100.CYAN}(plugin){vt100.RESET}"
@@ -140,7 +140,7 @@ def helpCmd(args: Args):
 
 @command("v", "version", "Show current version")
 def versionCmd(args: Args):
-    print(f"CuteKit v{const.VERSION_STR}\n")
+    print(f"CuteKit v{const.VERSION_STR}")
 
 
 def exec(args: Args):
