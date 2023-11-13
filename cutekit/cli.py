@@ -1,6 +1,7 @@
 import inspect
 import sys
 
+from pathlib import Path
 from typing import Optional, Union, Callable
 from dataclasses import dataclass
 
@@ -80,19 +81,19 @@ class Command:
 commands: list[Command] = []
 
 
-def append(command: Command):
-    command.isPlugin = True
-    commands.append(command)
-    commands.sort(key=lambda c: c.shortName or c.longName)
-
-
 def command(shortName: Optional[str], longName: str, helpText: str):
     curframe = inspect.currentframe()
     calframe = inspect.getouterframes(curframe, 2)
 
     def wrap(fn: Callable[[Args], None]):
         commands.append(
-            Command(shortName, longName, helpText, calframe[1].filename != __file__, fn)
+            Command(
+                shortName,
+                longName,
+                helpText,
+                Path(calframe[1].filename).parent != Path(__file__).parent,
+                fn,
+            )
         )
         return fn
 
