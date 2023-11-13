@@ -44,12 +44,11 @@ def setupLogger(verbose: bool):
         projectRoot = model.Project.root()
         logFile = const.GLOBAL_LOG_FILE
         if projectRoot is not None:
-            logFile = os.path.join(projectRoot, const.PROJECT_LOG_FILE)
+            logfile = projectRoot / const.PROJECT_LOG_FILE
 
         # create the directory if it doesn't exist
-        logDir = os.path.dirname(logFile)
-        if not os.path.isdir(logDir):
-            os.makedirs(logDir)
+        if not logFile.parent.is_dir():
+            logFile.parent.mkdir(parents=True)
 
         logging.basicConfig(
             level=logging.INFO,

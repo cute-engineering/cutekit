@@ -49,7 +49,7 @@ def buildpath(target: model.Target, component: model.Component, path) -> Path:
 def listSrc(component: model.Component) -> list[str]:
     wildcards = set(chain(*map(lambda rule: rule.fileIn, rules.rules.values())))
     dirs = [component.dirname()] + list(
-        map(lambda d: os.path.join(component.dirname(), d), component.subdirs)
+        map(lambda d: component.parent / d, component.subdirs)
     )
     return shell.find(dirs, list(wildcards), recusive=False)
 
@@ -195,9 +195,10 @@ def build(
     components: Union[list[model.Component], model.Component, None] = None,
 ) -> list[Product]:
     all = False
-    shell.mkdir(target.builddir)
-    ninjaPath = os.path.join(target.builddir, "build.ninja")
-    with open(ninjaPath, "w") as f:
+    target.builddir.mkdir(parents=True, exist_ok=True)
+    ninjaPath = target.builddir / "build.ninja"
+
+    with ninjaPath.open("w") as f:
         gen(f, target, registry)
 
     if components is None:

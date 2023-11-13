@@ -80,7 +80,7 @@ def view(
             for req in component.provides:
                 g.edge(req, component.id, arrowhead="none", color="#aaaaaa")
 
-    g.view(filename=os.path.join(target.builddir, "graph.gv"))
+    g.view(filename=str(target.builddir / "graph.gv"))
 
 
 @cli.command("g", "graph", "Show the dependency graph")

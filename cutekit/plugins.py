@@ -30,17 +30,14 @@ def loadAll():
         return
 
     project = model.Project.at(root)
-    paths = list(
-        map(lambda e: os.path.join(const.EXTERN_DIR, e), project.extern.keys())
-    ) + ["."]
+    paths = list(map(lambda e: const.EXTERN_DIR / e, project.extern.keys())) + ["."]
 
     for dirname in paths:
-        pluginDir = os.path.join(root, dirname, const.META_DIR, "plugins")
+        pluginDir = root / dirname / const.META_DIR / "plugins"
 
-        for files in shell.readdir(pluginDir):
-            if files.endswith(".py"):
-                plugin = load(os.path.join(pluginDir, files))
+        for script in pluginDir.glob("*.py"):
+            plugin = load(script)
 
-                if plugin:
-                    _logger.info(f"Loaded plugin {plugin.name}")
-                    plugin.init()
+            if plugin:
+                _logger.info(f"Loaded plugin {plugin.name}")
+                plugin.init()

@@ -12,6 +12,7 @@ import logging
 import tempfile
 
 
+from pathlib import Path
 from typing import Optional
 from . import const
 
@@ -49,81 +50,30 @@ def sha256sum(path: str) -> str:
         return hashlib.sha256(f.read()).hexdigest()
 
 
-def find(
-    path: str | list[str], wildcards: list[str] = [], recusive: bool = True
-) -> list[str]:
-    _logger.info(f"Looking for files in {path} matching {wildcards}")
-
-    result: list[str] = []
-
-    if isinstance(path, list):
-        for p in path:
-            result += find(p, wildcards, recusive)
-        return result
-
-    if not os.path.isdir(path):
-        return []
-
-    if recusive:
-        for root, _, files in os.walk(path):
-            for f in files:
-                if len(wildcards) == 0:
-                    result.append(os.path.join(root, f))
-                else:
-                    for wildcard in wildcards:
-                        if fnmatch.fnmatch(f, wildcard):
-                            result.append(os.path.join(root, f))
-                            break
-    else:
-        for f in os.listdir(path):
-            if len(wildcards) == 0:
-                result.append(os.path.join(path, f))
-            else:
-                for wildcard in wildcards:
-                    if fnmatch.fnmatch(f, wildcard):
-                        result.append(os.path.join(path, f))
-                        break
-
-    return result
-
-
-def mkdir(path: str) -> str:
-    _logger.info(f"Creating directory {path}")
-
-    try:
-        os.makedirs(path)
-    except OSError as exc:
-        if not (exc.errno == errno.EEXIST and os.path.isdir(path)):
-            raise
-    return path
-
-
-def rmrf(path: str) -> bool:
+def rmrf(path: Path) -> bool:
     _logger.info(f"Removing directory {path}")
 
-    if not os.path.exists(path):
+    if not path.exists():
         return False
     shutil.rmtree(path, ignore_errors=True)
     return True
 
 
-def wget(url: str, path: Optional[str] = None) -> str:
+def wget(url: str, path: Optional[Path] = None) -> Path:
     import requests
 
     if path is None:
-        path = os.path.join(
-            const.CACHE_DIR, hashlib.sha256(url.encode("utf-8")).hexdigest()
-        )
+        path = const.CACHE_DIR / hashlib.sha256(url.encode("utf-8")).hexdigest()
 
-    if os.path.exists(path):
+    if path.exists():
         return path
 
     _logger.info(f"Downloading {url} to {path}")
 
     r = requests.get(url, stream=True)
     r.raise_for_status()
-    mkdir(os.path.dirname(path))
-    with open(path, "wb") as f:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as f:
         for chunk in r.iter_content(chunk_size=8192):
             if chunk:
                 f.write(chunk)
@@ -179,36 +129,28 @@ def popen(*args: str) -> str:
     return proc.stdout.decode("utf-8")
 
 
-def readdir(path: str) -> list[str]:
-    _logger.info(f"Reading directory {path}")
-
-    try:
-        return os.listdir(path)
-    except FileNotFoundError:
-        return []
-
-
-def cp(src: str, dst: str):
+def cp(src: Path, dst: Path):
     _logger.info(f"Copying {src} to {dst}")
 
     shutil.copy(src, dst)
 
 
-def mv(src: str, dst: str):
+def mv(src: Path, dst: Path):
     _logger.info(f"Moving {src} to {dst}")
 
     shutil.move(src, dst)
 
 
-def cpTree(src: str, dst: str):
+def cpTree(src: Path, dst: Path):
     _logger.info(f"Copying {src} to {dst}")
 
     shutil.copytree(src, dst, dirs_exist_ok=True)
 
 
-def cloneDir(url: str, path: str, dest: str) -> str:
+def cloneDir(url: str, path: Path, dest: Path) -> Path:
     with tempfile.TemporaryDirectory() as tmp:
-        mkdir(tmp)
+        tmp = Path(tmp)
+        tmp.mkdir(parents=True, exist_ok=True)
         exec(
             *["git", "clone", "-n", "--depth=1", "--filter=tree:0", url, tmp, "-q"],
             quiet=True,
@@ -218,7 +160,7 @@ def cloneDir(url: str, path: str, dest: str) -> str:
             quiet=True,
         )
         exec(*["git", "-C", tmp, "checkout", "-q", "--no-progress"], quiet=True)
-        mv(os.path.join(tmp, path), dest)
+        mv(tmp / path, dest)
 
     return dest
 

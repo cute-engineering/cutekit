@@ -32,7 +32,7 @@ class Kind(Enum):
 class Manifest(DataClassJsonMixin):
     id: str
     type: Kind = field(default=Kind.UNKNOWN)
-    path: str = field(default="")
+    path: Path = field(default=Path())
 
     @staticmethod
     def parse(path: Path, data: dict[str, Any]) -> "Manifest":
@@ -43,7 +43,7 @@ class Manifest(DataClassJsonMixin):
         kind = Kind(data["type"])
         del data["$schema"]
         obj = KINDS[kind].from_dict(data)
-        obj.path = str(path)
+        obj.path = path
         return obj
 
     @staticmethod
@@ -53,14 +53,14 @@ class Manifest(DataClassJsonMixin):
         """
         return Manifest.parse(path, jexpr.evalRead(path))
 
-    def dirname(self) -> str:
+    def dirname(self) -> Path:
         """
         Return the directory of the manifest
         """
-        return os.path.dirname(self.path)
+        return self.path.parent
 
     def subpath(self, path) -> Path:
-        return Path(self.dirname()) / path
+        return self.dirname() / path
 
     def ensureType(self, t: Type[utils.T]) -> utils.T:
         """
@@ -90,19 +90,19 @@ class Project(Manifest):
     extern: dict[str, Extern] = field(default_factory=dict)
 
     @property
-    def externDirs(self) -> list[str]:
-        res = map(lambda e: os.path.join(const.EXTERN_DIR, e), self.extern.keys())
+    def externDirs(self) -> list[Path]:
+        res = map(lambda e: const.EXTERN_DIR / e, self.extern.keys())
         return list(res)
 
     @staticmethod
-    def root() -> Optional[str]:
+    def root() -> Optional[Path]:
         """
         Find the root of the project by looking for a project.json
         """
         cwd = Path.cwd()
         while str(cwd) != cwd.root:
             if (cwd / "project.json").is_file():
-                return str(cwd)
+                return cwd
             cwd = cwd.parent
         return None
 
@@ -119,11 +119,11 @@ class Project(Manifest):
         os.chdir(path)
 
     @staticmethod
-    def at(path: str) -> Optional["Project"]:
-        path = os.path.join(path, "project.json")
-        if not os.path.exists(path):
+    def at(path: str | Path) -> Optional["Project"]:
+        path = Path(path) / "project.json"
+        if not path.exists():
             return None
-        return Manifest.load(Path(path)).ensureType(Project)
+        return Manifest.load(path).ensureType(Project)
 
     @staticmethod
     def ensure() -> "Project":
@@ -133,16 +133,16 @@ class Project(Manifest):
                 "No project.json found in this directory or any parent directory"
             )
         os.chdir(root)
-        return Manifest.load(Path(os.path.join(root, "project.json"))).ensureType(
+        return Manifest.load(Path(root / "project.json")).ensureType(
             Project
         )
 
     @staticmethod
-    def fetchs(extern: dict[str, Extern]):
+    def fetchs(extern: dict[str | Path, Extern]):
         for extSpec, ext in extern.items():
-            extPath = os.path.join(const.EXTERN_DIR, extSpec)
+            extPath = const.EXTERN_DIR / extSpec
 
-            if os.path.exists(extPath):
+            if extPath.exists():
                 print(f"Skipping {extSpec}, already installed")
                 continue
 
@@ -184,7 +184,7 @@ def initCmd(args: cli.Args):
     list = args.consumeOpt("list")
 
     template = args.consumeArg()
-    name = args.consumeArg()
+    name = Path(args.consumeArg())
 
     _logger.info("Fetching registry...")
     r = requests.get(f"https://raw.githubusercontent.com/{repo}/main/registry.json")
@@ -214,7 +214,7 @@ def initCmd(args: cli.Args):
         _logger.info(f"No name was provided, defaulting to {template}")
         name = template
 
-    if os.path.exists(name):
+    if name.exists():
         raise RuntimeError(f"Directory {name} already exists")
 
     print(f"Creating project {name} from template {template}...")
@@ -255,8 +255,8 @@ class Target(Manifest):
         return utils.hash((self.props, [v.to_dict() for k, v in self.tools.items()]))
 
     @property
-    def builddir(self) -> str:
-        return os.path.join(const.BUILD_DIR, f"{self.id}-{self.hashid[:8]}")
+    def builddir(self) -> Path:
+        return const.BUILD_DIR / f"{self.id}-{self.hashid[:8]}"
 
     @staticmethod
     def use(args: cli.Args) -> "Target":
@@ -518,15 +518,15 @@ class Registry(DataClassJsonMixin):
 
         # Lookup and load all extern projects
         for externDir in project.externDirs:
-            projectPath = os.path.join(externDir, "project.json")
-            manifestPath = os.path.join(externDir, "manifest.json")
+            projectPath = externDir / "project.json"
+            manifestPath = externDir / "manifest.json"
 
-            if os.path.exists(projectPath):
-                registry._append(Manifest.load(Path(projectPath)).ensureType(Project))
-            elif os.path.exists(manifestPath):
+            if projectPath.exists():
+                registry._append(Manifest.load(projectPath).ensureType(Project))
+            elif manifestPath.exists():
                 # For simple library allow to have a manifest.json instead of a project.json
                 registry._append(
-                    Manifest.load(Path(manifestPath)).ensureType(Component)
+                    Manifest.load(manifestPath).ensureType(Component)
                 )
             else:
                 _logger.warn(
@@ -535,22 +535,22 @@ class Registry(DataClassJsonMixin):
 
         # Load all manifests from projects
         for project in list(registry.iter(Project)):
-            targetDir = os.path.join(project.dirname(), const.TARGETS_DIR)
-            targetFiles = shell.find(targetDir, ["*.json"])
+            targetDir = project.parent / const.TARGETS_DIR
+            targetFiles = targetDir.glob("*.json")
 
             for targetFile in targetFiles:
                 registry._append(Manifest.load(Path(targetFile)).ensureType(Target))
 
-            componentDir = os.path.join(project.dirname(), const.SRC_DIR)
-            rootComponent = os.path.join(project.dirname(), "manifest.json")
-            componentFiles = shell.find(componentDir, ["manifest.json"])
+            componentDir = project.parent / const.COMPONENTS_DIR
+            rootComponent = project.parent / "manifest.json"
+            componentFiles = list(componentDir.glob("manifest.json"))
 
-            if os.path.exists(rootComponent):
+            if rootComponent.exists():
                 componentFiles += [rootComponent]
 
             for componentFile in componentFiles:
                 registry._append(
-                    Manifest.load(Path(componentFile)).ensureType(Component)
+                    Manifest.load(componentFile).ensureType(Component)
                 )
 
         # Resolve all dependencies for all targets
