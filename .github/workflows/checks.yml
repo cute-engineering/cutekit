@@ -28,3 +28,7 @@ jobs:
     - name: Run MyPy
       run: |
         python -m mypy --install-types --non-interactive .
+
+    - name: Run PyTest
+      run: |
+        python -m pytest
