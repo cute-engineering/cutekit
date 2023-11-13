@@ -1,96 +1,95 @@
 import os
 
-from typing import cast
-from . import vt100, context, cli, shell, model
+from typing import Optional, cast
+
+from . import vt100, cli, model
 
 
 def view(
-    context: context.Context,
-    scope: str | None = None,
+    registry: model.Registry,
+    target: model.Target,
+    scope: Optional[str] = None,
     showExe: bool = True,
     showDisabled: bool = False,
 ):
     from graphviz import Digraph  # type: ignore
 
-    g = Digraph(context.target.id, filename="graph.gv")
+    g = Digraph(target.id, filename="graph.gv")
 
     g.attr("graph", splines="ortho", rankdir="BT", ranksep="1.5")
     g.attr("node", shape="ellipse")
     g.attr(
         "graph",
-        label=f"<<B>{scope or 'Full Dependency Graph'}</B><BR/>{context.target.id}>",
+        label=f"<<B>{scope or 'Full Dependency Graph'}</B><BR/>{target.id}>",
         labelloc="t",
     )
 
     scopeInstance = None
 
     if scope is not None:
-        scopeInstance = context.componentByName(scope)
+        scopeInstance = registry.lookup(scope, model.Component)
 
-    for instance in context.instances:
-        if not instance.isLib() and not showExe:
+    for component in registry.iterEnabled(target):
+        if not component.type == model.Kind.LIB and not showExe:
             continue
 
         if (
             scopeInstance is not None
-            and instance.manifest.id != scope
-            and instance.manifest.id not in scopeInstance.resolved
+            and component.id != scope
+            and component.id not in scopeInstance.resolved[target.id].resolved
         ):
             continue
 
-        if instance.enabled:
-            fillcolor = "lightgrey" if instance.isLib() else "lightblue"
-            shape = "plaintext" if not scope == instance.manifest.id else "box"
+        if component.resolved[target.id].enabled:
+            fillcolor = "lightgrey" if component.type == model.Kind.LIB else "lightblue"
+            shape = "plaintext" if not scope == component.id else "box"
 
             g.node(
-                instance.manifest.id,
-                f"<<B>{instance.manifest.id}</B><BR/>{vt100.wordwrap(instance.manifest.decription, 40,newline='<BR/>')}>",
+                component.id,
+                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(component.decription, 40,newline='<BR/>')}>",
                 shape=shape,
                 style="filled",
                 fillcolor=fillcolor,
             )
 
-            for req in instance.manifest.requires:
-                g.edge(instance.manifest.id, req)
+            for req in component.requires:
+                g.edge(component.id, req)
 
-            for req in instance.manifest.provides:
-                isChosen = context.target.routing.get(req, None) == instance.manifest.id
+            for req in component.provides:
+                isChosen = target.routing.get(req, None) == component.id
 
                 g.edge(
                     req,
-                    instance.manifest.id,
+                    component.id,
                     arrowhead="none",
                     color=("blue" if isChosen else "black"),
                 )
         elif showDisabled:
             g.node(
-                instance.manifest.id,
-                f"<<B>{instance.manifest.id}</B><BR/>{vt100.wordwrap(instance.manifest.decription, 40,newline='<BR/>')}<BR/><BR/><I>{vt100.wordwrap(instance.disableReason, 40,newline='<BR/>')}</I>>",
+                component.id,
+                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(component.decription, 40,newline='<BR/>')}<BR/><BR/><I>{vt100.wordwrap(str(component.resolved[target.id].reason), 40,newline='<BR/>')}</I>>",
                 shape="plaintext",
                 style="filled",
                 fontcolor="#999999",
                 fillcolor="#eeeeee",
             )
 
-            for req in instance.manifest.requires:
-                g.edge(instance.manifest.id, req, color="#aaaaaa")
+            for req in component.requires:
+                g.edge(component.id, req, color="#aaaaaa")
 
-            for req in instance.manifest.provides:
-                g.edge(req, instance.manifest.id, arrowhead="none", color="#aaaaaa")
+            for req in component.provides:
+                g.edge(req, component.id, arrowhead="none", color="#aaaaaa")
 
-    g.view(filename=os.path.join(context.builddir(), "graph.gv"))
+    g.view(filename=os.path.join(target.builddir, "graph.gv"))
 
 
 @cli.command("g", "graph", "Show the dependency graph")
 def graphCmd(args: cli.Args):
-    model.Project.chdir()
+    registry = model.Registry.use(args)
+    target = model.Target.use(args)
 
-    targetSpec = str(args.consumeOpt("target", "host-" + shell.uname().machine))
+    scope = cast(Optional[str], args.tryConsumeOpt("scope"))
+    onlyLibs = args.consumeOpt("only-libs", False) is True
+    showDisabled = args.consumeOpt("show-disabled", False) is True
 
-    scope: str | None = cast(str | None, args.tryConsumeOpt("scope"))
-    onlyLibs: bool = args.consumeOpt("only-libs", False) is True
-    showDisabled: bool = args.consumeOpt("show-disabled", False) is True
-
-    ctx = context.contextFor(targetSpec)
-
-    view(ctx, scope=scope, showExe=not onlyLibs, showDisabled=showDisabled)
+    view(registry, target, scope=scope, showExe=not onlyLibs, showDisabled=showDisabled)

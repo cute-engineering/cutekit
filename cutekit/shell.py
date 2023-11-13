@@ -270,7 +270,7 @@ def latest(cmd: str) -> str:
     return chosen
 
 
-def which(cmd: str) -> str | None:
+def which(cmd: str) -> Optional[str]:
     """
     Find the path of a command
     """

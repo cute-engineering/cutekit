@@ -28,10 +28,6 @@ CROSSED = "\033[9m"
 RESET = "\033[0m"
 
 
-def title(text: str):
-    print(f"{BOLD}{text}{RESET}:")
-
-
 def wordwrap(text: str, width: int = 60, newline: str = "\n") -> str:
     result = ""
     curr = 0
@@ -49,3 +45,11 @@ def wordwrap(text: str, width: int = 60, newline: str = "\n") -> str:
 
 def indent(text: str, indent: int = 4) -> str:
     return " " * indent + text.replace("\n", "\n" + " " * indent)
+
+
+def title(text: str):
+    print(f"{BOLD}{text}{RESET}:")
+
+
+def p(text: str):
+    return indent(wordwrap(text))
