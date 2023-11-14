@@ -214,6 +214,10 @@ def build(
 
     products: list[Product] = []
     for c in components:
+        r = c.resolved[target.id]
+        if not r.enabled:
+            raise RuntimeError(f"Component {c.id} is disabled: {r.reason}")
+
         products.append(
             Product(
                 path=Path(outfile(target, c)),
@@ -224,9 +228,9 @@ def build(
 
     outs = list(map(lambda p: str(p.path), products))
     if all:
-        shell.exec("ninja", "-v", "-f", ninjaPath)
+        shell.exec("ninja", "-f", ninjaPath)
     else:
-        shell.exec("ninja", "-v", "-f", ninjaPath, *outs)
+        shell.exec("ninja", "-f", ninjaPath, *outs)
     return products
 
 

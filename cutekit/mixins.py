@@ -65,6 +65,7 @@ mixins: dict[str, Mixin] = {
     "tsan": makeMixinSan("thread"),
     "ubsan": makeMixinSan("undefined"),
     "tune": makeMixinTune("native"),
+    "fast": makeMixinOptimize("fast"),
     "o3": makeMixinOptimize("3"),
     "o2": makeMixinOptimize("2"),
     "o1": makeMixinOptimize("1"),
@@ -77,4 +78,6 @@ def append(mixinSpec: str, mixin: Mixin):
 
 
 def byId(id: str) -> Mixin:
+    if id not in mixins:
+        raise RuntimeError(f"Unknown mixin {id}")
     return mixins[id]
