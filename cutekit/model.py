@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Any, Generator, Optional, Type, cast
 from pathlib import Path
 from dataclasses_json import DataClassJsonMixin
+import dataclasses
 from dataclasses import dataclass, field
 
 from cutekit import const, shell
@@ -243,6 +244,10 @@ class Tool(DataClassJsonMixin):
 
 Tools = dict[str, Tool]
 
+DEFAULT_TOOLS: Tools = {
+    "cp": Tool("cp"),
+}
+
 
 @dataclass
 class Target(Manifest):
@@ -472,7 +477,9 @@ class Registry(DataClassJsonMixin):
             if resolve.enabled:
                 yield c
 
-    def lookup(self, name: str, type: Type[utils.T]) -> Optional[utils.T]:
+    def lookup(
+        self, name: str, type: Type[utils.T], includeProvides: bool = False
+    ) -> Optional[utils.T]:
         """
         Lookup a manifest of a given type by name
         """
@@ -481,6 +488,11 @@ class Registry(DataClassJsonMixin):
             m = self.manifests[name]
             if isinstance(m, type):
                 return m
+
+        if includeProvides and type is Component:
+            for m in self.iter(Component):
+                if name in m.provides:
+                    return m
 
         return None
 
@@ -576,6 +588,12 @@ class Registry(DataClassJsonMixin):
 
             # Resolve tooling
             tools: Tools = target.tools
+
+            # Merge in default tools
+            for k, v in DEFAULT_TOOLS.items():
+                if k not in tools:
+                    tools[k] = dataclasses.replace(v)
+
             from . import mixins as mxs
 
             for mix in mixins:

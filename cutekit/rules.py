@@ -27,6 +27,7 @@ class Rule:
 
 
 rules: dict[str, Rule] = {
+    "cp": Rule("cp", ["*"], ["*"], "$in $out"),
     "cc": Rule(
         "cc",
         ["*.c"],

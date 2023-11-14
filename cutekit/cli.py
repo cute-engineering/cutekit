@@ -123,7 +123,10 @@ def helpCmd(args: Args):
 
     print()
     vt100.title("Commands")
-    for cmd in sorted(commands, key=lambda c: c.shortName or c.longName):
+    for cmd in sorted(commands, key=lambda c: c.longName):
+        if cmd.longName.startswith("_"):
+            continue
+
         pluginText = ""
         if cmd.isPlugin:
             pluginText = f"{vt100.CYAN}(plugin){vt100.RESET}"

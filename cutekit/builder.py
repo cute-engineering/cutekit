@@ -170,7 +170,6 @@ def gen(out: TextIO, target: model.Target, registry: model.Registry):
     w.variable("cdefs", " ".join(aggregateCdefs(target)))
     w.newline()
 
-    w.rule("cp", "cp $in $out")
     for i in target.tools:
         tool = target.tools[i]
         rule = rules.rules[i]
@@ -251,11 +250,8 @@ def runCmd(args: cli.Args):
     target = model.Target.use(args)
     debug = args.consumeOpt("debug", False) is True
 
-    componentSpec = args.consumeArg()
-    if componentSpec is None:
-        raise RuntimeError("No component specified")
-
-    component = registry.lookup(componentSpec, model.Component)
+    componentSpec = args.consumeArg() or "__main__"
+    component = registry.lookup(componentSpec, model.Component, includeProvides=True)
     if component is None:
         raise RuntimeError(f"Component {componentSpec} not found")
 
