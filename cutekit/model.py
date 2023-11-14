@@ -492,7 +492,7 @@ class Registry(DataClassJsonMixin):
         if includeProvides and type is Component:
             for m in self.iter(Component):
                 if name in m.provides:
-                    return m
+                    return m  # type: ignore
 
         return None
 
