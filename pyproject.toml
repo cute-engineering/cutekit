@@ -14,12 +14,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-dependencies = [
-    "requests ~= 2.31.0",
-    "graphviz ~= 0.20.1",
-    "dataclasses-json ~= 0.6.2",
-]
-dynamic = ["version"]
+dynamic = ["version", "dependencies"]
 
 [project.scripts]
 ck = "cutekit:main"
@@ -31,6 +26,7 @@ packages = ["cutekit"]
 
 [tool.setuptools.dynamic]
 version = { attr = "cutekit.const.VERSION" }
+dependencies = { file = ["requirements.txt"] }
 
 [tool.setuptools.package-data]
 "cutekit" = ["py.typed"]

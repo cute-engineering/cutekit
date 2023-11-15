@@ -20,17 +20,17 @@
 - [Example](#example)
 
 
-## Introduction 
+## Introduction
 
-**CuteKit** is a simple - yet - powerful build system and package manager for C and C++. It: 
+**CuteKit** is a simple - yet - powerful build system and package manager for C and C++. It:
 
 - ✨ It uses **JSON**: Cutekit uses JSON instead of introducing a whole new programming language for describing the project. And also has macros to help the user experience (see [Jexpr](doc/spec/jexpr.md)).
 - ✨ It's a **package manager**: Cutekit package manager is based on **Git**, nothing is centralized.
-- ✨ It's **extendible**: Cutekit can be [extended](./doc/extends.md) by writing custom Python plugins. 
+- ✨ It's **extendible**: Cutekit can be [extended](./doc/extends.md) by writing custom Python plugins.
 - ✨ It's **easy**: the [**templates**](./doc/templates.md) help the user quick-start a project.
 - ✨ It's **portable**: Cutekit can run on MacOS Gnu/Linux and Windows.
 
-## Installation 
+## Installation
 
 To install Cutekit, you may use your favourite package manager if it is available. Or you can install it manually by following the instructions below.
 
@@ -45,13 +45,13 @@ $ cd cutekit
 $ pip install --user -e .
 ```
 
-## Quick-start 
+## Quick-start
 
--> If you directly want to start using Cutekit for a new project, you can just run `$ ck I host` and it will create a new project in the host directory (you can rename it later). 
+-> If you directly want to start using Cutekit for a new project, you can just run `$ ck I host` and it will create a new project in the host directory (you can rename it later).
 
 -> If you want to use Cutekit for writing operating systems, you can create a new [limine](https://github.com/limine-bootloader/limine/)-based project by running `$ ck I limine-barebone`.
 
-## Example 
+## Example
 
 If you want to see how it works you can read the [doc/cutekit.md](doc/cutekit.md) file.
 
