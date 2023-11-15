@@ -23,19 +23,16 @@ def load(path: str):
 def loadAll():
     _logger.info("Loading plugins...")
 
-    root = model.Project.root()
-
-    if root is None:
+    project = model.Project.topmost()
+    if project is None:
         _logger.info("Not in project, skipping plugin loading")
         return
-
-    project = model.Project.at(root)
     paths = list(
         map(lambda e: os.path.join(const.EXTERN_DIR, e), project.extern.keys())
     ) + ["."]
 
     for dirname in paths:
-        pluginDir = os.path.join(root, dirname, const.META_DIR, "plugins")
+        pluginDir = os.path.join(project.dirname(), dirname, const.META_DIR, "plugins")
 
         for files in shell.readdir(pluginDir):
             if files.endswith(".py"):

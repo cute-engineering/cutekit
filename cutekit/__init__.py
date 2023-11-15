@@ -36,15 +36,15 @@ def ensure(version: tuple[int, int, int]):
 def setupLogger(verbose: bool):
     if verbose:
         logging.basicConfig(
-            level=logging.INFO,
+            level=logging.DEBUG,
             format=f"{vt100.CYAN}%(asctime)s{vt100.RESET} {vt100.YELLOW}%(levelname)s{vt100.RESET} %(name)s: %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
     else:
-        projectRoot = model.Project.root()
+        projectRoot = model.Project.topmost()
         logFile = const.GLOBAL_LOG_FILE
         if projectRoot is not None:
-            logFile = os.path.join(projectRoot, const.PROJECT_LOG_FILE)
+            logFile = os.path.join(projectRoot.dirname(), const.PROJECT_LOG_FILE)
 
         # create the directory if it doesn't exist
         logDir = os.path.dirname(logFile)

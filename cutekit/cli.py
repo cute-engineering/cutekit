@@ -1,10 +1,10 @@
 import inspect
 import logging
 import sys
+import dataclasses as dt
 
 from pathlib import Path
 from typing import Optional, Union, Callable
-from dataclasses import dataclass
 
 from . import const, vt100
 
@@ -72,7 +72,7 @@ def parse(args: list[str]) -> Args:
 Callback = Callable[[Args], None]
 
 
-@dataclass
+@dt.dataclass
 class Command:
     shortName: Optional[str]
     longName: str

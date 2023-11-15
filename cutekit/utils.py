@@ -6,9 +6,9 @@ import hashlib
 T = TypeVar("T")
 
 
-def uniq(l: list[T]) -> list[T]:
+def uniq(lst: list[T]) -> list[T]:
     result: list[T] = []
-    for i in l:
+    for i in lst:
         if i in result:
             result.remove(i)
         result.append(i)

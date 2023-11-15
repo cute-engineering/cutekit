@@ -1,13 +1,12 @@
 import os
 import logging
+import dataclasses as dt
 
 
 from enum import Enum
 from typing import Any, Generator, Optional, Type, cast
 from pathlib import Path
 from dataclasses_json import DataClassJsonMixin
-import dataclasses
-from dataclasses import dataclass, field
 
 from cutekit import const, shell
 
@@ -29,11 +28,13 @@ class Kind(Enum):
 # --- Manifest --------------------------------------------------------------- #
 
 
-@dataclass
+@dt.dataclass
 class Manifest(DataClassJsonMixin):
     id: str
-    type: Kind = field(default=Kind.UNKNOWN)
-    path: str = field(default="")
+    type: Kind = dt.field(default=Kind.UNKNOWN)
+    path: str = dt.field(default="")
+    SUFFIXES = [".json", ".toml"]
+    SUFFIXES_GLOBS = ["*.json", "*.toml"]
 
     @staticmethod
     def parse(path: Path, data: dict[str, Any]) -> "Manifest":
@@ -48,11 +49,23 @@ class Manifest(DataClassJsonMixin):
         return obj
 
     @staticmethod
+    def tryLoad(path: Path) -> Optional["Manifest"]:
+        for suffix in Manifest.SUFFIXES:
+            pathWithSuffix = path.with_suffix(suffix)
+            if pathWithSuffix.exists():
+                _logger.debug(f"Loading manifest from '{pathWithSuffix}'")
+                return Manifest.parse(pathWithSuffix, jexpr.evalRead(pathWithSuffix))
+        return None
+
+    @staticmethod
     def load(path: Path) -> "Manifest":
         """
         Load a manifest from a given path
         """
-        return Manifest.parse(path, jexpr.evalRead(path))
+        manifest = Manifest.tryLoad(path)
+        if manifest is None:
+            raise RuntimeError(f"Could not find manifest at '{path}'")
+        return manifest
 
     def dirname(self) -> str:
         """
@@ -79,16 +92,16 @@ class Manifest(DataClassJsonMixin):
 _project: Optional["Project"] = None
 
 
-@dataclass
+@dt.dataclass
 class Extern(DataClassJsonMixin):
     git: str
     tag: str
 
 
-@dataclass
+@dt.dataclass
 class Project(Manifest):
-    description: str = field(default="(No description)")
-    extern: dict[str, Extern] = field(default_factory=dict)
+    description: str = dt.field(default="(No description)")
+    extern: dict[str, Extern] = dt.field(default_factory=dict)
 
     @property
     def externDirs(self) -> list[str]:
@@ -96,47 +109,37 @@ class Project(Manifest):
         return list(res)
 
     @staticmethod
-    def root() -> Optional[str]:
-        """
-        Find the root of the project by looking for a project.json
-        """
+    def topmost() -> Optional["Project"]:
         cwd = Path.cwd()
+        topmost: Optional["Project"] = None
         while str(cwd) != cwd.root:
-            if (cwd / "project.json").is_file():
-                return str(cwd)
+            projectManifest = Manifest.tryLoad(cwd / "project")
+            if projectManifest is not None:
+                topmost = projectManifest.ensureType(Project)
             cwd = cwd.parent
-        return None
-
-    @staticmethod
-    def chdir() -> None:
-        """
-        Change the current working directory to the root of the project
-        """
-        path = Project.root()
-        if path is None:
-            raise RuntimeError(
-                "No project.json found in this directory or any parent directory"
-            )
-        os.chdir(path)
-
-    @staticmethod
-    def at(path: str) -> Optional["Project"]:
-        path = os.path.join(path, "project.json")
-        if not os.path.exists(path):
-            return None
-        return Manifest.load(Path(path)).ensureType(Project)
+        return topmost
 
     @staticmethod
     def ensure() -> "Project":
-        root = Project.root()
-        if root is None:
+        project = Project.topmost()
+        if project is None:
             raise RuntimeError(
-                "No project.json found in this directory or any parent directory"
+                "No project found in this directory or any parent directory"
             )
-        os.chdir(root)
-        return Manifest.load(Path(os.path.join(root, "project.json"))).ensureType(
-            Project
-        )
+        return project
+
+    def chdir(self):
+        """
+        Change the current working directory to the root of the project
+        """
+        os.chdir(self.dirname())
+
+    @staticmethod
+    def at(path: Path) -> Optional["Project"]:
+        projectManifest = Manifest.tryLoad(path / "project")
+        if projectManifest is None:
+            return None
+        return projectManifest.ensureType(Project)
 
     @staticmethod
     def fetchs(extern: dict[str, Extern]):
@@ -159,7 +162,7 @@ class Project(Manifest):
                 ext.git,
                 extPath,
             )
-            project = Project.at(extPath)
+            project = Project.at(Path(extPath))
             if project is not None:
                 Project.fetchs(project.extern)
 
@@ -188,6 +191,7 @@ def initCmd(args: cli.Args):
     name = args.consumeArg()
 
     _logger.info("Fetching registry...")
+
     r = requests.get(f"https://raw.githubusercontent.com/{repo}/main/registry.json")
 
     if r.status_code != 200:
@@ -235,11 +239,11 @@ def initCmd(args: cli.Args):
 # --- Target ----------------------------------------------------------------- #
 
 
-@dataclass
+@dt.dataclass
 class Tool(DataClassJsonMixin):
-    cmd: str = field(default="")
-    args: list[str] = field(default_factory=list)
-    files: list[str] = field(default_factory=list)
+    cmd: str = dt.field(default="")
+    args: list[str] = dt.field(default_factory=list)
+    files: list[str] = dt.field(default_factory=list)
 
 
 Tools = dict[str, Tool]
@@ -249,11 +253,11 @@ DEFAULT_TOOLS: Tools = {
 }
 
 
-@dataclass
+@dt.dataclass
 class Target(Manifest):
-    props: Props = field(default_factory=dict)
-    tools: Tools = field(default_factory=dict)
-    routing: dict[str, str] = field(default_factory=dict)
+    props: Props = dt.field(default_factory=dict)
+    tools: Tools = dt.field(default_factory=dict)
+    routing: dict[str, str] = dt.field(default_factory=dict)
 
     @property
     def hashid(self) -> str:
@@ -283,27 +287,27 @@ class Target(Manifest):
 # --- Component -------------------------------------------------------------- #
 
 
-@dataclass
+@dt.dataclass
 class Resolved:
     reason: Optional[str] = None
-    resolved: list[str] = field(default_factory=list)
+    resolved: list[str] = dt.field(default_factory=list)
 
     @property
     def enabled(self) -> bool:
         return self.reason is None
 
 
-@dataclass
+@dt.dataclass
 class Component(Manifest):
-    decription: str = field(default="(No description)")
-    props: Props = field(default_factory=dict)
-    tools: Tools = field(default_factory=dict)
-    enableIf: dict[str, list[Any]] = field(default_factory=dict)
-    requires: list[str] = field(default_factory=list)
-    provides: list[str] = field(default_factory=list)
-    subdirs: list[str] = field(default_factory=list)
-    injects: list[str] = field(default_factory=list)
-    resolved: dict[str, Resolved] = field(default_factory=dict)
+    decription: str = dt.field(default="(No description)")
+    props: Props = dt.field(default_factory=dict)
+    tools: Tools = dt.field(default_factory=dict)
+    enableIf: dict[str, list[Any]] = dt.field(default_factory=dict)
+    requires: list[str] = dt.field(default_factory=list)
+    provides: list[str] = dt.field(default_factory=list)
+    subdirs: list[str] = dt.field(default_factory=list)
+    injects: list[str] = dt.field(default_factory=list)
+    resolved: dict[str, Resolved] = dt.field(default_factory=dict)
 
     def isEnabled(self, target: Target) -> tuple[bool, str]:
         for k, v in self.enableIf.items():
@@ -334,12 +338,12 @@ KINDS: dict[Kind, Type[Manifest]] = {
 # --- Dependency resolution -------------------------------------------------- #
 
 
-@dataclass
+@dt.dataclass
 class Resolver:
     _registry: "Registry"
     _target: Target
-    _mappings: dict[str, list[Component]] = field(default_factory=dict)
-    _cache: dict[str, Resolved] = field(default_factory=dict)
+    _mappings: dict[str, list[Component]] = dt.field(default_factory=dict)
+    _cache: dict[str, Resolved] = dt.field(default_factory=dict)
     _baked = False
 
     def _bake(self):
@@ -446,21 +450,25 @@ class Resolver:
 _registry: Optional["Registry"] = None
 
 
-@dataclass
+@dt.dataclass
 class Registry(DataClassJsonMixin):
     project: Project
-    manifests: dict[str, Manifest] = field(default_factory=dict)
+    manifests: dict[str, Manifest] = dt.field(default_factory=dict)
 
-    def _append(self, m: Manifest):
+    def _append(self, m: Optional[Manifest]) -> Optional[Manifest]:
         """
         Append a manifest to the model
         """
+        if m is None:
+            return m
+
         if m.id in self.manifests:
             raise RuntimeError(
                 f"Duplicated manifest '{m.id}' at '{m.path}' already loaded from '{self.manifests[m.id].path}'"
             )
 
         self.manifests[m.id] = m
+        return m
 
     def iter(self, type: Type[utils.T]) -> Generator[utils.T, None, None]:
         """
@@ -525,62 +533,55 @@ class Registry(DataClassJsonMixin):
 
     @staticmethod
     def load(project: Project, mixins: list[str], props: Props) -> "Registry":
-        registry = Registry(project)
-        registry._append(project)
+        r = Registry(project)
+        r._append(project)
 
         # Lookup and load all extern projects
         for externDir in project.externDirs:
-            projectPath = os.path.join(externDir, "project.json")
-            manifestPath = os.path.join(externDir, "manifest.json")
+            extern = r._append(
+                Manifest.tryLoad(Path(externDir) / "project")
+                or Manifest.tryLoad(Path(externDir) / "manifest")
+            )
 
-            if os.path.exists(projectPath):
-                registry._append(Manifest.load(Path(projectPath)).ensureType(Project))
-            elif os.path.exists(manifestPath):
-                # For simple library allow to have a manifest.json instead of a project.json
-                registry._append(
-                    Manifest.load(Path(manifestPath)).ensureType(Component)
-                )
-            else:
-                _logger.warn(
-                    "Extern project does not have a project.json or manifest.json"
-                )
+            if extern is not None:
+                _logger.warn("Extern project does not have a project or manifest")
 
         # Load all manifests from projects
-        for project in list(registry.iter(Project)):
+        for project in list(r.iter(Project)):
             targetDir = os.path.join(project.dirname(), const.TARGETS_DIR)
-            targetFiles = shell.find(targetDir, ["*.json"])
+            targetFiles = shell.find(targetDir, Manifest.SUFFIXES_GLOBS)
 
             for targetFile in targetFiles:
-                registry._append(Manifest.load(Path(targetFile)).ensureType(Target))
+                r._append(Manifest.load(Path(targetFile)).ensureType(Target))
 
-            componentDir = os.path.join(project.dirname(), const.SRC_DIR)
-            rootComponent = os.path.join(project.dirname(), "manifest.json")
-            componentFiles = shell.find(componentDir, ["manifest.json"])
+            componentFiles = shell.find(
+                os.path.join(project.dirname(), const.SRC_DIR),
+                ["manifest" + s for s in Manifest.SUFFIXES],
+            )
 
-            if os.path.exists(rootComponent):
-                componentFiles += [rootComponent]
+            rootComponent = Manifest.tryLoad(Path(project.dirname()) / "manifest")
+            if rootComponent is not None:
+                r._append(rootComponent)
 
             for componentFile in componentFiles:
-                registry._append(
-                    Manifest.load(Path(componentFile)).ensureType(Component)
-                )
+                r._append(Manifest.load(Path(componentFile)).ensureType(Component))
 
         # Resolve all dependencies for all targets
-        for target in registry.iter(Target):
+        for target in r.iter(Target):
             target.props |= props
-            resolver = Resolver(registry, target)
+            resolver = Resolver(r, target)
 
             # Apply injects
-            for c in registry.iter(Component):
+            for c in r.iter(Component):
                 if c.isEnabled(target)[0]:
                     for inject in c.injects:
-                        victim = registry.lookup(inject, Component)
+                        victim = r.lookup(inject, Component)
                         if not victim:
                             raise RuntimeError(f"Cannot find component '{inject}'")
                         victim.requires += [c.id]
 
             # Resolve all components
-            for c in registry.iter(Component):
+            for c in r.iter(Component):
                 resolved = resolver.resolve(c.id)
                 if resolved.reason:
                     _logger.info(f"Component '{c.id}' disabled: {resolved.reason}")
@@ -592,7 +593,7 @@ class Registry(DataClassJsonMixin):
             # Merge in default tools
             for k, v in DEFAULT_TOOLS.items():
                 if k not in tools:
-                    tools[k] = dataclasses.replace(v)
+                    tools[k] = dt.replace(v)
 
             from . import mixins as mxs
 
@@ -601,12 +602,12 @@ class Registry(DataClassJsonMixin):
                 tools = mixin(target, tools)
 
             # Apply tooling from components
-            for c in registry.iter(Component):
+            for c in r.iter(Component):
                 if c.resolved[target.id].enabled:
                     for k, v in c.tools.items():
                         tools[k].args += v.args
 
-        return registry
+        return r
 
 
 @cli.command("l", "list", "List all components and targets")

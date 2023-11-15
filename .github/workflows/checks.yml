@@ -22,6 +22,7 @@ jobs:
 
     - name: Install dependencies
       run: |
+        sudo apt install -y ruff
         python -m pip install --upgrade pip
         python -m pip install -r requirements.txt
         python -m pip install mypy pytest
@@ -33,3 +34,7 @@ jobs:
     - name: Run PyTest
       run: |
         python -m pytest
+
+    - name: Run Ruff
+      run: |
+        ruff check cutekit

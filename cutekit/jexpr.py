@@ -1,17 +1,20 @@
 import os
 import json
+import re
+import tomllib
+
 from pathlib import Path
 
-from typing import Any, cast, Callable, Final
-from . import shell, compat
+from typing import Any, Optional, cast, Callable, Final
+from . import shell
 
 Json = Any
 Builtin = Callable[..., Json]
 
 BUILTINS: Final[dict[str, Builtin]] = {
     "uname": lambda arg, ctx: getattr(shell.uname(), arg).lower(),
-    "include": lambda arg, ctx: evalRead(arg),
-    "evalRead": lambda arg, ctx: evalRead(arg),
+    "include": lambda arg, ctx: evalRead(Path(arg)),
+    "evalRead": lambda arg, ctx: evalRead(Path(arg)),
     "join": lambda lhs, rhs, ctx: cast(
         Json, {**lhs, **rhs} if isinstance(lhs, dict) else lhs + rhs
     ),
@@ -50,12 +53,26 @@ def eval(jexpr: Json, filePath: Path) -> Json:
         return jexpr
 
 
+def extraSchema(toml: str) -> Optional[str]:
+    schemaRegex = re.compile(r"#:schema\s+(.*)")
+    schema = schemaRegex.search(toml)
+    return schema.group(1) if schema else None
+
+
 def read(path: Path) -> Json:
     try:
         with open(path, "r") as f:
-            return json.load(f)
-    except:
-        raise RuntimeError(f"Failed to read {path}")
+            if path.suffix == ".toml":
+                tomlStr = f.read()
+                toml = tomllib.loads(tomlStr)
+                schema = extraSchema(tomlStr)
+                if schema:
+                    toml["$schema"] = schema
+                return toml
+            else:
+                return json.load(f)
+    except Exception as e:
+        raise RuntimeError(f"Failed to read {path}: {e}")
 
 
 def evalRead(path: Path) -> Json:

@@ -1,7 +1,8 @@
 import os
 import logging
+import dataclasses as dt
+
 from pathlib import Path
-from dataclasses import dataclass
 from typing import TextIO, Union
 
 from . import shell, rules, model, ninja, const, cli
@@ -187,7 +188,7 @@ def gen(out: TextIO, target: model.Target, registry: model.Registry):
     all(w, registry, target)
 
 
-@dataclass
+@dt.dataclass
 class Product:
     path: Path
     target: model.Target
