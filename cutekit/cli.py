@@ -1,4 +1,5 @@
 import inspect
+import logging
 import sys
 
 from pathlib import Path
@@ -8,6 +9,8 @@ from dataclasses import dataclass
 from . import const, vt100
 
 Value = Union[str, bool, int]
+
+_logger = logging.getLogger(__name__)
 
 
 class Args:
@@ -86,6 +89,7 @@ def command(shortName: Optional[str], longName: str, helpText: str):
     calframe = inspect.getouterframes(curframe, 2)
 
     def wrap(fn: Callable[[Args], None]):
+        _logger.debug(f"Registering command {longName}")
         commands.append(
             Command(
                 shortName,
