@@ -244,9 +244,9 @@ def buildCmd(args: cli.Args):
     registry = model.Registry.use(args)
     target = model.Target.use(args)
     componentSpec = args.consumeArg()
-    if componentSpec is None:
-        raise RuntimeError("No component specified")
-    component = registry.lookup(componentSpec, model.Component)
+    component = None
+    if componentSpec is not None:
+        component = registry.lookup(componentSpec, model.Component)
     build(target, registry, component)[0]
 
 
