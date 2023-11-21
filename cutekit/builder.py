@@ -203,8 +203,10 @@ def build(
     all = False
     shell.mkdir(target.builddir)
     ninjaPath = os.path.join(target.builddir, "build.ninja")
-    with open(ninjaPath, "w") as f:
-        gen(f, target, registry)
+
+    if not os.path.exists(ninjaPath):
+        with open(ninjaPath, "w") as f:
+            gen(f, target, registry)
 
     if components is None:
         all = True
@@ -228,10 +230,9 @@ def build(
         )
 
     outs = list(map(lambda p: str(p.path), products))
-    if all:
-        shell.exec("ninja", "-f", ninjaPath)
-    else:
-        shell.exec("ninja", "-f", ninjaPath, *outs)
+
+    shell.exec("ninja", "-f", ninjaPath, *(outs if not all else []))
+
     return products
 
 
