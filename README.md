@@ -6,7 +6,7 @@
 </p>
 <h1 align="center">CuteKit</h1>
 <p align="center">
-    The Cute build system and package manager
+    The *magical* build system and package manager
 </p>
 <br/>
 <br/>
