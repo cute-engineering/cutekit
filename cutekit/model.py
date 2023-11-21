@@ -71,7 +71,7 @@ class Manifest(DataClassJsonMixin):
         """
         Return the directory of the manifest
         """
-        return os.path.dirname(self.path)
+        return os.path.relpath(os.path.dirname(self.path), Path.cwd())
 
     def subpath(self, path) -> Path:
         return Path(self.dirname()) / path
@@ -121,18 +121,17 @@ class Project(Manifest):
 
     @staticmethod
     def ensure() -> "Project":
+        """
+        Ensure that a project exists in the current directory or any parent directory
+        and chdir to the root of the project.
+        """
         project = Project.topmost()
         if project is None:
             raise RuntimeError(
                 "No project found in this directory or any parent directory"
             )
+        os.chdir(project.dirname())
         return project
-
-    def chdir(self):
-        """
-        Change the current working directory to the root of the project
-        """
-        os.chdir(self.dirname())
 
     @staticmethod
     def at(path: Path) -> Optional["Project"]:
