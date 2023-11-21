@@ -3,19 +3,12 @@ import os
 import logging
 
 from . import (
-    builder,
+    builder,  # noqa: F401 this is imported for side effects
     cli,
-    compat,
     const,
-    graph,
-    jexpr,
-    mixins,
+    graph,  # noqa: F401 this is imported for side effects
     model,
-    ninja,
     plugins,
-    rules,
-    shell,
-    utils,
     vt100,
 )
 
