@@ -6,6 +6,7 @@ from . import (
     builder,  # noqa: F401 this is imported for side effects
     cli,
     const,
+    get,  # noqa: F401 this is imported for side effects
     graph,  # noqa: F401 this is imported for side effects
     model,
     plugins,
