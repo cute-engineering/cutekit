@@ -1,5 +1,6 @@
-import os
 import logging
+import os
+import sys
 
 from . import shell, model, const
 
@@ -17,6 +18,7 @@ def load(path: str):
         return None
 
     module = importlib.module_from_spec(spec)
+    sys.modules["plugin"] = module
     spec.loader.exec_module(module)
 
 
@@ -33,7 +35,11 @@ def loadAll():
 
     for dirname in paths:
         pluginDir = os.path.join(project.dirname(), dirname, const.META_DIR, "plugins")
+        initFile = os.path.join(pluginDir, "__init__.py")
 
-        for files in shell.readdir(pluginDir):
-            if files.endswith(".py"):
-                load(os.path.join(pluginDir, files))
+        if os.path.isfile(initFile):
+            load(initFile)
+        else:
+            for files in shell.readdir(pluginDir):
+                if files.endswith(".py"):
+                    load(os.path.join(pluginDir, files))
