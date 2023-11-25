@@ -36,8 +36,4 @@ def loadAll():
 
         for files in shell.readdir(pluginDir):
             if files.endswith(".py"):
-                plugin = load(os.path.join(pluginDir, files))
-
-                if plugin:
-                    _logger.info(f"Loaded plugin {plugin.name}")
-                    plugin.init()
+                load(os.path.join(pluginDir, files))
