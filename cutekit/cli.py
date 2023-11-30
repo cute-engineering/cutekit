@@ -80,8 +80,10 @@ class Command:
     isPlugin: bool
     callback: Callback
 
+    subcommands: dict[str, "Command"] = dt.field(default_factory=dict)
 
-commands: list[Command] = []
+
+commands: dict[str, Command] = {}
 
 
 def command(shortName: Optional[str], longName: str, helpText: str):
@@ -90,15 +92,18 @@ def command(shortName: Optional[str], longName: str, helpText: str):
 
     def wrap(fn: Callable[[Args], None]):
         _logger.debug(f"Registering command {longName}")
-        commands.append(
-            Command(
-                shortName,
-                longName,
-                helpText,
-                Path(calframe[1].filename).parent != Path(__file__).parent,
-                fn,
-            )
+        path = longName.split("/")
+        parent = commands
+        for p in path[:-1]:
+            parent = parent[p].subcommands
+        parent[path[-1]] = Command(
+            shortName,
+            path[-1],
+            helpText,
+            Path(calframe[1].filename).parent != Path(__file__).parent,
+            fn,
         )
+
         return fn
 
     return wrap
@@ -127,8 +132,8 @@ def helpCmd(args: Args):
 
     print()
     vt100.title("Commands")
-    for cmd in sorted(commands, key=lambda c: c.longName):
-        if cmd.longName.startswith("_"):
+    for cmd in sorted(commands.values(), key=lambda c: c.longName):
+        if cmd.longName.startswith("_") or len(cmd.subcommands) > 0:
             continue
 
         pluginText = ""
@@ -138,6 +143,21 @@ def helpCmd(args: Args):
         print(
             f" {vt100.GREEN}{cmd.shortName or ' '}{vt100.RESET}  {cmd.longName} - {cmd.helpText} {pluginText}"
         )
+
+    for cmd in sorted(commands.values(), key=lambda c: c.longName):
+        if cmd.longName.startswith("_") or len(cmd.subcommands) == 0:
+            continue
+
+        print()
+        vt100.title(f"{cmd.longName.capitalize()} - {cmd.helpText}")
+        for subcmd in sorted(cmd.subcommands.values(), key=lambda c: c.longName):
+            pluginText = ""
+            if subcmd.isPlugin:
+                pluginText = f"{vt100.CYAN}(plugin){vt100.RESET}"
+
+            print(
+                f"     {vt100.GREEN}{subcmd.shortName or ' '}{vt100.RESET}  {subcmd.longName} - {subcmd.helpText} {pluginText}"
+            )
 
     print()
     vt100.title("Logging")
@@ -151,15 +171,19 @@ def versionCmd(args: Args):
     print(f"CuteKit v{const.VERSION_STR}")
 
 
-def exec(args: Args):
+def exec(args: Args, cmds=commands):
     cmd = args.consumeArg()
 
     if cmd is None:
         raise RuntimeError("No command specified")
 
-    for c in commands:
+    for c in cmds.values():
         if c.shortName == cmd or c.longName == cmd:
-            c.callback(args)
-            return
+            if len(c.subcommands) > 0:
+                exec(args, c.subcommands)
+                return
+            else:
+                c.callback(args)
+                return
 
     raise RuntimeError(f"Unknown command {cmd}")

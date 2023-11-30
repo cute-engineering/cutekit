@@ -26,7 +26,7 @@ packages = ["cutekit"]
 
 [tool.setuptools.dynamic]
 version = { attr = "cutekit.const.VERSION" }
-dependencies = { file = ["requirements.txt"] }
+dependencies = { file = ["cutekit/requirements.txt"] }
 
 [tool.setuptools.package-data]
-"cutekit" = ["py.typed"]
+"cutekit" = ["py.typed", "requirements.txt", "pods-entry.sh"]

@@ -9,6 +9,7 @@ from . import (
     graph,  # noqa: F401 this is imported for side effects
     model,
     plugins,
+    pods,  # noqa: F401 this is imported for side effects
     vt100,
 )
 
@@ -55,10 +56,13 @@ def setupLogger(verbose: bool):
 
 def main() -> int:
     try:
-        a = cli.parse(sys.argv[1:])
-        setupLogger(a.consumeOpt("verbose", False) is True)
-        plugins.loadAll()
-        cli.exec(a)
+        args = cli.parse(sys.argv[1:])
+        setupLogger(args.consumeOpt("verbose", False) is True)
+        safemode = args.consumeOpt("safemode", False) is True
+        if not safemode:
+            plugins.loadAll()
+        pods.reincarnate(args)
+        cli.exec(args)
         print()
         return 0
     except RuntimeError as e:

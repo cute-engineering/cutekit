@@ -36,7 +36,7 @@ def view(
         if (
             scopeInstance is not None
             and component.id != scope
-            and component.id not in scopeInstance.resolved[target.id].resolved
+            and component.id not in scopeInstance.resolved[target.id].required
         ):
             continue
 
