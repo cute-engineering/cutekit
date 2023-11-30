@@ -10,7 +10,7 @@ def test_direct_deps():
 
     resolved = res.resolve("myapp")
     assert resolved.reason is None
-    assert resolved.resolved == ["myapp", "mylib"]
+    assert resolved.required == ["myapp", "mylib"]
 
 
 def test_indirect_deps():
@@ -20,7 +20,7 @@ def test_indirect_deps():
     r._append(model.Component("myimpl", provides=["myembed"]))
     t = model.Target("host")
     res = model.Resolver(r, t)
-    assert res.resolve("myapp").resolved == ["myapp", "mylib", "myimpl"]
+    assert res.resolve("myapp").required == ["myapp", "mylib", "myimpl"]
 
 
 def test_deps_routing():
@@ -31,11 +31,11 @@ def test_deps_routing():
     r._append(model.Component("myimplB", provides=["myembed"]))
     t = model.Target("host", routing={"myembed": "myimplB"})
     res = model.Resolver(r, t)
-    assert res.resolve("myapp").resolved == ["myapp", "mylib", "myimplB"]
+    assert res.resolve("myapp").required == ["myapp", "mylib", "myimplB"]
 
     t = model.Target("host", routing={"myembed": "myimplA"})
     res = model.Resolver(r, t)
-    assert res.resolve("myapp").resolved == ["myapp", "mylib", "myimplA"]
+    assert res.resolve("myapp").required == ["myapp", "mylib", "myimplA"]
 
     t = model.Target("host", routing={"myembed": "myimplC"})
     res = model.Resolver(r, t)
@@ -54,11 +54,11 @@ def test_deps_routing_with_props():
     )
     t = model.Target("host", routing={"myembed": "myimplB"}, props={"myprop": "b"})
     res = model.Resolver(r, t)
-    assert res.resolve("myapp").resolved == ["myapp", "mylib", "myimplB"]
+    assert res.resolve("myapp").required == ["myapp", "mylib", "myimplB"]
 
     t = model.Target("host", routing={"myembed": "myimplA"}, props={"myprop": "a"})
     res = model.Resolver(r, t)
-    assert res.resolve("myapp").resolved == ["myapp", "mylib", "myimplA"]
+    assert res.resolve("myapp").required == ["myapp", "mylib", "myimplA"]
 
     t = model.Target("host", routing={"myembed": "myimplC"}, props={"myprop": "c"})
     res = model.Resolver(r, t)
@@ -79,11 +79,11 @@ def test_deps_routing_with_props_and_requires():
     )
     t = model.Target("host", routing={"myembed": "myimplB"}, props={"myprop": "b"})
     res = model.Resolver(r, t)
-    assert res.resolve("myapp").resolved == ["myapp", "mylib", "myimplB"]
+    assert res.resolve("myapp").required == ["myapp", "mylib", "myimplB"]
 
     t = model.Target("host", routing={"myembed": "myimplA"}, props={"myprop": "a"})
     res = model.Resolver(r, t)
-    assert res.resolve("myapp").resolved == ["myapp", "mylib", "myimplA"]
+    assert res.resolve("myapp").required == ["myapp", "mylib", "myimplA"]
 
     t = model.Target("host", routing={"myembed": "myimplC"}, props={"myprop": "c"})
     res = model.Resolver(r, t)
