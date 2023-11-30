@@ -52,7 +52,7 @@ def sha256sum(path: str) -> str:
 def find(
     path: str | list[str], wildcards: list[str] = [], recusive: bool = True
 ) -> list[str]:
-    _logger.info(f"Looking for files in {path} matching {wildcards}")
+    _logger.debug(f"Looking for files in {path} matching {wildcards}")
 
     result: list[str] = []
 
@@ -88,7 +88,7 @@ def find(
 
 
 def mkdir(path: str) -> str:
-    _logger.info(f"Creating directory {path}")
+    _logger.debug(f"Creating directory {path}")
 
     try:
         os.makedirs(path)
@@ -99,7 +99,7 @@ def mkdir(path: str) -> str:
 
 
 def rmrf(path: str) -> bool:
-    _logger.info(f"Removing directory {path}")
+    _logger.debug(f"Removing directory {path}")
 
     if not os.path.exists(path):
         return False
@@ -118,7 +118,7 @@ def wget(url: str, path: Optional[str] = None) -> str:
     if os.path.exists(path):
         return path
 
-    _logger.info(f"Downloading {url} to {path}")
+    _logger.debug(f"Downloading {url} to {path}")
 
     r = requests.get(url, stream=True)
     r.raise_for_status()
@@ -132,7 +132,7 @@ def wget(url: str, path: Optional[str] = None) -> str:
 
 
 def exec(*args: str, quiet: bool = False) -> bool:
-    _logger.info(f"Executing {args}")
+    _logger.debug(f"Executing {args}")
 
     try:
         proc = subprocess.run(
@@ -142,10 +142,10 @@ def exec(*args: str, quiet: bool = False) -> bool:
         )
 
         if proc.stdout:
-            _logger.info(proc.stdout.decode("utf-8"))
+            _logger.debug(proc.stdout.decode("utf-8"))
 
         if proc.stderr:
-            _logger.error(proc.stderr.decode("utf-8"))
+            _logger.debug(proc.stderr.decode("utf-8"))
 
     except FileNotFoundError:
         raise RuntimeError(f"{args[0]}: Command not found")
@@ -163,7 +163,7 @@ def exec(*args: str, quiet: bool = False) -> bool:
 
 
 def popen(*args: str) -> str:
-    _logger.info(f"Executing {args}")
+    _logger.debug(f"Executing {args}")
 
     try:
         proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=sys.stderr)
@@ -180,7 +180,7 @@ def popen(*args: str) -> str:
 
 
 def readdir(path: str) -> list[str]:
-    _logger.info(f"Reading directory {path}")
+    _logger.debug(f"Reading directory {path}")
 
     try:
         return os.listdir(path)
@@ -189,19 +189,19 @@ def readdir(path: str) -> list[str]:
 
 
 def cp(src: str, dst: str):
-    _logger.info(f"Copying {src} to {dst}")
+    _logger.debug(f"Copying {src} to {dst}")
 
     shutil.copy(src, dst)
 
 
 def mv(src: str, dst: str):
-    _logger.info(f"Moving {src} to {dst}")
+    _logger.debug(f"Moving {src} to {dst}")
 
     shutil.move(src, dst)
 
 
 def cpTree(src: str, dst: str):
-    _logger.info(f"Copying {src} to {dst}")
+    _logger.debug(f"Copying {src} to {dst}")
 
     shutil.copytree(src, dst, dirs_exist_ok=True)
 
@@ -241,10 +241,9 @@ def latest(cmd: str) -> str:
     if cmd in LATEST_CACHE:
         return LATEST_CACHE[cmd]
 
-    _logger.info(f"Finding latest version of {cmd}")
+    _logger.debug(f"Finding latest version of {cmd}")
 
     regex: re.Pattern[str]
-
     if platform.system() == "Windows":
         regex = re.compile(r"^" + re.escape(cmd) + r"(-.[0-9]+)?(\.exe)?$")
     else:
@@ -263,7 +262,7 @@ def latest(cmd: str) -> str:
     versions.sort()
     chosen = versions[-1]
 
-    _logger.info(f"Chosen {chosen} as latest version of {cmd}")
+    _logger.debug(f"Chosen {chosen} as latest version of {cmd}")
 
     LATEST_CACHE[cmd] = chosen
 

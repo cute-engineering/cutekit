@@ -173,14 +173,19 @@ class Project(Manifest):
         return _project
 
 
-@cli.command("i", "install", "Install required external packages")
-def installCmd(args: cli.Args):
+@cli.command("m", "model", "Manage the model")
+def modelCmd(args: cli.Args):
+    pass
+
+
+@cli.command("i", "model/install", "Install required external packages")
+def modelInstallCmd(args: cli.Args):
     project = Project.use(args)
     Project.fetchs(project.extern)
 
 
-@cli.command("I", "init", "Initialize a new project")
-def initCmd(args: cli.Args):
+@cli.command("I", "model/init", "Initialize a new project")
+def modelInitCmd(args: cli.Args):
     import requests
 
     repo = args.consumeOpt("repo", const.DEFAULT_REPO_TEMPLATES)
@@ -258,9 +263,15 @@ class Target(Manifest):
     tools: Tools = dt.field(default_factory=dict)
     routing: dict[str, str] = dt.field(default_factory=dict)
 
+    _hashid = None
+
     @property
     def hashid(self) -> str:
-        return utils.hash((self.props, [v.to_dict() for k, v in self.tools.items()]))
+        if self._hashid is None:
+            self._hashid = utils.hash(
+                (self.props, [v.to_dict() for k, v in self.tools.items()])
+            )
+        return self._hashid
 
     @property
     def builddir(self) -> str:
@@ -289,7 +300,8 @@ class Target(Manifest):
 @dt.dataclass
 class Resolved:
     reason: Optional[str] = None
-    resolved: list[str] = dt.field(default_factory=list)
+    required: list[str] = dt.field(default_factory=list)
+    injected: list[str] = dt.field(default_factory=list)
 
     @property
     def enabled(self) -> bool:
@@ -436,11 +448,11 @@ class Resolver:
                 self._cache[keep] = Resolved(reason=reqResolved.reason)
                 return self._cache[keep]
 
-            result.extend(reqResolved.resolved)
+            result.extend(reqResolved.required)
 
         stack.pop()
         result.insert(0, keep)
-        self._cache[keep] = Resolved(resolved=utils.uniq(result))
+        self._cache[keep] = Resolved(required=utils.uniq(result))
         return self._cache[keep]
 
 
@@ -570,6 +582,13 @@ class Registry(DataClassJsonMixin):
             target.props |= props
             resolver = Resolver(r, target)
 
+            # Resolve all components
+            for c in r.iter(Component):
+                resolved = resolver.resolve(c.id)
+                if resolved.reason:
+                    _logger.info(f"Component '{c.id}' disabled: {resolved.reason}")
+                c.resolved[target.id] = resolved
+
             # Apply injects
             for c in r.iter(Component):
                 if c.isEnabled(target)[0]:
@@ -577,14 +596,7 @@ class Registry(DataClassJsonMixin):
                         victim = r.lookup(inject, Component)
                         if not victim:
                             raise RuntimeError(f"Cannot find component '{inject}'")
-                        victim.requires += [c.id]
-
-            # Resolve all components
-            for c in r.iter(Component):
-                resolved = resolver.resolve(c.id)
-                if resolved.reason:
-                    _logger.info(f"Component '{c.id}' disabled: {resolved.reason}")
-                c.resolved[target.id] = resolved
+                        victim.resolved[target.id].injected.append(c.id)
 
             # Resolve tooling
             tools: Tools = target.tools
@@ -609,8 +621,8 @@ class Registry(DataClassJsonMixin):
         return r
 
 
-@cli.command("l", "list", "List all components and targets")
-def listCmd(args: cli.Args):
+@cli.command("l", "model/list", "List all components and targets")
+def modelListCmd(args: cli.Args):
     registry = Registry.use(args)
 
     components = list(registry.iter(Component))

@@ -57,6 +57,15 @@ def makeMixinTune(tune: str) -> Mixin:
     return mixinTune
 
 
+def combineMixins(*mixins: Mixin) -> Mixin:
+    def combined(target: model.Target, tools: model.Tools) -> model.Tools:
+        for mixin in mixins:
+            tools = mixin(target, tools)
+        return tools
+
+    return combined
+
+
 mixins: dict[str, Mixin] = {
     "cache": mixinCache,
     "debug": mixinDebug,
@@ -64,8 +73,16 @@ mixins: dict[str, Mixin] = {
     "msan": makeMixinSan("memory"),
     "tsan": makeMixinSan("thread"),
     "ubsan": makeMixinSan("undefined"),
+    "sanitize": combineMixins(
+        makeMixinSan("address"),
+        makeMixinSan("memory"),
+        makeMixinSan("thread"),
+    ),
     "tune": makeMixinTune("native"),
-    "fast": makeMixinOptimize("fast"),
+    "release": combineMixins(
+        makeMixinOptimize("3"),
+        makeMixinTune("native"),
+    ),
     "o3": makeMixinOptimize("3"),
     "o2": makeMixinOptimize("2"),
     "o1": makeMixinOptimize("1"),

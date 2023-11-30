@@ -1,3 +1,4 @@
 requests ~= 2.31.0
 graphviz ~= 0.20.1
 dataclasses-json ~= 0.6.2
+docker ~= 6.1.3

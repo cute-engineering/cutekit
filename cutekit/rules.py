@@ -1,52 +1,39 @@
+import dataclasses as dt
+
 from typing import Optional
 
 
+@dt.dataclass
 class Rule:
     id: str
     fileIn: list[str]
-    fileOut: list[str]
+    fileOut: str
     rule: str
-    args: list[str]
-    deps: Optional[str] = None
-
-    def __init__(
-        self,
-        id: str,
-        fileIn: list[str],
-        fileOut: list[str],
-        rule: str,
-        args: list[str] = [],
-        deps: Optional[str] = None,
-    ):
-        self.id = id
-        self.fileIn = fileIn
-        self.fileOut = fileOut
-        self.rule = rule
-        self.args = args
-        self.deps = deps
+    args: list[str] = dt.field(default_factory=list)
+    deps: list[str] = dt.field(default_factory=list)
 
 
 rules: dict[str, Rule] = {
-    "cp": Rule("cp", ["*"], ["*"], "$in $out"),
+    "cp": Rule("cp", ["*"], "*", "$in $out"),
     "cc": Rule(
         "cc",
         ["*.c"],
-        ["*.o"],
+        "*.o",
         "-c -o $out $in -MD -MF $out.d $flags $cincs $cdefs",
         ["-std=gnu2x", "-Wall", "-Wextra", "-Werror"],
-        "$out.d",
+        ["$out.d"],
     ),
     "cxx": Rule(
         "cxx",
         ["*.cpp", "*.cc", "*.cxx"],
-        ["*.o"],
+        "*.o",
         "-c -o $out $in -MD -MF $out.d $flags $cincs $cdefs",
         ["-std=gnu++2b", "-Wall", "-Wextra", "-Werror", "-fno-exceptions", "-fno-rtti"],
-        "$out.d",
+        ["$out.d"],
     ),
-    "as": Rule("as", ["*.s", "*.asm", "*.S"], ["*.o"], "-o $out $in $flags"),
-    "ar": Rule("ar", ["*.o"], ["*.a"], "$flags $out $in"),
-    "ld": Rule("ld", ["*.o", "*.a"], ["*.out"], "-o $out $in $flags"),
+    "as": Rule("as", ["*.s", "*.asm", "*.S"], "*.o", "-o $out $in $flags"),
+    "ar": Rule("ar", ["*.o"], "*.a", "$flags $out $in"),
+    "ld": Rule("ld", ["*.o", "*.a"], "*.out", "-o $out $in $flags"),
 }
 
 
