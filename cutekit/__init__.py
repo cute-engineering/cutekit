@@ -11,6 +11,7 @@ from . import (
     plugins,
     pods,  # noqa: F401 this is imported for side effects
     vt100,
+    shell,
 )
 
 
@@ -40,10 +41,7 @@ def setupLogger(verbose: bool):
         if projectRoot is not None:
             logFile = os.path.join(projectRoot.dirname(), const.PROJECT_LOG_FILE)
 
-        # create the directory if it doesn't exist
-        logDir = os.path.dirname(logFile)
-        if not os.path.isdir(logDir):
-            os.makedirs(logDir)
+        shell.mkdir(os.path.dirname(logFile))
 
         logging.basicConfig(
             level=logging.INFO,
@@ -56,21 +54,21 @@ def setupLogger(verbose: bool):
 
 def main() -> int:
     try:
+        shell.mkdir(const.GLOBAL_CK_DIR)
         args = cli.parse(sys.argv[1:])
         setupLogger(args.consumeOpt("verbose", False) is True)
-        safemode = args.consumeOpt("safemode", False) is True
-        if not safemode:
-            plugins.loadAll()
-        pods.reincarnate(args)
+
+        const.setup()
+        plugins.setup(args)
+        pods.setup(args)
         cli.exec(args)
-        print()
+
         return 0
     except RuntimeError as e:
         logging.exception(e)
         cli.error(str(e))
         cli.usage()
-        print()
-        return 1
     except KeyboardInterrupt:
         print()
-        return 1
+
+    return 1

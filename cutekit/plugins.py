@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 
-from . import shell, model, const
+from . import shell, model, const, cli
 
 import importlib.util as importlib
 
@@ -43,3 +43,8 @@ def loadAll():
             for files in shell.readdir(pluginDir):
                 if files.endswith(".py"):
                     load(os.path.join(pluginDir, files))
+
+
+def setup(args: cli.Args):
+    if not bool(args.consumeOpt("safemode", False)):
+        loadAll()

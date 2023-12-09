@@ -1,5 +1,8 @@
 #!/bin/env bash
 
+# This script makes sure that the virtual environment is
+# set up and that the plugins requirements are installed.
+
 set -e
 
 export PY=python3.11
@@ -30,5 +33,6 @@ else
     source /tools/venv/bin/activate
 fi
 
+cd /project
 export PYTHONPATH=/tools
-$PY -m cutekit "$@"
+$PY -m cutekit $@

@@ -174,18 +174,18 @@ class Project(Manifest):
 
 
 @cli.command("m", "model", "Manage the model")
-def modelCmd(args: cli.Args):
+def _(args: cli.Args):
     pass
 
 
 @cli.command("i", "model/install", "Install required external packages")
-def modelInstallCmd(args: cli.Args):
+def _(args: cli.Args):
     project = Project.use(args)
     Project.fetchs(project.extern)
 
 
 @cli.command("I", "model/init", "Initialize a new project")
-def modelInitCmd(args: cli.Args):
+def _(args: cli.Args):
     import requests
 
     repo = args.consumeOpt("repo", const.DEFAULT_REPO_TEMPLATES)
@@ -275,7 +275,10 @@ class Target(Manifest):
 
     @property
     def builddir(self) -> str:
-        return os.path.join(const.BUILD_DIR, f"{self.id}-{self.hashid[:8]}")
+        postfix = f"-{self.hashid[:8]}"
+        if self.props.get("host"):
+            postfix += f"-{str(const.HOSTID)[:8]}"
+        return os.path.join(const.BUILD_DIR, f"{self.id}{postfix}")
 
     @staticmethod
     def use(args: cli.Args) -> "Target":
@@ -310,7 +313,7 @@ class Resolved:
 
 @dt.dataclass
 class Component(Manifest):
-    decription: str = dt.field(default="(No description)")
+    description: str = dt.field(default="(No description)")
     props: Props = dt.field(default_factory=dict)
     tools: Tools = dt.field(default_factory=dict)
     enableIf: dict[str, list[Any]] = dt.field(default_factory=dict)
@@ -593,7 +596,7 @@ class Registry(DataClassJsonMixin):
             for c in r.iter(Component):
                 if c.isEnabled(target)[0]:
                     for inject in c.injects:
-                        victim = r.lookup(inject, Component)
+                        victim = r.lookup(inject, Component, includeProvides=True)
                         if not victim:
                             raise RuntimeError(f"Cannot find component '{inject}'")
                         victim.resolved[target.id].injected.append(c.id)
@@ -622,7 +625,7 @@ class Registry(DataClassJsonMixin):
 
 
 @cli.command("l", "model/list", "List all components and targets")
-def modelListCmd(args: cli.Args):
+def _(args: cli.Args):
     registry = Registry.use(args)
 
     components = list(registry.iter(Component))

@@ -29,6 +29,10 @@ def hash(
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
+def randomHash() -> str:
+    return hashlib.sha256(os.urandom(32)).hexdigest()
+
+
 def camelCase(s: str) -> str:
     s = "".join(x for x in s.title() if x != "_" and x != "-")
     s = s[0].lower() + s[1:]
