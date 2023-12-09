@@ -46,7 +46,7 @@ def view(
 
             g.node(
                 component.id,
-                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(component.decription, 40,newline='<BR/>')}>",
+                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(component.description, 40,newline='<BR/>')}>",
                 shape=shape,
                 style="filled",
                 fillcolor=fillcolor,
@@ -67,7 +67,7 @@ def view(
         elif showDisabled:
             g.node(
                 component.id,
-                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(component.decription, 40,newline='<BR/>')}<BR/><BR/><I>{vt100.wordwrap(str(component.resolved[target.id].reason), 40,newline='<BR/>')}</I>>",
+                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(component.description, 40,newline='<BR/>')}<BR/><BR/><I>{vt100.wordwrap(str(component.resolved[target.id].reason), 40,newline='<BR/>')}</I>>",
                 shape="plaintext",
                 style="filled",
                 fontcolor="#999999",
@@ -84,7 +84,7 @@ def view(
 
 
 @cli.command("g", "graph", "Show the dependency graph")
-def graphCmd(args: cli.Args):
+def _(args: cli.Args):
     registry = model.Registry.use(args)
     target = model.Target.use(args)
 

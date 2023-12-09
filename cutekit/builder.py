@@ -11,7 +11,23 @@ _logger = logging.getLogger(__name__)
 
 
 @dt.dataclass
-class TargetScope:
+class Scope:
+    registry: model.Registry
+
+    @staticmethod
+    def use(args: cli.Args) -> "Scope":
+        registry = model.Registry.use(args)
+        return Scope(registry)
+
+    def key(self) -> str:
+        return self.registry.project.id
+
+    def openTargetScope(self, t: model.Target):
+        return TargetScope(self.registry, t)
+
+
+@dt.dataclass
+class TargetScope(Scope):
     registry: model.Registry
     target: model.Target
 
@@ -21,6 +37,9 @@ class TargetScope:
         target = model.Target.use(args)
         return TargetScope(registry, target)
 
+    def key(self) -> str:
+        return super().key() + "/" + self.target.id + "/" + self.target.hashid
+
     def openComponentScope(self, c: model.Component):
         return ComponentScope(self.registry, self.target, c)
 
@@ -28,6 +47,9 @@ class TargetScope:
 @dt.dataclass
 class ComponentScope(TargetScope):
     component: model.Component
+
+    def key(self) -> str:
+        return super().key() + "/" + self.component.id
 
     def openComponentScope(self, c: model.Component):
         return ComponentScope(self.registry, self.target, c)
@@ -76,6 +98,8 @@ def _computeCinc(scope: TargetScope) -> str:
     for c in scope.registry.iterEnabled(scope.target):
         if "cpp-root-include" in c.props:
             res.add(c.dirname())
+        elif "cpp-excluded" in c.props:
+            pass
         elif c.type == model.Kind.LIB:
             res.add(str(Path(c.dirname()).parent))
 
@@ -108,18 +132,16 @@ def buildpath(scope: ComponentScope, path) -> Path:
 
 
 def subdirs(scope: ComponentScope) -> list[str]:
-    registry = scope.registry
-    target = scope.target
     component = scope.component
     result = [component.dirname()]
 
     for subs in component.subdirs:
         result.append(os.path.join(component.dirname(), subs))
 
-    for inj in component.resolved[target.id].injected:
-        injected = registry.lookup(inj, model.Component)
-        assert injected is not None  # model.Resolver has already checked this
-        result.extend(subdirs(scope))
+    # for inj in component.resolved[target.id].injected:
+    #     injected = registry.lookup(inj, model.Component)
+    #     assert injected is not None  # model.Resolver has already checked this
+    #     result.extend(subdirs(scope.openComponentScope(injected)))
 
     return result
 
@@ -134,11 +156,29 @@ def compile(
     res: list[str] = []
     for src in srcs:
         rel = Path(src).relative_to(scope.component.dirname())
-        dest = buildpath(scope, "obj") / rel.with_suffix(".o")
+        dest = buildpath(scope, path="obj") / rel.with_suffix(".o")
         t = scope.target.tools[rule]
         w.build(str(dest), rule, inputs=src, order_only=t.files)
         res.append(str(dest))
     return res
+
+
+def compileObjs(w: ninja.Writer, scope: ComponentScope) -> list[str]:
+    objs = []
+    objs += compile(w, scope, "cc", wilcard(scope, ["*.c"]))
+    objs += compile(
+        w,
+        scope,
+        "cxx",
+        wilcard(scope, ["*.cpp", "*.cc", "*.cxx"]),
+    )
+    objs += compile(
+        w,
+        scope,
+        "as",
+        wilcard(scope, ["*.s", "*.asm", "*.S"]),
+    )
+    return objs
 
 
 # --- Ressources ------------------------------------------------------------- #
@@ -195,26 +235,12 @@ def link(
     w.newline()
     out = outfile(scope)
 
-    objs = []
-    objs += compile(w, scope, "cc", wilcard(scope, ["*.c"]))
-    objs += compile(
-        w,
-        scope,
-        "cxx",
-        wilcard(scope, ["*.cpp", "*.cc", "*.cxx"]),
-    )
-    objs += compile(
-        w,
-        scope,
-        "as",
-        wilcard(scope, ["*.s", "*.asm", "*.S"]),
-    )
-
     res = compileRes(w, scope)
-    libs = collectLibs(scope)
+    objs = compileObjs(w, scope)
     if scope.component.type == model.Kind.LIB:
         w.build(out, "ar", objs, implicit=res)
     else:
+        libs = collectLibs(scope)
         w.build(out, "ld", objs + libs, implicit=res)
     return out
 
@@ -300,12 +326,12 @@ def build(
 
 
 @cli.command("b", "builder", "Build/Run/Clean a component or all components")
-def buildCmd(args: cli.Args):
+def _(args: cli.Args):
     pass
 
 
 @cli.command("b", "builder/build", "Build a component or all components")
-def buildBuildCmd(args: cli.Args):
+def _(args: cli.Args):
     scope = TargetScope.use(args)
     componentSpec = args.consumeArg()
     component = None
@@ -315,7 +341,7 @@ def buildBuildCmd(args: cli.Args):
 
 
 @cli.command("r", "builder/run", "Run a component")
-def buildRunCmd(args: cli.Args):
+def runCmd(args: cli.Args):
     scope = TargetScope.use(args)
     debug = args.consumeOpt("debug", False) is True
 
@@ -337,28 +363,28 @@ def buildRunCmd(args: cli.Args):
 
 
 @cli.command("t", "builder/test", "Run all test targets")
-def buildTestCmd(args: cli.Args):
+def _(args: cli.Args):
     # This is just a wrapper around the `run` command that try
     # to run a special hook component named __tests__.
     args.args.insert(0, "__tests__")
-    buildRunCmd(args)
+    runCmd(args)
 
 
 @cli.command("d", "builder/debug", "Debug a component")
-def buildDebugCmd(args: cli.Args):
+def _(args: cli.Args):
     # This is just a wrapper around the `run` command that
     # always enable debug mode.
     args.opts["debug"] = True
-    buildRunCmd(args)
+    runCmd(args)
 
 
 @cli.command("c", "builder/clean", "Clean build files")
-def buildCleanCmd(args: cli.Args):
+def _(args: cli.Args):
     model.Project.use(args)
     shell.rmrf(const.BUILD_DIR)
 
 
 @cli.command("n", "builder/nuke", "Clean all build files and caches")
-def buildNukeCmd(args: cli.Args):
+def _(args: cli.Args):
     model.Project.use(args)
     shell.rmrf(const.PROJECT_CK_DIR)

@@ -10,7 +10,7 @@ import fnmatch
 import platform
 import logging
 import tempfile
-
+import dataclasses as dt
 
 from typing import Optional
 from . import const
@@ -18,15 +18,13 @@ from . import const
 _logger = logging.getLogger(__name__)
 
 
+@dt.dataclass
 class Uname:
-    def __init__(
-        self, sysname: str, nodename: str, release: str, version: str, machine: str
-    ):
-        self.sysname = sysname
-        self.nodename = nodename
-        self.release = release
-        self.version = version
-        self.machine = machine
+    sysname: str
+    nodename: str
+    release: str
+    version: str
+    machine: str
 
 
 def uname() -> Uname:
@@ -131,12 +129,13 @@ def wget(url: str, path: Optional[str] = None) -> str:
     return path
 
 
-def exec(*args: str, quiet: bool = False) -> bool:
+def exec(*args: str, quiet: bool = False, cwd: str | None = None) -> bool:
     _logger.debug(f"Executing {args}")
 
     try:
         proc = subprocess.run(
             args,
+            cwd=cwd,
             stdout=sys.stdout if not quiet else subprocess.PIPE,
             stderr=sys.stderr if not quiet else subprocess.PIPE,
         )
@@ -274,3 +273,10 @@ def which(cmd: str) -> Optional[str]:
     Find the path of a command
     """
     return shutil.which(cmd)
+
+
+def nproc() -> int:
+    """
+    Return the number of processors
+    """
+    return os.cpu_count() or 1

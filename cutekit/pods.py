@@ -7,7 +7,7 @@ from . import cli, model, shell, vt100
 
 
 podPrefix = "CK__"
-projectRoot = "/self"
+projectRoot = "/project"
 toolingRoot = "/tools"
 defaultPodName = f"{podPrefix}default"
 defaultPodImage = "ubuntu"
@@ -16,8 +16,9 @@ defaultPodImage = "ubuntu"
 @dt.dataclass
 class Image:
     id: str
+    like: str
     image: str
-    init: list[str]
+    setup: list[str]
 
 
 @dt.dataclass
@@ -29,6 +30,7 @@ class Pod:
 IMAGES: dict[str, Image] = {
     "ubuntu": Image(
         "ubuntu",
+        "ubuntu",
         "ubuntu:jammy",
         [
             "apt-get update",
@@ -36,6 +38,7 @@ IMAGES: dict[str, Image] = {
         ],
     ),
     "debian": Image(
+        "debian",
         "debian",
         "debian:bookworm",
         [
@@ -45,6 +48,7 @@ IMAGES: dict[str, Image] = {
     ),
     "alpine": Image(
         "alpine",
+        "alpine",
         "alpine:3.18",
         [
             "apk update",
@@ -53,6 +57,7 @@ IMAGES: dict[str, Image] = {
     ),
     "arch": Image(
         "arch",
+        "arch",
         "archlinux:latest",
         [
             "pacman -Syu --noconfirm",
@@ -60,6 +65,7 @@ IMAGES: dict[str, Image] = {
         ],
     ),
     "fedora": Image(
+        "fedora",
         "fedora",
         "fedora:39",
         [
@@ -70,7 +76,7 @@ IMAGES: dict[str, Image] = {
 }
 
 
-def reincarnate(args: cli.Args):
+def setup(args: cli.Args):
     """
     Reincarnate cutekit within a docker container, this is
     useful for cross-compiling
@@ -95,6 +101,7 @@ def reincarnate(args: cli.Args):
             "-it",
             pod,
             "/tools/cutekit/entrypoint.sh",
+            "--reincarnated",
             *args.args,
         )
         sys.exit(0)
@@ -103,15 +110,15 @@ def reincarnate(args: cli.Args):
 
 
 @cli.command("p", "pod", "Manage pods")
-def podCmd(args: cli.Args):
+def _(args: cli.Args):
     pass
 
 
 @cli.command("c", "pod/create", "Create a new pod")
-def podCreateCmd(args: cli.Args):
+def _(args: cli.Args):
     """
     Create a new development pod with cutekit installed and the current
-    project mounted at /self
+    project mounted at /project
     """
     project = model.Project.ensure()
 
@@ -144,7 +151,7 @@ def podCreateCmd(args: cli.Args):
     )
 
     print(f"Initializing pod '{name[len(podPrefix) :]}'...")
-    for cmd in image.init:
+    for cmd in image.setup:
         print(vt100.p(cmd))
         exitCode, ouput = container.exec_run(f"/bin/bash -c '{cmd}'", demux=True)
         if exitCode != 0:
@@ -154,7 +161,7 @@ def podCreateCmd(args: cli.Args):
 
 
 @cli.command("k", "pod/kill", "Stop and remove a pod")
-def podKillCmd(args: cli.Args):
+def _(args: cli.Args):
     client = docker.from_env()
     name = str(args.consumeOpt("name", defaultPodName))
     if not name.startswith(podPrefix):
@@ -170,13 +177,13 @@ def podKillCmd(args: cli.Args):
 
 
 @cli.command("s", "pod/shell", "Open a shell in a pod")
-def podShellCmd(args: cli.Args):
+def _(args: cli.Args):
     args.args.insert(0, "/bin/bash")
     podExecCmd(args)
 
 
 @cli.command("l", "pod/list", "List all pods")
-def podListCmd(args: cli.Args):
+def _(args: cli.Args):
     client = docker.from_env()
     hasPods = False
     for container in client.containers.list(all=True):
