@@ -165,19 +165,10 @@ def compile(
 
 def compileObjs(w: ninja.Writer, scope: ComponentScope) -> list[str]:
     objs = []
-    objs += compile(w, scope, "cc", wilcard(scope, ["*.c"]))
-    objs += compile(
-        w,
-        scope,
-        "cxx",
-        wilcard(scope, ["*.cpp", "*.cc", "*.cxx"]),
-    )
-    objs += compile(
-        w,
-        scope,
-        "as",
-        wilcard(scope, ["*.s", "*.asm", "*.S"]),
-    )
+    for rule in rules.rules.values():
+        if rule.id not in ["cp", "ld", "ar"]:
+            objs += compile(w, scope, rule.id, wilcard(scope, rule.fileIn))
+
     return objs
 
 
