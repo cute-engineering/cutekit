@@ -20,7 +20,13 @@ rules: dict[str, Rule] = {
         ["*.c"],
         "*.o",
         "-c -o $out $in -MD -MF $out.d $flags $cincs $cdefs",
-        ["-std=gnu2x", "-Wall", "-Wextra", "-Werror"],
+        [
+            "-std=gnu2x",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-fcolor-diagnostics",
+        ],
         ["$out.d"],
     ),
     "cxx": Rule(
@@ -28,12 +34,25 @@ rules: dict[str, Rule] = {
         ["*.cpp", "*.cc", "*.cxx"],
         "*.o",
         "-c -o $out $in -MD -MF $out.d $flags $cincs $cdefs",
-        ["-std=gnu++2b", "-Wall", "-Wextra", "-Werror", "-fno-exceptions", "-fno-rtti"],
+        [
+            "-std=gnu++2b",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-fcolor-diagnostics",
+            "-fno-exceptions",
+            "-fno-rtti",
+        ],
         ["$out.d"],
     ),
     "as": Rule("as", ["*.s", "*.asm", "*.S"], "*.o", "-o $out $in $flags"),
     "ar": Rule("ar", ["*.o"], "*.a", "$flags $out $in"),
-    "ld": Rule("ld", ["*.o", "*.a"], "*.out", "-o $out $in $flags"),
+    "ld": Rule(
+        "ld",
+        ["*.o", "*.a"],
+        "*.out",
+        "-o $out $objs -Wl,--whole-archive $wholeLibs -Wl,--no-whole-archive $libs $flags",
+    ),
 }
 
 

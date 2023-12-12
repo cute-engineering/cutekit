@@ -138,11 +138,6 @@ def subdirs(scope: ComponentScope) -> list[str]:
     for subs in component.subdirs:
         result.append(os.path.join(component.dirname(), subs))
 
-    # for inj in component.resolved[target.id].injected:
-    #     injected = registry.lookup(inj, model.Component)
-    #     assert injected is not None  # model.Resolver has already checked this
-    #     result.extend(subdirs(scope.openComponentScope(injected)))
-
     return result
 
 
@@ -219,6 +214,21 @@ def collectLibs(
     return res
 
 
+def collectInjectedLibs(scope: ComponentScope) -> list[str]:
+    res: list[str] = []
+    for r in scope.component.resolved[scope.target.id].injected:
+        req = scope.registry.lookup(r, model.Component)
+        assert req is not None  # model.Resolver has already checked this
+
+        if r == scope.component.id:
+            continue
+        if not req.type == model.Kind.LIB:
+            raise RuntimeError(f"Component {r} is not a library")
+        res.append(outfile(scope.openComponentScope(req)))
+
+    return res
+
+
 def link(
     w: ninja.Writer,
     scope: ComponentScope,
@@ -231,8 +241,19 @@ def link(
     if scope.component.type == model.Kind.LIB:
         w.build(out, "ar", objs, implicit=res)
     else:
+        whileLibs = collectInjectedLibs(scope)
         libs = collectLibs(scope)
-        w.build(out, "ld", objs + libs, implicit=res)
+        w.build(
+            out,
+            "ld",
+            objs + whileLibs + libs,
+            variables={
+                "objs": " ".join(objs),
+                "wholeLibs": " ".join(whileLibs),
+                "libs": " ".join(libs),
+            },
+            implicit=res,
+        )
     return out
 
 

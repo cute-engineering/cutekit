@@ -5,26 +5,28 @@
 
 set -e
 
-export PY=python3.11
+if [ -z "$CUTEKIT_PYTHON" ]; then
+    export CUTEKIT_PYTHON="python3.11"
+fi
 
 if [ ! -d "/tools/venv" ]; then
     echo "Creating virtual environment..."
 
-    $PY -m venv /tools/venv
+    $CUTEKIT_PYTHON -m venv /tools/venv
     source /tools/venv/bin/activate
-    $PY -m ensurepip
-    $PY -m pip install -r /tools/cutekit/requirements.txt
+    $CUTEKIT_PYTHON -m ensurepip
+    $CUTEKIT_PYTHON -m pip install -r /tools/cutekit/requirements.txt
 
     echo "Installing plugins requirements..."
     if [ -f "/project/meta/plugins/requirements.txt" ]; then
         echo "Root plugin requirements found."
-        $PY -m pip install -r /project/meta/plugins/requirements.txt
+        $CUTEKIT_PYTHON -m pip install -r /project/meta/plugins/requirements.txt
     fi
 
     for extern in /project/meta/externs/*; do
         if [ -f "$extern/meta/plugins/requirements.txt" ]; then
             echo "Plugin requirements found in $extern."
-            $PY -m pip install -r "$extern/meta/plugins/requirements.txt"
+            $CUTEKIT_PYTHON -m pip install -r "$extern/meta/plugins/requirements.txt"
         fi
     done
 
@@ -35,4 +37,4 @@ fi
 
 cd /project
 export PYTHONPATH=/tools
-$PY -m cutekit $@
+$CUTEKIT_PYTHON -m cutekit $@
