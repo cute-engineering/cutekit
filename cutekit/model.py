@@ -583,9 +583,9 @@ class Registry(DataClassJsonMixin):
         # Resolve all dependencies for all targets
         for target in r.iter(Target):
             target.props |= props
-            resolver = Resolver(r, target)
 
             # Resolve all components
+            resolver = Resolver(r, target)
             for c in r.iter(Component):
                 resolved = resolver.resolve(c.id)
                 if resolved.reason:
@@ -598,8 +598,15 @@ class Registry(DataClassJsonMixin):
                     for inject in c.injects:
                         victim = r.lookup(inject, Component, includeProvides=True)
                         if not victim:
-                            raise RuntimeError(f"Cannot find component '{inject}'")
-                        victim.resolved[target.id].injected.append(c.id)
+                            _logger.info(
+                                f"Could not find component to inject '{inject}' with '{c.id}'"
+                            )
+                        else:
+                            victim.resolved[target.id].injected.append(c.id)
+                            victim.resolved[target.id].required = utils.uniq(
+                                c.resolved[target.id].required
+                                + victim.resolved[target.id].required
+                            )
 
             # Resolve tooling
             tools: Tools = target.tools
