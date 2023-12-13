@@ -595,7 +595,7 @@ class Registry(DataClassJsonMixin):
 
             # Apply injects
             for c in r.iter(Component):
-                if c.isEnabled(target)[0]:
+                if c.resolved[target.id].enabled:
                     for inject in c.injects:
                         victim = r.lookup(inject, Component, includeProvides=True)
                         if not victim:
