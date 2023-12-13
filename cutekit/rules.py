@@ -51,7 +51,7 @@ rules: dict[str, Rule] = {
         "ld",
         ["*.o", "*.a"],
         "*.out",
-        "-o $out $objs -Wl,--whole-archive $wholeLibs -Wl,--no-whole-archive $libs $flags",
+        "-o $out $objs --whole-archive $wholeLibs --no-whole-archive $libs $flags",
     ),
 }
 

@@ -248,6 +248,7 @@ class Tool(DataClassJsonMixin):
     cmd: str = dt.field(default="")
     args: list[str] = dt.field(default_factory=list)
     files: list[str] = dt.field(default_factory=list)
+    rule: Optional[str] = None
 
 
 Tools = dict[str, Tool]

@@ -289,7 +289,7 @@ def gen(out: TextIO, scope: TargetScope):
         w.variable(i + "flags", " ".join(rule.args + tool.args))
         w.rule(
             i,
-            f"{tool.cmd} {rule.rule.replace('$flags',f'${i}flags')}",
+            f"{tool.cmd} {(tool.rule or rule.rule).replace('$flags',f'${i}flags')}",
             depfile=rule.deps,
         )
         w.newline()
