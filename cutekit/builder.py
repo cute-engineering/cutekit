@@ -151,7 +151,7 @@ def compile(
     res: list[str] = []
     for src in srcs:
         rel = Path(src).relative_to(scope.component.dirname())
-        dest = buildpath(scope, path="obj") / rel.with_suffix(".o")
+        dest = buildpath(scope, path="__obj__") / rel.with_suffix(".o")
         t = scope.target.tools[rule]
         w.build(str(dest), rule, inputs=src, order_only=t.files)
         res.append(str(dest))
@@ -163,7 +163,6 @@ def compileObjs(w: ninja.Writer, scope: ComponentScope) -> list[str]:
     for rule in rules.rules.values():
         if rule.id not in ["cp", "ld", "ar"]:
             objs += compile(w, scope, rule.id, wilcard(scope, rule.fileIn))
-
     return objs
 
 
@@ -181,7 +180,7 @@ def compileRes(
     res: list[str] = []
     for r in listRes(scope.component):
         rel = Path(r).relative_to(scope.component.subpath("res"))
-        dest = buildpath(scope, "res") / rel
+        dest = buildpath(scope, "__res__") / rel
         w.build(str(dest), "cp", r)
         res.append(str(dest))
     return res
@@ -192,9 +191,9 @@ def compileRes(
 
 def outfile(scope: ComponentScope) -> str:
     if scope.component.type == model.Kind.LIB:
-        return str(buildpath(scope, f"lib/{scope.component.id}.a"))
+        return str(buildpath(scope, f"__lib__/{scope.component.id}.a"))
     else:
-        return str(buildpath(scope, f"bin/{scope.component.id}.out"))
+        return str(buildpath(scope, f"__bin__/{scope.component.id}.out"))
 
 
 def collectLibs(
