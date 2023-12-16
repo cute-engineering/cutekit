@@ -29,4 +29,4 @@ version = { attr = "cutekit.const.VERSION" }
 dependencies = { file = ["cutekit/requirements.txt"] }
 
 [tool.setuptools.package-data]
-"cutekit" = ["py.typed", "requirements.txt", "pods-entry.sh"]
+"cutekit" = ["py.typed", "requirements.txt", "entrypoint.sh", "bootstrap.sh"]
