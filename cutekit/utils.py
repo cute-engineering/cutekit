@@ -6,7 +6,7 @@ import hashlib
 T = TypeVar("T")
 
 
-def uniq(lst: list[T]) -> list[T]:
+def uniqPreserveOrder(lst: list[T]) -> list[T]:
     result: list[T] = []
     for i in lst:
         if i in result:

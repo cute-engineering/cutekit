@@ -456,7 +456,7 @@ class Resolver:
 
         stack.pop()
         result.insert(0, keep)
-        self._cache[keep] = Resolved(required=utils.uniq(result))
+        self._cache[keep] = Resolved(required=utils.uniqPreserveOrder(result))
         return self._cache[keep]
 
 
@@ -604,7 +604,9 @@ class Registry(DataClassJsonMixin):
                             )
                         else:
                             victim.resolved[target.id].injected.append(c.id)
-                            victim.resolved[target.id].required = utils.uniq(
+                            victim.resolved[
+                                target.id
+                            ].required = utils.uniqPreserveOrder(
                                 c.resolved[target.id].required
                                 + victim.resolved[target.id].required
                             )
