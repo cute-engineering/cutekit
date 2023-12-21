@@ -103,7 +103,7 @@ def _computeCinc(scope: TargetScope) -> str:
         elif c.type == model.Kind.LIB:
             res.add(str(Path(c.dirname()).parent))
 
-    return " ".join(set(map(lambda i: f"-I{i}", res)))
+    return " ".join(sorted(map(lambda i: f"-I{i}", res)))
 
 
 @var("cdefs")
@@ -121,7 +121,7 @@ def _computeCdef(scope: TargetScope) -> str:
             res.add(f"-D__ck_{sanatize(k)}_{sanatize(str(v))}__")
             res.add(f"-D__ck_{sanatize(k)}_value={str(v)}")
 
-    return " ".join(res)
+    return " ".join(sorted(res))
 
 
 def buildpath(scope: ComponentScope, path) -> Path:
@@ -306,9 +306,9 @@ def build(
     shell.mkdir(scope.target.builddir)
     ninjaPath = os.path.join(scope.target.builddir, "build.ninja")
 
-    if not os.path.exists(ninjaPath):
-        with open(ninjaPath, "w") as f:
-            gen(f, scope)
+    # if not os.path.exists(ninjaPath):
+    with open(ninjaPath, "w") as f:
+        gen(f, scope)
 
     if components is None:
         all = True
