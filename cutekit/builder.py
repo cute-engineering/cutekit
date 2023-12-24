@@ -355,6 +355,7 @@ def _(args: cli.Args):
 def runCmd(args: cli.Args):
     scope = TargetScope.use(args)
     debug = args.consumeOpt("debug", False) is True
+    debugger = args.consumeOpt("debugger", "lldb")
 
     componentSpec = args.consumeArg() or "__main__"
     componentSpec = "__main__" if componentSpec == "--" else componentSpec
@@ -370,7 +371,15 @@ def runCmd(args: cli.Args):
     os.environ["CK_BUILDDIR"] = product.target.builddir
     os.environ["CK_COMPONENT"] = product.component.id
 
-    shell.exec(*(["lldb", "-o", "run"] if debug else []), str(product.path), *args.args)
+    if debug:
+        if debugger == "lldb":
+            shell.exec("lldb", "-o", "run", str(product.path), *args.args)
+        elif debugger == "gdb":
+            shell.exec("gdb", "-ex", "run", str(product.path), *args.args)
+        else:
+            raise RuntimeError(f"Unknown debugger {debugger}")
+    else:
+        shell.exec(str(product.path), *args.args)
 
 
 @cli.command("t", "builder/test", "Run all test targets")
