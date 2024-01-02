@@ -34,7 +34,7 @@ IMAGES: dict[str, Image] = {
         "ubuntu:jammy",
         [
             "apt-get update",
-            "apt-get install -y python3.11 python3.11-venv ninja-build",
+            "apt-get install -y python3.11 python3.11-venv ninja-build build-essential",
         ],
     ),
     "debian": Image(
@@ -43,7 +43,7 @@ IMAGES: dict[str, Image] = {
         "debian:bookworm",
         [
             "apt-get update",
-            "apt-get install -y python3 python3-pip python3-venv ninja-build",
+            "apt-get install -y python3 python3-pip python3-venv ninja-build build-essential",
         ],
     ),
     "alpine": Image(
@@ -52,7 +52,7 @@ IMAGES: dict[str, Image] = {
         "alpine:3.18",
         [
             "apk update",
-            "apk add python3 python3-dev py3-pip py3-venv build-base linux-headers ninja",
+            "apk add python3 python3-dev py3-pip py3-venv build-base linux-headers ninja make automake gcc g++",
         ],
     ),
     "arch": Image(
@@ -61,7 +61,7 @@ IMAGES: dict[str, Image] = {
         "archlinux:latest",
         [
             "pacman -Syu --noconfirm",
-            "pacman -S --noconfirm python python-pip python-virtualenv ninja",
+            "pacman -S --noconfirm python python-pip python-virtualenv ninja base-devel",
         ],
     ),
     "fedora": Image(
@@ -70,7 +70,7 @@ IMAGES: dict[str, Image] = {
         "fedora:39",
         [
             "dnf update -y",
-            "dnf install -y python3 python3-pip python3-venv ninja-build",
+            "dnf install -y python3 python3-pip python3-venv ninja-build make automake gcc gcc-c++ kernel-devel",
         ],
     ),
 }
