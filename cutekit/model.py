@@ -264,7 +264,7 @@ class Target(Manifest):
     tools: Tools = dt.field(default_factory=dict)
     routing: dict[str, str] = dt.field(default_factory=dict)
 
-    _hashid = None
+    _hashid: Optional[str] = None
 
     @property
     def hashid(self) -> str:
