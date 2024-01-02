@@ -155,7 +155,7 @@ def _(args: cli.Args):
         print(vt100.p(cmd))
         exitCode, ouput = container.exec_run(f"/bin/bash -c '{cmd}'", demux=True)
         if exitCode != 0:
-            raise Exception(f"Failed to initialize pod with command '{cmd}'")
+            raise RuntimeError(f"Failed to initialize pod with command '{cmd}'")
 
     print(f"Created pod '{name[len(podPrefix) :]}' from image '{image.image}'")
 
