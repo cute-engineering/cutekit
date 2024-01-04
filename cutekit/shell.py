@@ -280,3 +280,23 @@ def nproc() -> int:
     Return the number of processors
     """
     return os.cpu_count() or 1
+
+
+def compress(path: str, dest: Optional[str] = None, format: str = "zstd") -> str:
+    """
+    Compress a file or directory
+    """
+
+    if dest is None:
+        dest = path + "." + format
+
+    _logger.debug(f"Compressing {path} to {dest}")
+
+    if format == "zip":
+        exec("zip", "-r", dest, path)
+    elif format == "zstd":
+        exec("zsdt", "-q", "-o", dest, path)
+    else:
+        raise RuntimeError(f"Unknown compression format {format}")
+
+    return dest
