@@ -1,15 +1,15 @@
-# Cutekit 
+# Cutekit
 
 Cutekit is a build system that aims to be simple, fast and easy to use.
 A project is described using json files.
 
-## Project file 
+## Project file
 
 The project file is used to describe the project and its dependencies.
 
 See: [doc/spec/project.md](doc/spec/project.md) for the full specification.
 
-Example: 
+Example:
 
 > project.json
 ```json
@@ -35,7 +35,7 @@ Here we describe a project with the id `skift-org/skift` and a dependency to `cu
 When you want to create an executable package, you need to create a `manifest.json` file in any directory under `src/`.
 This is the file that describe an executable with its dependencies.
 
-> src/nyan-cat-app/manifest.json   
+> src/nyan-cat-app/manifest.json
 ```json
 {
     "$schema": "https://schemas.cute.engineering/stable/cutekit.manifest.component.v1",
@@ -56,7 +56,7 @@ You can run the executable by running `$ ck run nyan-cat-app`.
 
 When you want to create a library package, you need to create a `manifest.json` file in any directory under `src/`, like an executable package.
 
-> src/easy-lib/manifest.json   
+> src/easy-lib/manifest.json
 ```json
 {
     "$schema": "https://schemas.cute.engineering/stable/cutekit.manifest.component.v1",
