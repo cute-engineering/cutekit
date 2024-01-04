@@ -14,5 +14,3 @@ from cutekit import cli
 def _(args: cli.Args) -> None:
     print("Hello world!")
 ```
-
-This feature is used - for example - by [SkiftOS](https://github.com/skift-org/skift/blob/main/meta/plugins/start-cmd.py) to add the `start` command, that build packages and run a virtual machine.
