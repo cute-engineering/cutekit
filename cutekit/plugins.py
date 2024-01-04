@@ -15,11 +15,15 @@ def load(path: str):
 
     if not spec or not spec.loader:
         _logger.error(f"Failed to load plugin {path}")
-        return None
 
     module = importlib.module_from_spec(spec)
     sys.modules["plugin"] = module
-    spec.loader.exec_module(module)
+
+    try:
+        spec.loader.exec_module(module)
+    except Exception as e:
+        _logger.error(f"Failed to load plugin {path}: {e}")
+        cli.warning(f"Plugin {path} loading skipped due to error")
 
 
 def loadAll():
@@ -35,6 +39,7 @@ def loadAll():
 
     for dirname in paths:
         pluginDir = os.path.join(project.dirname(), dirname, const.META_DIR, "plugins")
+        pluginDir = os.path.normpath(pluginDir)
         initFile = os.path.join(pluginDir, "__init__.py")
 
         if os.path.isfile(initFile):

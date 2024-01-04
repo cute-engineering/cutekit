@@ -240,15 +240,15 @@ def link(
     if scope.component.type == model.Kind.LIB:
         w.build(out, "ar", objs, implicit=res)
     else:
-        whileLibs = collectInjectedLibs(scope)
+        wholeLibs = collectInjectedLibs(scope)
         libs = collectLibs(scope)
         w.build(
             out,
             "ld",
-            objs + whileLibs + libs,
+            objs + wholeLibs + libs,
             variables={
                 "objs": " ".join(objs),
-                "wholeLibs": " ".join(whileLibs),
+                "wholeLibs": " ".join(wholeLibs),
                 "libs": " ".join(libs),
             },
             implicit=res,

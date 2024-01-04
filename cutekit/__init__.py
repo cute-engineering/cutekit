@@ -10,8 +10,8 @@ from . import (
     model,
     plugins,
     pods,  # noqa: F401 this is imported for side effects
-    vt100,
     shell,
+    vt100,
 )
 
 

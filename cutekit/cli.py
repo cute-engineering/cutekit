@@ -120,6 +120,8 @@ def usage(args: Optional[Args] = None):
 def error(msg: str) -> None:
     print(f"{vt100.RED}Error:{vt100.RESET} {msg}\n", file=sys.stderr)
 
+def warning(msg: str) -> None:
+    print(f"{vt100.YELLOW}Warning:{vt100.RESET} {msg}\n", file=sys.stderr)
 
 @command("h", "help", "Show this help message")
 def helpCmd(args: Args):
