@@ -178,7 +178,7 @@ def popen(*args: str) -> str:
     if proc.returncode != 0:
         raise RuntimeError(f"{args[0]}: Process exited with code {proc.returncode}")
 
-    return proc.stdout.decode("utf-8")
+    return proc.stdout.decode("utf-8").strip()
 
 
 def readdir(path: str) -> list[str]:
