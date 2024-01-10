@@ -4,7 +4,7 @@ import docker  # type: ignore
 import os
 import dataclasses as dt
 
-from . import cli, model, shell, vt100
+from . import cli, model, shell, vt100, const
 
 
 podPrefix = "CK__"
@@ -152,7 +152,7 @@ def _(args: cli.Args):
         "sleep infinity",
         name=name,
         volumes={
-            os.path.abspath(os.path.dirname(__file__)): {
+            const.MODULE_DIR: {
                 "bind": toolingRoot + "/cutekit",
                 "mode": "ro",
             },
