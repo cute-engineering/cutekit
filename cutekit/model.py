@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Any, Generator, Optional, Type, cast
 from pathlib import Path
 from dataclasses_json import DataClassJsonMixin
+from typing import Union
 
 from cutekit import const, shell
 
@@ -96,6 +97,7 @@ _project: Optional["Project"] = None
 class Extern(DataClassJsonMixin):
     git: str
     tag: str
+    depth: Optional[Union[int, str]] = None
 
 
 @dt.dataclass
@@ -150,17 +152,26 @@ class Project(Manifest):
                 continue
 
             print(f"Installing {extSpec}-{ext.tag} from {ext.git}...")
-            shell.popen(
+            cmd = [
                 "git",
                 "clone",
                 "--quiet",
-                "--depth",
-                "1",
                 "--branch",
                 ext.tag,
                 ext.git,
                 extPath,
-            )
+            ]
+
+            if ext.depth is None:
+                cmd += ["--depth", "1"]
+            elif isinstance(ext.depth, int):
+                cmd += ["--depth", str(ext.depth)]
+            elif ext.depth == "deep":
+                pass
+            else:
+                raise RuntimeError(f"Invalid depth '{ext.depth}'")
+
+            shell.exec(*cmd, quiet=True)
             project = Project.at(Path(extPath))
             if project is not None:
                 Project.fetchs(project.extern)

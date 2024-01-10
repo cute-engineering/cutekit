@@ -120,8 +120,28 @@ def usage(args: Optional[Args] = None):
 def error(msg: str) -> None:
     print(f"{vt100.RED}Error:{vt100.RESET} {msg}\n", file=sys.stderr)
 
+
 def warning(msg: str) -> None:
     print(f"{vt100.YELLOW}Warning:{vt100.RESET} {msg}\n", file=sys.stderr)
+
+
+def ask(msg: str, default: Optional[bool] = None) -> bool:
+    if default is None:
+        msg = f"{msg} [y/n] "
+    elif default:
+        msg = f"{msg} [Y/n] "
+    else:
+        msg = f"{msg} [y/N] "
+
+    while True:
+        result = input(msg).lower()
+        if result in ("y", "yes"):
+            return True
+        elif result in ("n", "no"):
+            return False
+        elif result == "" and default is not None:
+            return default
+
 
 @command("h", "help", "Show this help message")
 def helpCmd(args: Args):

@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 # This script is meant to be place at the root of any cutekit project.
 # It will make sure that the virtual environment is set up and that the
