@@ -1,4 +1,5 @@
 import sys
+from typing import Optional
 import docker  # type: ignore
 import os
 import dataclasses as dt
@@ -52,7 +53,7 @@ IMAGES: dict[str, Image] = {
         "alpine:3.18",
         [
             "apk update",
-            "apk add python3 python3-dev py3-pip py3-venv build-base linux-headers ninja make automake gcc g++",
+            "apk add python3 python3-dev py3-pip py3-virtualenv build-base linux-headers ninja make automake gcc g++ bash",
         ],
     ),
     "arch": Image(
@@ -114,6 +115,12 @@ def _(args: cli.Args):
     pass
 
 
+def tryDecode(data: Optional[bytes], default: str = "") -> str:
+    if data is None:
+        return default
+    return data.decode()
+
+
 @cli.command("c", "pod/create", "Create a new pod")
 def _(args: cli.Args):
     """
@@ -129,8 +136,12 @@ def _(args: cli.Args):
 
     client = docker.from_env()
     try:
-        client.containers.get(name)
-        raise RuntimeError(f"Pod '{name[len(podPrefix):]}' already exists")
+        existing = client.containers.get(name)
+        if cli.ask(f"Pod '{name[len(podPrefix):]}' already exists, kill it?", False):
+            existing.stop()
+            existing.remove()
+        else:
+            raise RuntimeError(f"Pod '{name[len(podPrefix):]}' already exists")
     except docker.errors.NotFound:
         pass
 
@@ -153,9 +164,11 @@ def _(args: cli.Args):
     print(f"Initializing pod '{name[len(podPrefix) :]}'...")
     for cmd in image.setup:
         print(vt100.p(cmd))
-        exitCode, ouput = container.exec_run(f"/bin/bash -c '{cmd}'", demux=True)
+        exitCode, output = container.exec_run(f"/bin/sh -c '{cmd}'", demux=True)
         if exitCode != 0:
-            raise RuntimeError(f"Failed to initialize pod with command '{cmd}'")
+            raise RuntimeError(
+                f"Failed to initialize pod with command '{cmd}':\n\nSTDOUT:\n{vt100.indent(vt100.wordwrap(tryDecode(output[0], '<empty>')))}\nSTDERR:\n{vt100.indent(vt100.wordwrap(tryDecode(output[1], '<empty>')))}"
+            )
 
     print(f"Created pod '{name[len(podPrefix) :]}' from image '{image.image}'")
 

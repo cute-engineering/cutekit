@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 # This script makes sure that the virtual environment is
 # set up and that the plugins requirements are installed.
