@@ -129,7 +129,7 @@ def wget(url: str, path: Optional[str] = None) -> str:
     return path
 
 
-def exec(*args: str, quiet: bool = False, cwd: str | None = None) -> bool:
+def exec(*args: str, quiet: bool = False, cwd: Optional[str] = None) -> bool:
     _logger.debug(f"Executing {args}")
 
     try:
@@ -147,7 +147,10 @@ def exec(*args: str, quiet: bool = False, cwd: str | None = None) -> bool:
             _logger.debug(proc.stderr.decode("utf-8"))
 
     except FileNotFoundError:
-        raise RuntimeError(f"{args[0]}: Command not found")
+        if cwd and not os.path.exists(cwd):
+            raise RuntimeError(f"{cwd}: No such file or directory")
+        else:
+            raise RuntimeError(f"{args[0]}: Command not found")
 
     except KeyboardInterrupt:
         raise RuntimeError(f"{args[0]}: Interrupted")
