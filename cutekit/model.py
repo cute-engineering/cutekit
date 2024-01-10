@@ -97,7 +97,7 @@ _project: Optional["Project"] = None
 class Extern(DataClassJsonMixin):
     git: str
     tag: str
-    depth: Optional[Union[int, str]] = None
+    deep: bool = dt.field(default=False)
 
 
 @dt.dataclass
@@ -162,14 +162,8 @@ class Project(Manifest):
                 extPath,
             ]
 
-            if ext.depth is None:
+            if not ext.deep:
                 cmd += ["--depth", "1"]
-            elif isinstance(ext.depth, int):
-                cmd += ["--depth", str(ext.depth)]
-            elif ext.depth == "deep":
-                pass
-            else:
-                raise RuntimeError(f"Invalid depth '{ext.depth}'")
 
             shell.exec(*cmd, quiet=True)
             project = Project.at(Path(extPath))
