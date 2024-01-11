@@ -14,7 +14,7 @@ if [ -z "$CUTEKIT_VERSION" ]; then
     export CUTEKIT_VERSION="0.7-dev"
 fi
 
-if [ -z "$CUTEKIT_NOVENV" ]; then
+if [ -n "$CUTEKIT_NOVENV" ]; then
     echo "CUTEKIT_NOVENV is set, skipping virtual environment setup."
     exec cutekit $@
     exit $?
@@ -56,7 +56,19 @@ if [ ! -f .cutekit/tools/ready ]; then
 
     echo "Installing Tools..."
     $CUTEKIT_PYTHON -m pip install -e .cutekit/tools/cutekit
-    $CUTEKIT_PYTHON -m pip install -r meta/plugins/requirements.txt
+
+    echo "Installing plugins requirements..."
+    if [ -f "meta/plugins/requirements.txt" ]; then
+        echo "Root plugin requirements found."
+        $CUTEKIT_PYTHON -m pip install -r meta/plugins/requirements.txt
+    fi
+
+    for extern in meta/externs/*; do
+        if [ -f "$extern/meta/plugins/requirements.txt" ]; then
+            echo "Plugin requirements found in $extern."
+            $CUTEKIT_PYTHON -m pip install -r "$extern/meta/plugins/requirements.txt"
+        fi
+    done
 
     touch .cutekit/tools/ready
     echo "Done!"
