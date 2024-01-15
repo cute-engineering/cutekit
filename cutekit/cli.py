@@ -16,10 +16,12 @@ _logger = logging.getLogger(__name__)
 class Args:
     opts: dict[str, Value]
     args: list[str]
+    extra: list[str]
 
     def __init__(self):
         self.opts = {}
         self.args = []
+        self.extra = []
 
     def consumePrefix(self, prefix: str) -> dict[str, Value]:
         result: dict[str, Value] = {}
@@ -56,13 +58,17 @@ class Args:
 def parse(args: list[str]) -> Args:
     result = Args()
 
-    for arg in args:
+    for i in range(len(args)):
+        arg = args[i]
         if arg.startswith("--") and not arg == "--":
             if "=" in arg:
                 key, value = arg[2:].split("=", 1)
                 result.opts[key] = value
             else:
                 result.opts[arg[2:]] = True
+        elif arg == "--":
+            result.extra += args[i + 1 :]
+            break
         else:
             result.args.append(arg)
 

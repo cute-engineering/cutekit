@@ -287,8 +287,8 @@ class Target(Manifest):
         return os.path.join(const.BUILD_DIR, f"{self.id}{postfix}")
 
     @staticmethod
-    def use(args: cli.Args) -> "Target":
-        registry = Registry.use(args)
+    def use(args: cli.Args, props: Props = {}) -> "Target":
+        registry = Registry.use(args, props)
         targetSpec = str(args.consumeOpt("target", "host-" + shell.uname().machine))
         return registry.ensure(targetSpec, Target)
 
@@ -536,7 +536,7 @@ class Registry(DataClassJsonMixin):
         return m
 
     @staticmethod
-    def use(args: cli.Args) -> "Registry":
+    def use(args: cli.Args, props: Props = {}) -> "Registry":
         global _registry
 
         if _registry is not None:
@@ -546,8 +546,7 @@ class Registry(DataClassJsonMixin):
         mixins = str(args.consumeOpt("mixins", "")).split(",")
         if mixins == [""]:
             mixins = []
-        props = cast(dict[str, str], args.consumePrefix("prop:"))
-
+        props |= cast(dict[str, str], args.consumePrefix("prop:"))
         _registry = Registry.load(project, mixins, props)
         return _registry
 

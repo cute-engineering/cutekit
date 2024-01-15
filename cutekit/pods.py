@@ -215,7 +215,11 @@ def podExecCmd(args: cli.Args):
     if not name.startswith(podPrefix):
         name = f"{podPrefix}{name}"
 
+    cmd = args.consumeArg()
+    if cmd is None:
+        raise RuntimeError("Missing command to execute")
+
     try:
-        shell.exec("docker", "exec", "-it", name, *args.args)
+        shell.exec("docker", "exec", "-it", name, cmd, *args.extra)
     except Exception:
         raise RuntimeError(f"Pod '{name[len(podPrefix):]}' does not exist")

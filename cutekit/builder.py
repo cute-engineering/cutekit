@@ -15,8 +15,8 @@ class Scope:
     registry: model.Registry
 
     @staticmethod
-    def use(args: cli.Args) -> "Scope":
-        registry = model.Registry.use(args)
+    def use(args: cli.Args, props: model.Props = {}) -> "Scope":
+        registry = model.Registry.use(args, props)
         return Scope(registry)
 
     def key(self) -> str:
@@ -32,9 +32,9 @@ class TargetScope(Scope):
     target: model.Target
 
     @staticmethod
-    def use(args: cli.Args) -> "TargetScope":
-        registry = model.Registry.use(args)
-        target = model.Target.use(args)
+    def use(args: cli.Args, props: model.Props = {}) -> "TargetScope":
+        registry = model.Registry.use(args, props)
+        target = model.Target.use(args, props)
         return TargetScope(registry, target)
 
     def key(self) -> str:
@@ -151,7 +151,7 @@ def compile(
     res: list[str] = []
     for src in srcs:
         rel = Path(src).relative_to(scope.component.dirname())
-        dest = buildpath(scope, path="__obj__") / rel.with_suffix(".o")
+        dest = buildpath(scope, path="__obj__") / rel.with_suffix(rel.suffix + ".o")
         t = scope.target.tools[rule]
         w.build(str(dest), rule, inputs=src, order_only=t.files)
         res.append(str(dest))
@@ -353,12 +353,12 @@ def _(args: cli.Args):
 
 @cli.command("r", "builder/run", "Run a component")
 def runCmd(args: cli.Args):
-    scope = TargetScope.use(args)
     debug = args.consumeOpt("debug", False) is True
+    wait = args.consumeOpt("wait", False) is True
     debugger = args.consumeOpt("debugger", "lldb")
-
     componentSpec = args.consumeArg() or "__main__"
-    componentSpec = "__main__" if componentSpec == "--" else componentSpec
+    scope = TargetScope.use(args, {"debug": debug})
+
     component = scope.registry.lookup(
         componentSpec, model.Component, includeProvides=True
     )
@@ -373,13 +373,25 @@ def runCmd(args: cli.Args):
 
     if debug:
         if debugger == "lldb":
-            shell.exec("lldb", "-o", "run", str(product.path), *args.args)
+            shell.exec(
+                "lldb",
+                *(("-o", "b main") if wait else ()),
+                *("-o", "run"),
+                str(product.path),
+                *args.extra,
+            )
         elif debugger == "gdb":
-            shell.exec("gdb", "-ex", "run", str(product.path), *args.args)
+            shell.exec(
+                "gdb",
+                *(("-ex", "b main") if wait else ()),
+                *("-ex", "run"),
+                str(product.path),
+                *args.extra,
+            )
         else:
             raise RuntimeError(f"Unknown debugger {debugger}")
     else:
-        shell.exec(str(product.path), *args.args)
+        shell.exec(str(product.path), *args.extra)
 
 
 @cli.command("t", "builder/test", "Run all test targets")
