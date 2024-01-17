@@ -52,7 +52,7 @@ $ pip install --user -e .
 
 If you want to see how it works you can read the [doc/cutekit.md](doc/cutekit.md) file.
 
-# License
+## License
 
 <a href="https://opensource.org/licenses/MIT">
   <img align="right" height="96" alt="MIT License" src="doc/mit.svg" />
