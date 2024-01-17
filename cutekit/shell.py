@@ -101,7 +101,10 @@ def rmrf(path: str) -> bool:
 
     if not os.path.exists(path):
         return False
-    shutil.rmtree(path, ignore_errors=True)
+    if os.path.isfile(path):
+        os.remove(path)
+    else:
+        shutil.rmtree(path, ignore_errors=True)
     return True
 
 
@@ -285,20 +288,49 @@ def nproc() -> int:
     return os.cpu_count() or 1
 
 
-def compress(path: str, dest: Optional[str] = None, format: str = "zstd") -> str:
+def gzip(path: str, dest: Optional[str] = None) -> str:
     """
     Compress a file or directory
     """
 
     if dest is None:
-        dest = path + "." + format
+        dest = path + ".gz"
+
+    with open(dest, "wb") as f:
+        proc = subprocess.run(
+            ["gzip", "-c", path],
+            stdout=f,
+            stderr=sys.stderr,
+        )
+
+    if proc.returncode != 0:
+        raise RuntimeError(f"gzip: Process exited with code {proc.returncode}")
+
+    return dest
+
+
+def compress(path: str, dest: Optional[str] = None, format: str = "zstd") -> str:
+    """
+    Compress a file or directory
+    """
+
+    EXTS = {
+        "zip": "zip",
+        "zstd": "zst",
+        "gzip": "gz",
+    }
+
+    if dest is None:
+        dest = path + "." + EXTS[format]
 
     _logger.debug(f"Compressing {path} to {dest}")
 
     if format == "zip":
         exec("zip", "-r", dest, path)
     elif format == "zstd":
-        exec("zsdt", "-q", "-o", dest, path)
+        exec("zstd", "-q", "-o", dest, path)
+    elif format == "gzip":
+        gzip(path, dest)
     else:
         raise RuntimeError(f"Unknown compression format {format}")
 
