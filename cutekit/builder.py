@@ -354,6 +354,7 @@ def _(args: cli.Args):
 @cli.command("r", "builder/run", "Run a component")
 def runCmd(args: cli.Args):
     debug = args.consumeOpt("debug", False) is True
+    profile = args.consumeOpt("profile", False) is True
     wait = args.consumeOpt("wait", False) is True
     debugger = args.consumeOpt("debugger", "lldb")
     componentSpec = args.consumeArg() or "__main__"
@@ -390,6 +391,29 @@ def runCmd(args: cli.Args):
             )
         else:
             raise RuntimeError(f"Unknown debugger {debugger}")
+    elif profile:
+        # Profile the executable using perf
+        shell.exec(
+            "perf",
+            "record",
+            "-g",
+            "-o",
+            "perf.data",
+            "--call-graph",
+            "dwarf",
+            str(object=product.path),
+            *args.extra,
+        )
+
+        # Run this command using subprocess
+        # perf script -i perf.data | speedscope -
+        import subprocess
+
+        proc = subprocess.Popen(
+            ["perf", "script", "-i", "perf.data"], stdout=subprocess.PIPE
+        )
+        subprocess.run(["speedscope", "-"], stdin=proc.stdout)
+        proc.wait()
     else:
         shell.exec(str(product.path), *args.extra)
 
