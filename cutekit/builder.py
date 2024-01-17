@@ -371,50 +371,17 @@ def runCmd(args: cli.Args):
     os.environ["CK_BUILDDIR"] = product.target.builddir
     os.environ["CK_COMPONENT"] = product.component.id
 
-    if debug:
-        if debugger == "lldb":
-            shell.exec(
-                "lldb",
-                *(("-o", "b main") if wait else ()),
-                *("-o", "run"),
-                str(product.path),
-                *args.extra,
-            )
-        elif debugger == "gdb":
-            shell.exec(
-                "gdb",
-                *(("-ex", "b main") if wait else ()),
-                *("-ex", "run"),
-                str(product.path),
-                *args.extra,
-            )
+    try:
+        command = [str(product.path), *args.extra]
+
+        if debug:
+            shell.debug(command, debugger=debugger, wait=wait)
+        elif profile:
+            shell.profile(command)
         else:
-            raise RuntimeError(f"Unknown debugger {debugger}")
-    elif profile:
-        # Profile the executable using perf
-        shell.exec(
-            "perf",
-            "record",
-            "-g",
-            "-o",
-            "perf.data",
-            "--call-graph",
-            "dwarf",
-            str(object=product.path),
-            *args.extra,
-        )
-
-        # Run this command using subprocess
-        # perf script -i perf.data | speedscope -
-        import subprocess
-
-        proc = subprocess.Popen(
-            ["perf", "script", "-i", "perf.data"], stdout=subprocess.PIPE
-        )
-        subprocess.run(["speedscope", "-"], stdin=proc.stdout)
-        proc.wait()
-    else:
-        shell.exec(str(product.path), *args.extra)
+            shell.exec(*command)
+    except Exception as e:
+        cli.error(e)
 
 
 @cli.command("t", "builder/test", "Run all test targets")

@@ -69,14 +69,15 @@ def combineMixins(*mixins: Mixin) -> Mixin:
 mixins: dict[str, Mixin] = {
     "cache": mixinCache,
     "debug": mixinDebug,
-    "asan": makeMixinSan("address"),
+    "asan": combineMixins(makeMixinSan("address"), makeMixinSan("leak")),
     "msan": makeMixinSan("memory"),
     "tsan": makeMixinSan("thread"),
     "ubsan": makeMixinSan("undefined"),
-    "sanitize": combineMixins(
+    "lsan": makeMixinSan("leak"),
+    "san": combineMixins(
         makeMixinSan("address"),
-        makeMixinSan("memory"),
-        makeMixinSan("thread"),
+        makeMixinSan("undefined"),
+        makeMixinSan("leak"),
     ),
     "tune": makeMixinTune("native"),
     "release": combineMixins(
