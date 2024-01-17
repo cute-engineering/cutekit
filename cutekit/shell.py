@@ -12,6 +12,7 @@ import logging
 import tempfile
 import dataclasses as dt
 
+from pathlib import Path
 from typing import Optional
 from . import const
 
@@ -134,6 +135,7 @@ def wget(url: str, path: Optional[str] = None) -> str:
 
 def exec(*args: str, quiet: bool = False, cwd: Optional[str] = None) -> bool:
     _logger.debug(f"Executing {args}")
+    cmdName = Path(args[0]).name
 
     try:
         proc = subprocess.run(
@@ -156,32 +158,84 @@ def exec(*args: str, quiet: bool = False, cwd: Optional[str] = None) -> bool:
             raise RuntimeError(f"{args[0]}: Command not found")
 
     except KeyboardInterrupt:
-        raise RuntimeError(f"{args[0]}: Interrupted")
+        raise RuntimeError(f"{cmdName}: Interrupted")
 
     if proc.returncode == -signal.SIGSEGV:
-        raise RuntimeError(f"{args[0]}: Segmentation fault")
+        raise RuntimeError(f"{cmdName}: Segmentation fault")
 
     if proc.returncode != 0:
-        raise RuntimeError(f"{args[0]}: Process exited with code {proc.returncode}")
+        raise RuntimeError(f"{cmdName}: Process exited with code {proc.returncode}")
 
     return True
 
 
 def popen(*args: str) -> str:
-    _logger.debug(f"Executing {args}")
+    _logger.debug(f"Executing {args}...")
+
+    cmdName = Path(args[0]).name
 
     try:
         proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=sys.stderr)
     except FileNotFoundError:
-        raise RuntimeError(f"{args[0]}: Command not found")
+        raise RuntimeError(f"{cmdName}: Command not found")
 
     if proc.returncode == -signal.SIGSEGV:
-        raise RuntimeError(f"{args[0]}: Segmentation fault")
+        raise RuntimeError(f"{cmdName}: Segmentation fault")
 
     if proc.returncode != 0:
-        raise RuntimeError(f"{args[0]}: Process exited with code {proc.returncode}")
+        raise RuntimeError(f"{cmdName}: Process exited with code {proc.returncode}")
 
     return proc.stdout.decode("utf-8").strip()
+
+
+def debug(cmd: list[str], debugger: str = "lldb", wait: bool = False):
+    if debugger == "lldb":
+        exec(
+            "lldb",
+            *(("-o", "b main") if wait else ()),
+            *("-o", "run"),
+            *cmd,
+        )
+    elif debugger == "gdb":
+        exec(
+            "gdb",
+            *(("-ex", "b main") if wait else ()),
+            *("-ex", "run"),
+            *cmd,
+        )
+    else:
+        raise RuntimeError(f"Unknown debugger {debugger}")
+
+
+def profile(cmd: list[str]):
+    mkdir(const.TMP_DIR)
+    perfFile = f"{const.TMP_DIR}/perf.data"
+    try:
+        exec(
+            "perf",
+            "record",
+            "-g",
+            "-o",
+            perfFile,
+            "--call-graph",
+            "dwarf",
+            *cmd,
+        )
+    except Exception as e:
+        if not os.path.exists(perfFile):
+            raise e
+
+    try:
+        proc = subprocess.Popen(
+            ["perf", "script", "-i", perfFile], stdout=subprocess.PIPE
+        )
+        subprocess.run(["speedscope", "-"], stdin=proc.stdout)
+        proc.wait()
+    except Exception as e:
+        rmrf(perfFile)
+        raise e
+
+    rmrf(perfFile)
 
 
 def readdir(path: str) -> list[str]:
