@@ -15,6 +15,7 @@ def load(path: str):
 
     if not spec or not spec.loader:
         _logger.error(f"Failed to load plugin {path}")
+        return
 
     module = importlib.module_from_spec(spec)
     sys.modules["plugin"] = module

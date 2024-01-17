@@ -3,7 +3,7 @@ import logging
 import dataclasses as dt
 
 from pathlib import Path
-from typing import Callable, TextIO, Union
+from typing import Callable, Literal, TextIO, Union
 
 from . import shell, rules, model, ninja, const, cli
 
@@ -300,17 +300,16 @@ def gen(out: TextIO, scope: TargetScope):
 
 def build(
     scope: TargetScope,
-    components: Union[list[model.Component], model.Component, None] = None,
+    components: Union[list[model.Component], model.Component, Literal["all"]] = "all",
 ) -> list[ProductScope]:
     all = False
     shell.mkdir(scope.target.builddir)
     ninjaPath = os.path.join(scope.target.builddir, "build.ninja")
 
-    # if not os.path.exists(ninjaPath):
     with open(ninjaPath, "w") as f:
         gen(f, scope)
 
-    if components is None:
+    if components == "all":
         all = True
         components = list(scope.registry.iterEnabled(scope.target))
 
@@ -348,7 +347,7 @@ def _(args: cli.Args):
     component = None
     if componentSpec is not None:
         component = scope.registry.lookup(componentSpec, model.Component)
-    build(scope, component)[0]
+    build(scope, component if component is not None else "all")[0]
 
 
 @cli.command("r", "builder/run", "Run a component")
