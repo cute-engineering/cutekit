@@ -14,7 +14,7 @@ import dataclasses as dt
 
 from pathlib import Path
 from typing import Optional
-from . import const
+from . import const, cli
 
 _logger = logging.getLogger(__name__)
 
@@ -389,3 +389,33 @@ def compress(path: str, dest: Optional[str] = None, format: str = "zstd") -> str
         raise RuntimeError(f"Unknown compression format {format}")
 
     return dest
+
+
+# --- Commands --------------------------------------------------------------- #
+
+
+@cli.command("s", "scripts", "Manage scripts")
+def _(args: cli.Args):
+    pass
+
+
+@cli.command("d", "debug", "Debug a program")
+def _(args: cli.Args):
+    wait = args.consumeOpt("wait", False) is True
+    debugger = args.consumeOpt("debugger", "lldb")
+    command = [str(args.consumeArg()), *args.extra]
+    debug(command, debugger=debugger, wait=wait)
+
+
+@cli.command("p", "profile", "Profile a program")
+def _(args: cli.Args):
+    command = [str(args.consumeArg()), *args.extra]
+    profile(command)
+
+
+@cli.command("c", "compress", "Compress a file or directory")
+def _(args: cli.Args):
+    path = str(args.consumeArg())
+    dest = args.consumeOpt("dest", None)
+    format = args.consumeOpt("format", "zstd")
+    compress(path, dest, format)
