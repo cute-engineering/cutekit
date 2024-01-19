@@ -399,8 +399,16 @@ def _(args: cli.Args):
     pass
 
 
+class DebugArgs:
+    debugger = cli.Arg[str](
+        "d", "debugger", "Debugger to use (lldb, gdb)", default="lldb"
+    )
+    wait = cli.Arg[bool]("w", "wait", "Wait for debugger to attach")
+    extra = cli.RawArg
+
+
 @cli.command("d", "debug", "Debug a program")
-def _(args: cli.Args):
+def _(args: DebugArgs):
     wait = args.consumeOpt("wait", False) is True
     debugger = args.consumeOpt("debugger", "lldb")
     command = [str(args.consumeArg()), *args.extra]

@@ -6,7 +6,16 @@ import dataclasses as dt
 
 from functools import partial
 from pathlib import Path
-from typing import Any, NewType, Optional, Union, Callable, Generic, get_origin, get_args
+from typing import (
+    Any,
+    NewType,
+    Optional,
+    Union,
+    Callable,
+    Generic,
+    get_origin,
+    get_args,
+)
 
 from . import const, vt100, utils
 
@@ -25,29 +34,33 @@ class Arg(Generic[utils.T]):
     description: str
     default: Optional[utils.T] = None
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance, owner) -> utils.T:
         if instance is None:
-            return self
+            return self  # type: ignore
 
         return instance.__dict__.get(self.longName, self.default)
 
 
 @dt.dataclass
 class FreeFormArg(Generic[utils.T]):
+    longName: str
     description: str
     default: Optional[utils.T] = None
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance, owner) -> utils.T:
         if instance is None:
-            return self
+            return self  # type: ignore
 
-        return self.default
+        return instance.__dict__.get(self.longName, self.default)
+
 
 class ParserState(enum.Enum):
     FreeForm = enum.auto()
     ShortArg = enum.auto()
 
+
 RawArg = NewType("RawArg", str)
+
 
 class CutekitArgs:
     cmd: FreeFormArg[str] = FreeFormArg("Command to execute")
@@ -57,7 +70,7 @@ class CutekitArgs:
     podName: Arg[str] = Arg("n", "pod-name", "The name of the pod", default="")
 
 
-def parse(argv: list[str], argType: type) -> Any:
+def parse(argv: list[str], argType: type[utils.T]) -> utils.T:
     def set_value(options: dict[str, Any], name: str, value: Any):
         if name is not options:
             options[name] = value
@@ -82,7 +95,7 @@ def parse(argv: list[str], argType: type) -> Any:
                 found_optional = True
             elif found_optional:
                 raise RuntimeError(
-                    f"Required arguments must come before optional arguments"
+                    "Required arguments must come before optional arguments"
                 )
             else:
                 required_freeforms.append(arg)
@@ -107,7 +120,7 @@ def parse(argv: list[str], argType: type) -> Any:
         match state:
             case ParserState.FreeForm:
                 if argv[i] == "--":
-                    freeargs = argv[i + 1:]
+                    freeargs = argv[i + 1 :]
                     i += 1
                     break
                 if argv[i].startswith("--"):
@@ -153,7 +166,7 @@ def parse(argv: list[str], argType: type) -> Any:
             f"Missing arguments: {', '.join(required_freeforms[len(freeforms):])}"
         )
     if len(freeforms) > len(freeforms_all):
-        raise RuntimeError(f"Too many arguments")
+        raise RuntimeError("Too many arguments")
 
     for i, freeform in enumerate(freeforms):
         setattr(result, freeforms_all[i], freeform)
@@ -174,9 +187,9 @@ def parse(argv: list[str], argType: type) -> Any:
         setattr(result, key, field_type(value))
 
     raw_args = [arg[0] for arg in argType.__annotations__.items() if arg[1] is RawArg]
-    
+
     if len(raw_args) > 1:
-        raise RuntimeError(f"Only one RawArg is allowed")
+        raise RuntimeError("Only one RawArg is allowed")
     elif len(raw_args) == 1:
         setattr(result, raw_args[0], freeargs)
 
@@ -222,7 +235,7 @@ def command(shortName: Optional[str], longName: str, helpText: str):
             helpText,
             Path(calframe[1].filename).parent != Path(__file__).parent,
             fn,
-            argType
+            argType,
         )
 
         return fn
@@ -314,7 +327,7 @@ def versionCmd():
     print(f"CuteKit v{const.VERSION_STR}")
 
 
-def exec(cmd: str, args: list[str], cmds: dict[str, Command]=commands):
+def exec(cmd: str, args: list[str], cmds: dict[str, Command] = commands):
     for c in cmds.values():
         if c.shortName == cmd or c.longName == cmd:
             if len(c.subcommands) > 0:
@@ -322,9 +335,9 @@ def exec(cmd: str, args: list[str], cmds: dict[str, Command]=commands):
                 return
             else:
                 if c.argType is not None:
-                    c.callback(parse(args[1:], c.argType)) # type: ignore
+                    c.callback(parse(args[1:], c.argType))  # type: ignore
                 else:
-                    c.callback() # type: ignore 
+                    c.callback()  # type: ignore
                 return
 
     raise RuntimeError(f"Unknown command {cmd}")

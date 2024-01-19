@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Any, Generator, Optional, Type, cast
 from pathlib import Path
 from dataclasses_json import DataClassJsonMixin
-from typing import Union
+
 
 from cutekit import const, shell
 
@@ -184,14 +184,21 @@ def _():
 
 
 @cli.command("i", "model/install", "Install required external packages")
-def _(args: Any):
+def _():
     project = Project.use()
     Project.fetchs(project.extern)
 
 
 class InitArgs:
-    repo: cli.Arg[str] = cli.Arg("r", "repo", "Repository to use for templates", default=const.DEFAULT_REPO_TEMPLATES)
-    list: cli.Arg[bool] = cli.Arg("l", "list", "List available templates", default=False)
+    repo: cli.Arg[str] = cli.Arg(
+        "r",
+        "repo",
+        "Repository to use for templates",
+        default=const.DEFAULT_REPO_TEMPLATES,
+    )
+    list: cli.Arg[bool] = cli.Arg(
+        "l", "list", "List available templates", default=False
+    )
 
     template: cli.FreeFormArg[str] = cli.FreeFormArg("Template to use")
     name: cli.FreeFormArg[Optional[str]] = cli.FreeFormArg("Name of the project")
@@ -203,7 +210,9 @@ def _(args: InitArgs):
 
     _logger.info("Fetching registry...")
 
-    r = requests.get(f"https://raw.githubusercontent.com/{args.repo}/main/registry.json")
+    r = requests.get(
+        f"https://raw.githubusercontent.com/{args.repo}/main/registry.json"
+    )
 
     if r.status_code != 200:
         _logger.error("Failed to fetch registry")
@@ -264,6 +273,17 @@ DEFAULT_TOOLS: Tools = {
 }
 
 
+class RegistryArgs:
+    mixins: cli.Arg[str] = cli.Arg("m", "mixins", "Mixins to apply", default="")
+    # props: cli.Arg[dict[str]] = cli.Arg("p", "props", "Properties to set", default="")
+
+
+class TargetArgs(RegistryArgs):
+    target = cli.Arg(
+        "t", "target", "The target to use", default="host-" + shell.uname().machine
+    )
+
+
 @dt.dataclass
 class Target(Manifest):
     props: Props = dt.field(default_factory=dict)
@@ -288,9 +308,9 @@ class Target(Manifest):
         return os.path.join(const.BUILD_DIR, f"{self.id}{postfix}")
 
     @staticmethod
-    def use(args: Any, props: Props = {}) -> "Target":
+    def use(args: TargetArgs, props: Props = {}) -> "Target":
         registry = Registry.use(args, props)
-        targetSpec = str(args.consumeOpt("target", "host-" + shell.uname().machine))
+        targetSpec = args.target
         return registry.ensure(targetSpec, Target)
 
     def route(self, componentSpec: str):
@@ -537,7 +557,7 @@ class Registry(DataClassJsonMixin):
         return m
 
     @staticmethod
-    def use(args: Any, props: Props = {}) -> "Registry":
+    def use(args: RegistryArgs, props: Props = {}) -> "Registry":
         global _registry
 
         if _registry is not None:
@@ -554,8 +574,8 @@ class Registry(DataClassJsonMixin):
                 mixins = args.mixins.split(",")
                 if mixins == [""]:
                     mixins = []
-                
-        #props |= cast(dict[str, str], args.consumePrefix("prop:"))
+
+        # props |= args.props
         _registry = Registry.load(project, mixins, props)
         return _registry
 
@@ -647,11 +667,8 @@ class Registry(DataClassJsonMixin):
         return r
 
 
-class ListArgs:
-    mixins: cli.Arg[str] = cli.Arg("m", "mixins", "Mixins to apply", default="")
-
 @cli.command("l", "model/list", "List all components and targets")
-def _(args: ListArgs):
+def _(args: RegistryArgs):
     registry = Registry.use(args)
 
     components = list(registry.iter(Component))

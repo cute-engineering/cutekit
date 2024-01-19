@@ -131,7 +131,7 @@ def _(args: PodArgs):
     project = model.Project.ensure()
 
     if not args.name.startswith(podPrefix):
-        name: str = f"{podPrefix}{name}"
+        name: str = f"{podPrefix}{args.name}"
     else:
         name = args.name
 
@@ -183,7 +183,7 @@ class KillPodArgs:
 def _(args: KillPodArgs):
     client = docker.from_env()
     if not args.name.startswith(podPrefix):
-        name: str = f"{podPrefix}{name}"
+        name: str = f"{podPrefix}{args.name}"
     else:
         name = args.name
 
@@ -218,7 +218,7 @@ class PodExecArgs:
 @cli.command("e", "pod/exec", "Execute a command in a pod")
 def podExecCmd(args: PodExecArgs):
     if not args.name.startswith(podPrefix):
-        name: str = f"{podPrefix}{name}"
+        name: str = f"{podPrefix}{args.name}"
     else:
         name = args.name
 
