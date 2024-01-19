@@ -395,35 +395,51 @@ def compress(path: str, dest: Optional[str] = None, format: str = "zstd") -> str
 
 
 @cli.command("s", "scripts", "Manage scripts")
-def _(args: cli.Args):
+def _():
     pass
 
 
-class DebugArgs:
+class DebuggerArgs:
     debugger = cli.Arg[str](
         "d", "debugger", "Debugger to use (lldb, gdb)", default="lldb"
     )
     wait = cli.Arg[bool]("w", "wait", "Wait for debugger to attach")
-    extra = cli.RawArg
+
+
+class DebugArgs(DebuggerArgs):
+    cmd = cli.FreeFormArg[str]("cmd", "Command to debug", default="a.out")
+    args = cli.RawArg("args", "Arguments to pass to the command")
 
 
 @cli.command("d", "debug", "Debug a program")
 def _(args: DebugArgs):
-    wait = args.consumeOpt("wait", False) is True
-    debugger = args.consumeOpt("debugger", "lldb")
-    command = [str(args.consumeArg()), *args.extra]
-    debug(command, debugger=debugger, wait=wait)
+    command = [args.cmd, *args.args]
+    debug(command, args.debugger, args.wait)
+
+
+class ProfilerArgs:
+    pass
+
+
+class ProfileArgs:
+    cmd = cli.FreeFormArg[str]("cmd", "Command to profile", default="a.out")
+    extra: cli.RawArg
 
 
 @cli.command("p", "profile", "Profile a program")
-def _(args: cli.Args):
-    command = [str(args.consumeArg()), *args.extra]
+def _(args: ProfileArgs):
+    command = [args.cmd, *args.extra]
     profile(command)
 
 
+class CompressArgs:
+    dest = cli.Arg[str]("d", "dest", "Destination file")
+    format = cli.Arg[str](
+        "f", "format", "Compression format (zip, zstd, gzip)", default="zstd"
+    )
+    path = cli.FreeFormArg[str]("path", "Path to compress")
+
+
 @cli.command("c", "compress", "Compress a file or directory")
-def _(args: cli.Args):
-    path = str(args.consumeArg())
-    dest = args.consumeOpt("dest", None)
-    format = args.consumeOpt("format", "zstd")
-    compress(path, dest, format)
+def _(args: CompressArgs):
+    compress(args.path, args.dest, args.format)

@@ -350,25 +350,24 @@ def _(args: Any):
     build(scope, component if component is not None else "all")[0]
 
 
-class RunArgs:
-    debug: cli.Arg[bool] = cli.Arg("d", "debug", "Enable debug mode", default=False)
-    profile: cli.Arg[bool] = cli.Arg("p", "profile", "Enable profiling", default=False)
-    wait: cli.Arg[bool] = cli.Arg("w", "wait", "Wait for debugger to attach", default=False)
-    debugger: cli.Arg[str] = cli.Arg("g", "debugger", "Debugger to use", default="lldb")
-    mixins: cli.Arg[str] = cli.Arg("m", "mixins", "Mixins to apply", default="")
-
-    componentSpec: cli.FreeFormArg[str] = cli.FreeFormArg("Component to run", default="__main__")
+class RunArgs(model.RegistryArgs, shell.DebuggerArgs):
+    debug = cli.Arg[bool]("d", "debug", "Enable debug mode", default=False)
+    profile = cli.Arg[bool]("p", "profile", "Enable profiling", default=False)
+    component = cli.FreeFormArg(
+        "component", "Component to run", default="__main__"
+    )
     extra: cli.RawArg
+
 
 @cli.command("r", "builder/run", "Run a component")
 def runCmd(args: RunArgs):
     scope = TargetScope.use(args, {"debug": args.debug})
 
     component = scope.registry.lookup(
-        args.componentSpec, model.Component, includeProvides=True
+        args.component, model.Component, includeProvides=True
     )
     if component is None:
-        raise RuntimeError(f"Component {args.componentSpec} not found")
+        raise RuntimeError(f"Component {args.component} not found")
 
     product = build(scope, component)[0]
 
@@ -393,8 +392,7 @@ def runCmd(args: RunArgs):
 def _(args: RunArgs):
     # This is just a wrapper around the `run` command that try
     # to run a special hook component named __tests__.
-
-    args.componentSpec = "__tests__"
+    args.component = "__tests__"
     runCmd(args)
 
 

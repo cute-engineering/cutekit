@@ -51,6 +51,10 @@ def loadAll():
                     load(os.path.join(pluginDir, files))
 
 
-def setup(args: cli.CutekitArgs):
+class PluginArgs:
+    safemode = cli.Arg[bool]("s", "safemode", "Skip loading plugins", default=False)
+
+
+def setup(args: PluginArgs):
     if not args.safemode:
         loadAll()

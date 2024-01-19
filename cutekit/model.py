@@ -190,18 +190,15 @@ def _():
 
 
 class InitArgs:
-    repo: cli.Arg[str] = cli.Arg(
+    repo = cli.Arg(
         "r",
         "repo",
         "Repository to use for templates",
         default=const.DEFAULT_REPO_TEMPLATES,
     )
-    list: cli.Arg[bool] = cli.Arg(
-        "l", "list", "List available templates", default=False
-    )
-
-    template: cli.FreeFormArg[str] = cli.FreeFormArg("Template to use")
-    name: cli.FreeFormArg[Optional[str]] = cli.FreeFormArg("Name of the project")
+    list = cli.Arg("l", "list", "List available templates", default=False)
+    template = cli.FreeFormArg("template", "Template to use")
+    name = cli.FreeFormArg("name", "Name of the project")
 
 
 @cli.command("I", "model/init", "Initialize a new project")
@@ -274,8 +271,8 @@ DEFAULT_TOOLS: Tools = {
 
 
 class RegistryArgs:
-    mixins: cli.Arg[str] = cli.Arg("m", "mixins", "Mixins to apply", default="")
-    # props: cli.Arg[dict[str]] = cli.Arg("p", "props", "Properties to set", default="")
+    mixins = cli.Arg[list[str]]("m", "mixins", "Mixins to apply", default=[])
+    # props = cli.Arg[dict[str]]("p", "props", "Properties to set", default="")
 
 
 class TargetArgs(RegistryArgs):

@@ -77,7 +77,12 @@ IMAGES: dict[str, Image] = {
 }
 
 
-def setup(args: cli.CutekitArgs, argv: list[str]):
+class PodArgs:
+    pod = cli.Arg[bool]("p", "enable-pod", "Enable pod", default=False)
+    podName = cli.Arg[str]("n", "pod-name", "The name of the pod", default="")
+
+
+def setup(args: PodArgs, argv: list[str]):
     """
     Reincarnate cutekit within a docker container, this is
     useful for cross-compiling
@@ -118,12 +123,15 @@ def tryDecode(data: Optional[bytes], default: str = "") -> str:
     return data.decode()
 
 
-class PodArgs:
-    name: cli.Arg[str] = cli.Arg("n", "name", "The name of the pod to use", default=defaultPodName)
-    image = cli.Arg("i", "image", "The image to use", default=defaultPodImage)
+class PodCreateArgs:
+    name: cli.Arg[str] = cli.Arg(
+        "n", "name", "The name of the pod to use", default="default"
+    )
+    image = cli.Arg[str]("i", "image", "The image to use", default=defaultPodImage)
+
 
 @cli.command("c", "pod/create", "Create a new pod")
-def _(args: PodArgs):
+def _(args: PodCreateArgs):
     """
     Create a new development pod with cutekit installed and the current
     project mounted at /project
@@ -177,7 +185,10 @@ def _(args: PodArgs):
 
 
 class KillPodArgs:
-    name: cli.Arg[str] = cli.Arg("n", "name", "The name of the pod to kill", default=defaultPodName)
+    name: cli.Arg[str] = cli.Arg(
+        "n", "name", "The name of the pod to kill", default=defaultPodName
+    )
+
 
 @cli.command("k", "pod/kill", "Stop and remove a pod")
 def _(args: KillPodArgs):
@@ -211,9 +222,10 @@ def _():
 
 
 class PodExecArgs:
-    name: cli.Arg[str] = cli.Arg("n", "name", "The name of the pod to use", default=defaultPodName)
-    cmd: cli.FreeFormArg[str] = cli.FreeFormArg("The command to execute")
-    extra: cli.RawArg
+    name = cli.Arg("n", "name", "The name of the pod to use", default=defaultPodName)
+    cmd = cli.FreeFormArg("cmd", "The command to execute", default="/bin/bash")
+    args = cli.FreeFormArg("args", "The arguments to pass to the command")
+
 
 @cli.command("e", "pod/exec", "Execute a command in a pod")
 def podExecCmd(args: PodExecArgs):
@@ -223,7 +235,7 @@ def podExecCmd(args: PodExecArgs):
         name = args.name
 
     try:
-        shell.exec("docker", "exec", "-it", name, args.cmd, *args.extra)
+        shell.exec("docker", "exec", "-it", name, args.cmd, *args.args)
     except Exception:
         raise RuntimeError(f"Pod '{name[len(podPrefix):]}' does not exist")
 

@@ -13,6 +13,7 @@ from typing import (
     Union,
     Callable,
     Generic,
+    cast,
     get_origin,
     get_args,
 )
@@ -40,6 +41,9 @@ class Arg(Generic[utils.T]):
 
         return instance.__dict__.get(self.longName, self.default)
 
+    def __set__(self, instance, value: utils.T):
+        instance.__dict__[self.longName] = value
+
 
 @dt.dataclass
 class FreeFormArg(Generic[utils.T]):
@@ -53,21 +57,28 @@ class FreeFormArg(Generic[utils.T]):
 
         return instance.__dict__.get(self.longName, self.default)
 
+    def __set__(self, instance, value: utils.T):
+        instance.__dict__[self.longName] = value
+
+
+@dt.dataclass
+class RawArg:
+    longName: str
+    description: str
+
+    def __get__(self, instance, owner) -> list[str]:
+        if instance is None:
+            return self  # type: ignore
+
+        return instance.__dict__.get(self.longName, [])
+
+    def __set__(self, instance, value):
+        instance.__dict__[self.longName] = value
+
 
 class ParserState(enum.Enum):
     FreeForm = enum.auto()
     ShortArg = enum.auto()
-
-
-RawArg = NewType("RawArg", str)
-
-
-class CutekitArgs:
-    cmd: FreeFormArg[str] = FreeFormArg("Command to execute")
-    verbose: Arg[bool] = Arg("v", "verbose", "Enable verbose logging")
-    safemode: Arg[bool] = Arg("s", "safe", "Enable safe mode")
-    pod: Arg[bool] = Arg("p", "enable-pod", "Enable pod", default=False)
-    podName: Arg[str] = Arg("n", "pod-name", "The name of the pod", default="")
 
 
 def parse(argv: list[str], argType: type[utils.T]) -> utils.T:
@@ -183,6 +194,7 @@ def parse(argv: list[str], argType: type[utils.T]) -> utils.T:
         raise RuntimeError(f"Missing arguments: {', '.join(missing)}")
 
     for key, value in options.items():
+        # print(getattr(argType, key).type())
         field_type = get_args(argType.__annotations__[key])[0]
         setattr(result, key, field_type(value))
 
@@ -210,33 +222,55 @@ class Command:
 
     subcommands: dict[str, "Command"] = dt.field(default_factory=dict)
 
+    def help(self):
+        print(f"{self.longName} - {self.helpText}")
+        print()
+        self.usage()
+
+    def usage(self):
+        usage = f"Usage: {self.longName}"
+
+        if self.argType is not None:
+            usage += " [args...]"
+
+        if len(self.subcommands) > 0:
+            usage += " <command> [args...]"
+
+        print(usage)
+
 
 commands: dict[str, Command] = {}
+rootCommand: Optional[Command] = None
 
 
 def command(shortName: Optional[str], longName: str, helpText: str):
     curframe = inspect.currentframe()
     calframe = inspect.getouterframes(curframe, 2)
 
-    def wrap(fn: Callback):
+    def wrap(fn: utils.T) -> utils.T:
         _logger.debug(f"Registering command {longName}")
         if len(fn.__annotations__) == 0:
             argType = None
         else:
             argType = list(fn.__annotations__.values())[0]
-
         path = longName.split("/")
-        parent = commands
-        for p in path[:-1]:
-            parent = parent[p].subcommands
-        parent[path[-1]] = Command(
+        command = Command(
             shortName,
-            path[-1],
+            path[-1] if longName != "/" else "/",
             helpText,
             Path(calframe[1].filename).parent != Path(__file__).parent,
-            fn,
+            cast(Callback, fn),
             argType,
         )
+
+        if longName == "/":
+            global rootCommand
+            rootCommand = command
+        else:
+            parent = commands
+            for p in path[:-1]:
+                parent = parent[p].subcommands
+            parent[path[-1]] = command
 
         return fn
 
@@ -327,17 +361,49 @@ def versionCmd():
     print(f"CuteKit v{const.VERSION_STR}")
 
 
-def exec(cmd: str, args: list[str], cmds: dict[str, Command] = commands):
-    for c in cmds.values():
-        if c.shortName == cmd or c.longName == cmd:
-            if len(c.subcommands) > 0:
-                exec(args[0], args[1:], c.subcommands)
-                return
-            else:
-                if c.argType is not None:
-                    c.callback(parse(args[1:], c.argType))  # type: ignore
-                else:
-                    c.callback()  # type: ignore
+def _exec(args: list[str], cmd: Command):
+    # let's slice the arguments for this command and the sub command
+    # [-a -b] [sub-cmd -c -d]
+
+    selfArgs = []
+    if len(cmd.subcommands) > 0:
+        while len(args) > 0 and args[0].startswith("-"):
+            selfArgs.append(args.pop(0))
+    else:
+        selfArgs = args
+
+    if "-h" in selfArgs or "--help" in selfArgs:
+        cmd.help()
+        return
+
+    if "-u" in selfArgs or "--usage" in selfArgs:
+        cmd.usage()
+        return
+
+    if cmd.argType is not None:
+        parsedArgs = parse(selfArgs, cmd.argType)
+        cmd.callback(parsedArgs)  # type: ignore
+    else:
+        cmd.callback()  # type: ignore
+
+    if cmd.subcommands:
+        if len(args) == 0:
+            error("Missing subcommand")
+            cmd.usage()
+            return
+
+        for c in cmd.subcommands.values():
+            if c.shortName == args[0] or c.longName == args[0]:
+                _exec(args, c)
                 return
 
-    raise RuntimeError(f"Unknown command {cmd}")
+        raise RuntimeError(f"Unknown command {args[0]}")
+
+
+def exec(args: list[str]):
+    if not rootCommand:
+        raise RuntimeError("No root command")
+
+    rootCommand.longName = Path(args[0]).name
+    rootCommand.subcommands = commands
+    _exec(args[1:], rootCommand)
