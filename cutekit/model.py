@@ -171,7 +171,7 @@ class Project(Manifest):
                 Project.fetchs(project.extern)
 
     @staticmethod
-    def use(args: cli.Args) -> "Project":
+    def use() -> "Project":
         global _project
         if _project is None:
             _project = Project.ensure()
@@ -179,29 +179,31 @@ class Project(Manifest):
 
 
 @cli.command("m", "model", "Manage the model")
-def _(args: cli.Args):
+def _():
     pass
 
 
 @cli.command("i", "model/install", "Install required external packages")
-def _(args: cli.Args):
-    project = Project.use(args)
+def _(args: Any):
+    project = Project.use()
     Project.fetchs(project.extern)
 
 
+class InitArgs:
+    repo: cli.Arg[str] = cli.Arg("r", "repo", "Repository to use for templates", default=const.DEFAULT_REPO_TEMPLATES)
+    list: cli.Arg[bool] = cli.Arg("l", "list", "List available templates", default=False)
+
+    template: cli.FreeFormArg[str] = cli.FreeFormArg("Template to use")
+    name: cli.FreeFormArg[Optional[str]] = cli.FreeFormArg("Name of the project")
+
+
 @cli.command("I", "model/init", "Initialize a new project")
-def _(args: cli.Args):
+def _(args: InitArgs):
     import requests
-
-    repo = args.consumeOpt("repo", const.DEFAULT_REPO_TEMPLATES)
-    list = args.consumeOpt("list")
-
-    template = args.consumeArg()
-    name = args.consumeArg()
 
     _logger.info("Fetching registry...")
 
-    r = requests.get(f"https://raw.githubusercontent.com/{repo}/main/registry.json")
+    r = requests.get(f"https://raw.githubusercontent.com/{args.repo}/main/registry.json")
 
     if r.status_code != 200:
         _logger.error("Failed to fetch registry")
@@ -209,30 +211,29 @@ def _(args: cli.Args):
 
     registry = r.json()
 
-    if list:
+    if args.list:
         print(
             "\n".join(f"* {entry['id']} - {entry['description']}" for entry in registry)
         )
         return
 
-    if not template:
-        raise RuntimeError("Template not specified")
-
     def template_match(t: jexpr.Json) -> str:
-        return t["id"] == template
+        return t["id"] == args.template
 
     if not any(filter(template_match, registry)):
-        raise LookupError(f"Couldn't find a template named {template}")
+        raise LookupError(f"Couldn't find a template named {args.template}")
 
-    if not name:
-        _logger.info(f"No name was provided, defaulting to {template}")
-        name = template
+    if args.name is None:
+        _logger.info(f"No name was provided, defaulting to {args.template}")
+        name = args.template
+    else:
+        name = args.name
 
     if os.path.exists(name):
         raise RuntimeError(f"Directory {name} already exists")
 
-    print(f"Creating project {name} from template {template}...")
-    shell.cloneDir(f"https://github.com/{repo}", template, name)
+    print(f"Creating project {name} from template {args.template}...")
+    shell.cloneDir(f"https://github.com/{args.repo}", args.template, name)
     print(f"Project {name} created\n")
 
     print("We suggest that you begin by typing:")
@@ -287,7 +288,7 @@ class Target(Manifest):
         return os.path.join(const.BUILD_DIR, f"{self.id}{postfix}")
 
     @staticmethod
-    def use(args: cli.Args, props: Props = {}) -> "Target":
+    def use(args: Any, props: Props = {}) -> "Target":
         registry = Registry.use(args, props)
         targetSpec = str(args.consumeOpt("target", "host-" + shell.uname().machine))
         return registry.ensure(targetSpec, Target)
@@ -536,17 +537,25 @@ class Registry(DataClassJsonMixin):
         return m
 
     @staticmethod
-    def use(args: cli.Args, props: Props = {}) -> "Registry":
+    def use(args: Any, props: Props = {}) -> "Registry":
         global _registry
 
         if _registry is not None:
             return _registry
 
-        project = Project.use(args)
-        mixins = str(args.consumeOpt("mixins", "")).split(",")
-        if mixins == [""]:
+        project = Project.use()
+
+        if not hasattr(args, "mixins"):
             mixins = []
-        props |= cast(dict[str, str], args.consumePrefix("prop:"))
+        else:
+            if not isinstance(args.mixins, str):
+                raise RuntimeError("Mixins attribute on provided args is not a string")
+            else:
+                mixins = args.mixins.split(",")
+                if mixins == [""]:
+                    mixins = []
+                
+        #props |= cast(dict[str, str], args.consumePrefix("prop:"))
         _registry = Registry.load(project, mixins, props)
         return _registry
 
@@ -638,8 +647,11 @@ class Registry(DataClassJsonMixin):
         return r
 
 
+class ListArgs:
+    mixins: cli.Arg[str] = cli.Arg("m", "mixins", "Mixins to apply", default="")
+
 @cli.command("l", "model/list", "List all components and targets")
-def _(args: cli.Args):
+def _(args: ListArgs):
     registry = Registry.use(args)
 
     components = list(registry.iter(Component))

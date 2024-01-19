@@ -3,7 +3,7 @@ import logging
 import dataclasses as dt
 
 from pathlib import Path
-from typing import Callable, Literal, TextIO, Union
+from typing import Callable, Literal, TextIO, Union, Any
 
 from . import shell, rules, model, ninja, const, cli
 
@@ -15,7 +15,7 @@ class Scope:
     registry: model.Registry
 
     @staticmethod
-    def use(args: cli.Args, props: model.Props = {}) -> "Scope":
+    def use(args: Any, props: model.Props = {}) -> "Scope":
         registry = model.Registry.use(args, props)
         return Scope(registry)
 
@@ -32,7 +32,7 @@ class TargetScope(Scope):
     target: model.Target
 
     @staticmethod
-    def use(args: cli.Args, props: model.Props = {}) -> "TargetScope":
+    def use(args: Any, props: model.Props = {}) -> "TargetScope":
         registry = model.Registry.use(args, props)
         target = model.Target.use(args, props)
         return TargetScope(registry, target)
@@ -336,12 +336,12 @@ def build(
 
 
 @cli.command("b", "builder", "Build/Run/Clean a component or all components")
-def _(args: cli.Args):
+def _():
     pass
 
 
 @cli.command("b", "builder/build", "Build a component or all components")
-def _(args: cli.Args):
+def _(args: Any):
     scope = TargetScope.use(args)
     componentSpec = args.consumeArg()
     component = None
@@ -350,20 +350,25 @@ def _(args: cli.Args):
     build(scope, component if component is not None else "all")[0]
 
 
+class RunArgs:
+    debug: cli.Arg[bool] = cli.Arg("d", "debug", "Enable debug mode", default=False)
+    profile: cli.Arg[bool] = cli.Arg("p", "profile", "Enable profiling", default=False)
+    wait: cli.Arg[bool] = cli.Arg("w", "wait", "Wait for debugger to attach", default=False)
+    debugger: cli.Arg[str] = cli.Arg("g", "debugger", "Debugger to use", default="lldb")
+    mixins: cli.Arg[str] = cli.Arg("m", "mixins", "Mixins to apply", default="")
+
+    componentSpec: cli.FreeFormArg[str] = cli.FreeFormArg("Component to run", default="__main__")
+    extra: cli.RawArg
+
 @cli.command("r", "builder/run", "Run a component")
-def runCmd(args: cli.Args):
-    debug = args.consumeOpt("debug", False) is True
-    profile = args.consumeOpt("profile", False) is True
-    wait = args.consumeOpt("wait", False) is True
-    debugger = args.consumeOpt("debugger", "lldb")
-    componentSpec = args.consumeArg() or "__main__"
-    scope = TargetScope.use(args, {"debug": debug})
+def runCmd(args: RunArgs):
+    scope = TargetScope.use(args, {"debug": args.debug})
 
     component = scope.registry.lookup(
-        componentSpec, model.Component, includeProvides=True
+        args.componentSpec, model.Component, includeProvides=True
     )
     if component is None:
-        raise RuntimeError(f"Component {componentSpec} not found")
+        raise RuntimeError(f"Component {args.componentSpec} not found")
 
     product = build(scope, component)[0]
 
@@ -374,39 +379,40 @@ def runCmd(args: cli.Args):
     try:
         command = [str(product.path), *args.extra]
 
-        if debug:
-            shell.debug(command, debugger=debugger, wait=wait)
-        elif profile:
+        if args.debug:
+            shell.debug(command, debugger=args.debugger, wait=args.wait)
+        elif args.profile:
             shell.profile(command)
         else:
             shell.exec(*command)
     except Exception as e:
-        cli.error(e)
+        cli.error(str(e))
 
 
 @cli.command("t", "builder/test", "Run all test targets")
-def _(args: cli.Args):
+def _(args: RunArgs):
     # This is just a wrapper around the `run` command that try
     # to run a special hook component named __tests__.
-    args.args.insert(0, "__tests__")
+
+    args.componentSpec = "__tests__"
     runCmd(args)
 
 
 @cli.command("d", "builder/debug", "Debug a component")
-def _(args: cli.Args):
+def _(args: RunArgs):
     # This is just a wrapper around the `run` command that
     # always enable debug mode.
-    args.opts["debug"] = True
+    args.debug = True
     runCmd(args)
 
 
 @cli.command("c", "builder/clean", "Clean build files")
-def _(args: cli.Args):
-    model.Project.use(args)
+def _():
+    model.Project.use()
     shell.rmrf(const.BUILD_DIR)
 
 
 @cli.command("n", "builder/nuke", "Clean all build files and caches")
-def _(args: cli.Args):
-    model.Project.use(args)
+def _():
+    model.Project.use()
     shell.rmrf(const.PROJECT_CK_DIR)

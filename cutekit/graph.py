@@ -83,13 +83,15 @@ def view(
     g.view(filename=os.path.join(target.builddir, "graph.gv"))
 
 
+class GraphCmd:
+    mixins: cli.Arg[str] = cli.Arg("m", "mixins", "Mixins to apply", default="")
+    scope: cli.Arg[str] = cli.Arg("s", "scope", "Scope to show", default="")
+    onlyLibs: cli.Arg[bool] = cli.Arg("l", "only-libs", "Only show libraries", default=False)
+    showDisabled: cli.Arg[bool] = cli.Arg("d", "show-disabled", "Show disabled components", default=False)
+
 @cli.command("g", "graph", "Show the dependency graph")
-def _(args: cli.Args):
+def _(args: GraphCmd):
     registry = model.Registry.use(args)
     target = model.Target.use(args)
 
-    scope = cast(Optional[str], args.tryConsumeOpt("scope"))
-    onlyLibs = args.consumeOpt("only-libs", False) is True
-    showDisabled = args.consumeOpt("show-disabled", False) is True
-
-    view(registry, target, scope=scope, showExe=not onlyLibs, showDisabled=showDisabled)
+    view(registry, target, scope=args.scope, showExe=not args.onlyLibs, showDisabled=args.showDisabled)

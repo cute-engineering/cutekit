@@ -1,81 +1,189 @@
+import enum
 import inspect
 import logging
 import sys
 import dataclasses as dt
 
+from functools import partial
 from pathlib import Path
-from typing import Optional, Union, Callable
+from typing import Any, NewType, Optional, Union, Callable, Generic, get_origin, get_args
 
-from . import const, vt100
+from . import const, vt100, utils
 
 Value = Union[str, bool, int]
 
 _logger = logging.getLogger(__name__)
 
 
-class Args:
-    opts: dict[str, Value]
-    args: list[str]
-    extra: list[str]
-
-    def __init__(self):
-        self.opts = {}
-        self.args = []
-        self.extra = []
-
-    def consumePrefix(self, prefix: str) -> dict[str, Value]:
-        result: dict[str, Value] = {}
-        copy = self.opts.copy()
-        for key, value in copy.items():
-            if key.startswith(prefix):
-                result[key[len(prefix) :]] = value
-                del self.opts[key]
-        return result
-
-    def consumeOpt(self, key: str, default: Value = False) -> Value:
-        if key in self.opts:
-            result = self.opts[key]
-            del self.opts[key]
-            return result
-        return default
-
-    def tryConsumeOpt(self, key: str) -> Optional[Value]:
-        if key in self.opts:
-            result = self.opts[key]
-            del self.opts[key]
-            return result
-        return None
-
-    def consumeArg(self, default: Optional[str] = None) -> Optional[str]:
-        if len(self.args) == 0:
-            return default
-
-        first = self.args[0]
-        del self.args[0]
-        return first
+# --- Arg parsing -------------------------------------------------------------
 
 
-def parse(args: list[str]) -> Args:
-    result = Args()
+@dt.dataclass
+class Arg(Generic[utils.T]):
+    shortName: str
+    longName: str
+    description: str
+    default: Optional[utils.T] = None
 
-    for i in range(len(args)):
-        arg = args[i]
-        if arg.startswith("--") and not arg == "--":
-            if "=" in arg:
-                key, value = arg[2:].split("=", 1)
-                result.opts[key] = value
-            else:
-                result.opts[arg[2:]] = True
-        elif arg == "--":
-            result.extra += args[i + 1 :]
-            break
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+
+        return instance.__dict__.get(self.longName, self.default)
+
+
+@dt.dataclass
+class FreeFormArg(Generic[utils.T]):
+    description: str
+    default: Optional[utils.T] = None
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+
+        return self.default
+
+class ParserState(enum.Enum):
+    FreeForm = enum.auto()
+    ShortArg = enum.auto()
+
+RawArg = NewType("RawArg", str)
+
+class CutekitArgs:
+    cmd: FreeFormArg[str] = FreeFormArg("Command to execute")
+    verbose: Arg[bool] = Arg("v", "verbose", "Enable verbose logging")
+    safemode: Arg[bool] = Arg("s", "safe", "Enable safe mode")
+    pod: Arg[bool] = Arg("p", "enable-pod", "Enable pod", default=False)
+    podName: Arg[str] = Arg("n", "pod-name", "The name of the pod", default="")
+
+
+def parse(argv: list[str], argType: type) -> Any:
+    def set_value(options: dict[str, Any], name: str, value: Any):
+        if name is not options:
+            options[name] = value
         else:
-            result.args.append(arg)
+            raise RuntimeError(f"{name} is already set")
+
+    def is_optional(t: type) -> bool:
+        return get_origin(t) is Union and type(None) in get_args(t)
+
+    def freeforms_get(argType: type) -> tuple[list[str], list[str]]:
+        freeforms = []
+        required_freeforms = []
+
+        found_optional = False
+        for arg, anno in [
+            arg
+            for arg in argType.__annotations__.items()
+            if get_origin(arg[1]) is FreeFormArg
+        ]:
+            freeforms.append(arg)
+            if is_optional(get_args(anno)[0]):
+                found_optional = True
+            elif found_optional:
+                raise RuntimeError(
+                    f"Required arguments must come before optional arguments"
+                )
+            else:
+                required_freeforms.append(arg)
+
+        return (freeforms, required_freeforms)
+
+    result = argType()
+    options: dict[str, Any] = {}
+    args: dict[str, partial] = {}
+    freeforms: list[Any] = []
+
+    state = ParserState.FreeForm
+    current_arg: Optional[str] = None
+
+    for arg in dir(argType):
+        if isinstance(getattr(argType, arg), Arg):
+            args[getattr(argType, arg).shortName] = partial(set_value, options, arg)
+            args[getattr(argType, arg).longName] = partial(set_value, options, arg)
+
+    i = 0
+    while i < len(argv):
+        match state:
+            case ParserState.FreeForm:
+                if argv[i] == "--":
+                    freeargs = argv[i + 1:]
+                    i += 1
+                    break
+                if argv[i].startswith("--"):
+                    if "=" in argv[i]:
+                        # --name=value
+                        name, value = argv[i][2:].split("=", 1)
+                        if name in args:
+                            args[name](value)
+                    else:
+                        # --name -> the value will be True
+                        if argv[i][2:] in args:
+                            args[argv[i][2:]](True)
+                elif argv[i].startswith("-"):
+                    if len(argv[i][1:]) > 1:
+                        for c in argv[i][1:]:
+                            # -abc -> a, b, c are all True
+                            if c in args:
+                                args[c](True)
+                    else:
+                        state = ParserState.ShortArg
+                        current_arg = argv[i][1:]
+                else:
+                    freeforms.append(argv[i])
+
+                i += 1
+            case ParserState.ShortArg:
+                if argv[i].startswith("-"):
+                    # -a -b 4 -> a is True
+                    if current_arg in args:
+                        args[current_arg](True)
+                else:
+                    # -a 4 -> a is 4
+                    if current_arg in args:
+                        args[current_arg](argv[i])
+
+                i += 1
+                current_arg = None
+                state = ParserState.FreeForm
+
+    freeforms_all, required_freeforms = freeforms_get(argType)
+    if len(freeforms) < len(required_freeforms):
+        raise RuntimeError(
+            f"Missing arguments: {', '.join(required_freeforms[len(freeforms):])}"
+        )
+    if len(freeforms) > len(freeforms_all):
+        raise RuntimeError(f"Too many arguments")
+
+    for i, freeform in enumerate(freeforms):
+        setattr(result, freeforms_all[i], freeform)
+
+    # missing arguments
+    missing = set(
+        [
+            arg[0]
+            for arg in argType.__annotations__
+            if get_origin(arg[1]) is Arg and getattr(argType, arg[0]).default is None
+        ]
+    ) - set(options.keys())
+    if missing:
+        raise RuntimeError(f"Missing arguments: {', '.join(missing)}")
+
+    for key, value in options.items():
+        field_type = get_args(argType.__annotations__[key])[0]
+        setattr(result, key, field_type(value))
+
+    raw_args = [arg[0] for arg in argType.__annotations__.items() if arg[1] is RawArg]
+    
+    if len(raw_args) > 1:
+        raise RuntimeError(f"Only one RawArg is allowed")
+    elif len(raw_args) == 1:
+        setattr(result, raw_args[0], freeargs)
 
     return result
 
 
-Callback = Callable[[Args], None]
+Callback = Callable[[Any], None] | Callable[[], None]
 
 
 @dt.dataclass
@@ -85,6 +193,7 @@ class Command:
     helpText: str
     isPlugin: bool
     callback: Callback
+    argType: Optional[type]
 
     subcommands: dict[str, "Command"] = dt.field(default_factory=dict)
 
@@ -96,8 +205,13 @@ def command(shortName: Optional[str], longName: str, helpText: str):
     curframe = inspect.currentframe()
     calframe = inspect.getouterframes(curframe, 2)
 
-    def wrap(fn: Callable[[Args], None]):
+    def wrap(fn: Callback):
         _logger.debug(f"Registering command {longName}")
+        if len(fn.__annotations__) == 0:
+            argType = None
+        else:
+            argType = list(fn.__annotations__.values())[0]
+
         path = longName.split("/")
         parent = commands
         for p in path[:-1]:
@@ -108,6 +222,7 @@ def command(shortName: Optional[str], longName: str, helpText: str):
             helpText,
             Path(calframe[1].filename).parent != Path(__file__).parent,
             fn,
+            argType
         )
 
         return fn
@@ -119,7 +234,7 @@ def command(shortName: Optional[str], longName: str, helpText: str):
 
 
 @command("u", "usage", "Show usage information")
-def usage(args: Optional[Args] = None):
+def usage():
     print(f"Usage: {const.ARGV0} <command> [args...]")
 
 
@@ -150,7 +265,7 @@ def ask(msg: str, default: Optional[bool] = None) -> bool:
 
 
 @command("h", "help", "Show this help message")
-def helpCmd(args: Args):
+def helpCmd():
     usage()
 
     print()
@@ -195,23 +310,21 @@ def helpCmd(args: Args):
 
 
 @command("v", "version", "Show current version")
-def versionCmd(args: Args):
+def versionCmd():
     print(f"CuteKit v{const.VERSION_STR}")
 
 
-def exec(args: Args, cmds=commands):
-    cmd = args.consumeArg()
-
-    if cmd is None:
-        raise RuntimeError("No command specified")
-
+def exec(cmd: str, args: list[str], cmds: dict[str, Command]=commands):
     for c in cmds.values():
         if c.shortName == cmd or c.longName == cmd:
             if len(c.subcommands) > 0:
-                exec(args, c.subcommands)
+                exec(args[0], args[1:], c.subcommands)
                 return
             else:
-                c.callback(args)
+                if c.argType is not None:
+                    c.callback(parse(args[1:], c.argType)) # type: ignore
+                else:
+                    c.callback() # type: ignore 
                 return
 
     raise RuntimeError(f"Unknown command {cmd}")

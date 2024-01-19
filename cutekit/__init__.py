@@ -55,13 +55,13 @@ def setupLogger(verbose: bool):
 def main() -> int:
     try:
         shell.mkdir(const.GLOBAL_CK_DIR)
-        args = cli.parse(sys.argv[1:])
-        setupLogger(args.consumeOpt("verbose", False) is True)
+        args = cli.parse(sys.argv[1:], cli.CutekitArgs)
+        setupLogger(args.verbose)
 
         const.setup()
         plugins.setup(args)
-        pods.setup(args)
-        cli.exec(args)
+        pods.setup(args, sys.argv[1:])
+        cli.exec(args.cmd, sys.argv[1:])
 
         return 0
     except RuntimeError as e:
