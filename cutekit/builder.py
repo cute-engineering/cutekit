@@ -3,6 +3,7 @@ import logging
 import dataclasses as dt
 
 from pathlib import Path
+import sys
 from typing import Callable, Literal, TextIO, Union
 
 from . import shell, rules, model, ninja, const, cli
@@ -355,7 +356,7 @@ def runCmd(args: cli.Args):
     debug = args.consumeOpt("debug", False) is True
     profile = args.consumeOpt("profile", False) is True
     wait = args.consumeOpt("wait", False) is True
-    debugger = args.consumeOpt("debugger", "lldb")
+    debugger = str(args.consumeOpt("debugger", "lldb"))
     componentSpec = args.consumeArg() or "__main__"
     scope = TargetScope.use(args, {"debug": debug})
 
@@ -371,17 +372,14 @@ def runCmd(args: cli.Args):
     os.environ["CK_BUILDDIR"] = product.target.builddir
     os.environ["CK_COMPONENT"] = product.component.id
 
-    try:
-        command = [str(product.path), *args.extra]
+    command = [str(product.path), *args.extra]
 
-        if debug:
-            shell.debug(command, debugger=debugger, wait=wait)
-        elif profile:
-            shell.profile(command)
-        else:
-            shell.exec(*command)
-    except Exception as e:
-        cli.error(e)
+    if debug:
+        shell.debug(command, debugger=debugger, wait=wait)
+    elif profile:
+        shell.profile(command)
+    else:
+        shell.exec(*command)
 
 
 @cli.command("t", "builder/test", "Run all test targets")
