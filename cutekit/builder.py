@@ -112,7 +112,10 @@ def _computeCdef(scope: TargetScope) -> str:
     res = set()
 
     def sanatize(s: str) -> str:
-        return s.lower().replace(" ", "_").replace("-", "_").replace(".", "_")
+        TO_REPLACE = [" ", "-", "."]  # -> "_"
+        for r in TO_REPLACE:
+            s = s.replace(r, "_")
+        return "".join(filter(lambda c: c.isalnum() or c == "_", s))
 
     for k, v in scope.target.props.items():
         if isinstance(v, bool):
