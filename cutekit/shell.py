@@ -209,7 +209,7 @@ def debug(cmd: list[str], debugger: str = "lldb", wait: bool = False):
 
 def _profileCpu(cmd: list[str], rate=1000):
     mkdir(const.TMP_DIR)
-    perfFile = f"{const.TMP_DIR}/perf.data"
+    perfFile = f"{const.TMP_DIR}/cpu-profile.data"
     try:
         exec(
             "perf",
@@ -241,7 +241,8 @@ def _profileCpu(cmd: list[str], rate=1000):
 
 
 def _profileMem(cmd: list[str]):
-    exec("heaptrack", *cmd)
+    perfFile = f"{const.TMP_DIR}/mem-profile.data"
+    exec("heaptrack", "-o", perfFile, *cmd)
 
 
 def profile(cmd: list[str], rate=1000, what: Literal["cpu", "mem"] = "cpu"):
