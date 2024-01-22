@@ -207,13 +207,15 @@ def debug(cmd: list[str], debugger: str = "lldb", wait: bool = False):
         raise RuntimeError(f"Unknown debugger {debugger}")
 
 
-def profile(cmd: list[str]):
+def profile(cmd: list[str], rate=1000):
     mkdir(const.TMP_DIR)
     perfFile = f"{const.TMP_DIR}/perf.data"
     try:
         exec(
             "perf",
             "record",
+            "-F",
+            str(rate),
             "-g",
             "-o",
             perfFile,
