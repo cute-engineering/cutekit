@@ -357,9 +357,13 @@ def _(args: cli.Args):
 @cli.command("r", "builder/run", "Run a component")
 def runCmd(args: cli.Args):
     debug = args.consumeOpt("debug", False) is True
-    profile = args.consumeOpt("profile", False) is True
     wait = args.consumeOpt("wait", False) is True
     debugger = str(args.consumeOpt("debugger", "lldb"))
+
+    profile = args.consumeOpt("profile", False) is True
+    what = str(args.consumeOpt("what", "cpu"))
+    rate = int(args.consumeOpt("rate", 1000))
+
     componentSpec = args.consumeArg() or "__main__"
     scope = TargetScope.use(args, {"debug": debug})
 
@@ -380,7 +384,7 @@ def runCmd(args: cli.Args):
     if debug:
         shell.debug(command, debugger=debugger, wait=wait)
     elif profile:
-        shell.profile(command)
+        shell.profile(command, what=what, rate=rate)
     else:
         shell.exec(*command)
 
