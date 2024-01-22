@@ -13,7 +13,7 @@ import tempfile
 import dataclasses as dt
 
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 from . import const, cli
 
 _logger = logging.getLogger(__name__)
@@ -207,7 +207,7 @@ def debug(cmd: list[str], debugger: str = "lldb", wait: bool = False):
         raise RuntimeError(f"Unknown debugger {debugger}")
 
 
-def profile(cmd: list[str], rate=1000):
+def _profileCpu(cmd: list[str], rate=1000):
     mkdir(const.TMP_DIR)
     perfFile = f"{const.TMP_DIR}/perf.data"
     try:
@@ -238,6 +238,19 @@ def profile(cmd: list[str], rate=1000):
         raise e
 
     rmrf(perfFile)
+
+
+def _profileMem(cmd: list[str]):
+    exec("heaptrack", *cmd)
+
+
+def profile(cmd: list[str], rate=1000, what: Literal["cpu", "mem"] = "cpu"):
+    if what == "cpu":
+        _profileCpu(cmd, rate)
+    elif what == "mem":
+        _profileMem(cmd)
+    else:
+        raise RuntimeError(f"Unknown profile type {what}")
 
 
 def readdir(path: str) -> list[str]:
@@ -406,7 +419,7 @@ def _(args: cli.Args):
     wait = args.consumeOpt("wait", False) is True
     debugger = args.consumeOpt("debugger", "lldb")
     command = [str(args.consumeArg()), *args.extra]
-    debug(command, debugger=debugger, wait=wait)
+    debug(command, debugger=str(debugger), wait=wait)
 
 
 @cli.command("p", "profile", "Profile a program")
