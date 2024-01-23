@@ -31,6 +31,9 @@
 
 To install Cutekit, you may use your favourite package manager if it is available. Or you can install it manually by following the instructions below.
 
+
+### By using pip
+
 ```bash
 $ git clone https://github.com/cute-engineering/cutekit
 
@@ -41,6 +44,46 @@ $ cd cutekit
 
 $ pip install --user -e .
 ```
+
+### By using Nix
+
+```bash
+$ git clone https://github.com/cute-engineering/cutekit
+
+$ cd cutekit
+
+# If you want to use the latest version of Cutekit, you can switch to the dev branch.
+# $ git switch dev
+
+$ nix shell ./meta/nix
+```
+
+Or you can also use Cutekit in your flakes. For example:
+
+```nix
+{
+  description = "Hello cutekit";
+  inputs = {
+    # If you want to use the latest version of Cutekit, you can specify the dev branch.
+    # cutekit.url = "github:cute-engineering/cutekit/dev?dir=meta/nix";
+    cutekit.url = "github:cute-engineering/cutekit?dir=meta/nix";
+    nixpkgs.url = "nixpkgs/nixos-23.11";
+  };
+
+  outputs = {self, nixpkgs, cutekit, ... }:
+    let
+      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      ck = cutekit.defaultPackage.x86_64-linux;
+    in {
+      devShells.x86_64-linux.default = pkgs.mkShell {
+        packages = with pkgs; [
+          ck
+        ];
+      };
+    };
+}
+```
+
 
 ## Quick-start
 
