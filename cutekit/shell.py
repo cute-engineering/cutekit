@@ -22,6 +22,7 @@ _logger = logging.getLogger(__name__)
 @dt.dataclass
 class Uname:
     sysname: str
+    distrib: str
     nodename: str
     release: str
     version: str
@@ -30,7 +31,13 @@ class Uname:
 
 def uname() -> Uname:
     un = platform.uname()
-    result = Uname(un.system, un.node, un.release, un.version, un.machine)
+    
+    if hasattr(platform, "freedesktop_os_release"):
+        distrib = platform.freedesktop_os_release()
+    else:
+        distrib = {"NAME": "Unknown"}
+
+    result = Uname(un.system, distrib['NAME'], un.node, un.release, un.version, un.machine)
 
     match result.machine:
         case "aarch64":
@@ -315,6 +322,12 @@ def latest(cmd: str) -> str:
 
     if cmd in LATEST_CACHE:
         return LATEST_CACHE[cmd]
+
+    if "IN_NIX_SHELL" in os.environ:
+        # By default, NixOS symlinks tools automatically
+        # to their latest version. Also, if the user uses
+        # clang-xx, the std libraries will not be accessible.
+        return cmd
 
     _logger.debug(f"Finding latest version of {cmd}")
 
