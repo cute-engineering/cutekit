@@ -25,8 +25,12 @@
             graphviz
           ];
         };
-      in {
+      in
+      {
         package.ck = ck;
         defaultPackage = self.package.${system}.ck;
+        devShell = pkgs.mkShell {
+          buildInputs = [ ck ];
+        };
       });
 }
