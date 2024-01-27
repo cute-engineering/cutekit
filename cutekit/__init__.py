@@ -55,7 +55,8 @@ def setupLogger(verbose: bool):
 def main() -> int:
     try:
         shell.mkdir(const.GLOBAL_CK_DIR)
-        args = cli.parse(sys.argv[1:])
+        extraArgs = os.environ.get("CK_EXTRA_ARGS", None)
+        args = cli.parse((extraArgs.split(" ") if extraArgs else []) + sys.argv[1:])
         setupLogger(args.consumeOpt("verbose", False) is True)
 
         const.setup()
