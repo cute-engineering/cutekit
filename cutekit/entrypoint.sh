@@ -6,7 +6,11 @@
 set -e
 
 if [ -z "$CUTEKIT_PYTHON" ]; then
-    export CUTEKIT_PYTHON="python3.11"
+    if command -v python3.11 &> /dev/null; then
+        export CUTEKIT_PYTHON="python3.11"
+    else
+        export CUTEKIT_PYTHON="python3"
+    fi
 fi
 
 if [ ! -d "/tools/venv" ]; then

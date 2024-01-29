@@ -71,7 +71,7 @@ IMAGES: dict[str, Image] = {
         "fedora:39",
         [
             "dnf update -y",
-            "dnf install -y python3 python3-pip python3-venv ninja-build make automake gcc gcc-c++ kernel-devel",
+            "dnf install -y python3 python3-pip ninja-build make automake gcc gcc-c++ kernel-devel",
         ],
     ),
 }
