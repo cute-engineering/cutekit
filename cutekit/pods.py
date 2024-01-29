@@ -94,6 +94,9 @@ def setup(args: cli.Args):
     model.Project.ensure()
     print(f"Reincarnating into pod '{pod[len(podPrefix) :]}'...")
     try:
+        strippedArgsV = list(sys.argv[1])
+        strippedArgsV = [arg for arg in strippedArgsV if not arg.startswith("--pod=")]
+
         shell.exec(
             "docker",
             "exec",
@@ -103,7 +106,7 @@ def setup(args: cli.Args):
             pod,
             "/tools/cutekit/entrypoint.sh",
             "--reincarnated",
-            *args.args,
+            *strippedArgsV,
         )
         sys.exit(0)
     except Exception:
