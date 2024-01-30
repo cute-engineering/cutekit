@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 from typing import Callable, Literal, TextIO, Union
 
-from . import shell, rules, model, ninja, const, cli
+from . import shell, rules, model, ninja, const, cli, vt100
 
 _logger = logging.getLogger(__name__)
 
@@ -157,7 +157,16 @@ def compile(
         rel = Path(src).relative_to(scope.component.dirname())
         dest = buildpath(scope, path="__obj__") / rel.with_suffix(rel.suffix + ".o")
         t = scope.target.tools[rule]
-        w.build(str(dest), rule, inputs=src, order_only=t.files)
+        w.build(
+            str(dest),
+            rule,
+            inputs=src,
+            order_only=t.files,
+            variables={
+                "ck_target": scope.target.id,
+                "ck_component": scope.component.id,
+            },
+        )
         res.append(str(dest))
     return res
 
@@ -185,7 +194,15 @@ def compileRes(
     for r in listRes(scope.component):
         rel = Path(r).relative_to(scope.component.subpath("res"))
         dest = buildpath(scope, "__res__") / rel
-        w.build(str(dest), "cp", r)
+        w.build(
+            str(dest),
+            "cp",
+            r,
+            variables={
+                "ck_target": scope.target.id,
+                "ck_component": scope.component.id,
+            },
+        )
         res.append(str(dest))
     return res
 
@@ -242,7 +259,16 @@ def link(
     res = compileRes(w, scope)
     objs = compileObjs(w, scope)
     if scope.component.type == model.Kind.LIB:
-        w.build(out, "ar", objs, implicit=res)
+        w.build(
+            out,
+            "ar",
+            objs,
+            implicit=res,
+            variables={
+                "ck_target": scope.target.id,
+                "ck_component": scope.component.id,
+            },
+        )
     else:
         wholeLibs = collectInjectedLibs(scope)
         libs = collectLibs(scope)
@@ -254,6 +280,8 @@ def link(
                 "objs": " ".join(objs),
                 "wholeLibs": " ".join(wholeLibs),
                 "libs": " ".join(libs),
+                "ck_target": scope.target.id,
+                "ck_component": scope.component.id,
             },
             implicit=res,
         )
@@ -308,6 +336,7 @@ def gen(out: TextIO, scope: TargetScope):
         w.rule(
             i,
             f"{tool.cmd} {(tool.rule or rule.rule).replace('$flags',f'${i}flags')}",
+            description=f"{vt100.BLUE}$ck_target{vt100.RESET}/{vt100.CYAN}$ck_component{vt100.RESET}: {vt100.YELLOW}{i} {vt100.FAINT + vt100.WHITE}$out...{vt100.RESET}",
             depfile=rule.deps,
         )
         w.newline()
