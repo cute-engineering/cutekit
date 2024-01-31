@@ -31,13 +31,15 @@ class Uname:
 
 def uname() -> Uname:
     un = platform.uname()
-    
+
     if hasattr(platform, "freedesktop_os_release"):
         distrib = platform.freedesktop_os_release()
     else:
         distrib = {"NAME": "Unknown"}
 
-    result = Uname(un.system, distrib['NAME'], un.node, un.release, un.version, un.machine)
+    result = Uname(
+        un.system, distrib["NAME"], un.node, un.release, un.version, un.machine
+    )
 
     match result.machine:
         case "aarch64":
@@ -65,7 +67,7 @@ def find(
     if isinstance(path, list):
         for p in path:
             result += find(p, wildcards, recusive)
-        return result
+        return sorted(result)
 
     if not os.path.isdir(path):
         return []
@@ -90,7 +92,8 @@ def find(
                         result.append(os.path.join(path, f))
                         break
 
-    return result
+    # sort for reproducibility
+    return sorted(result)
 
 
 def mkdir(path: str) -> str:

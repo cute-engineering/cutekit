@@ -94,7 +94,7 @@ def setup(args: cli.Args):
     model.Project.ensure()
     print(f"Reincarnating into pod '{pod[len(podPrefix) :]}'...")
     try:
-        strippedArgsV = list(sys.argv[1])
+        strippedArgsV = list(sys.argv[1:])
         strippedArgsV = [arg for arg in strippedArgsV if not arg.startswith("--pod=")]
 
         shell.exec(
@@ -148,7 +148,7 @@ def _(args: cli.Args):
     except docker.errors.NotFound:
         pass
 
-    print(f"Staring pod '{name[len(podPrefix) :]}'...")
+    print(f"Starting pod '{name[len(podPrefix) :]}'...")
 
     container = client.containers.run(
         image.image,
@@ -180,10 +180,20 @@ def _(args: cli.Args):
 def _(args: cli.Args):
     client = docker.from_env()
     name = str(args.consumeOpt("name", defaultPodName))
+    all = args.consumeOpt("all", False) is True
     if not name.startswith(podPrefix):
         name = f"{podPrefix}{name}"
 
     try:
+        if all:
+            for container in client.containers.list(all=True):
+                if not container.name.startswith(podPrefix):
+                    continue
+                container.stop()
+                container.remove()
+                print(f"Pod '{container.name[len(podPrefix) :]}' killed")
+            return
+
         container = client.containers.get(name)
         container.stop()
         container.remove()
