@@ -102,7 +102,7 @@ def setup(args: cli.Args):
             "exec",
             "-w",
             projectRoot,
-            "-it",
+            "-i",
             pod,
             "/tools/cutekit/entrypoint.sh",
             "--reincarnated",
