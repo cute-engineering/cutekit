@@ -29,8 +29,8 @@ class Pod:
 
 
 IMAGES: dict[str, Image] = {
-    "ubuntu": Image(
-        "ubuntu",
+    "ubuntu-jammy": Image(
+        "ubuntu-jammy",
         "ubuntu",
         "ubuntu:jammy",
         [
@@ -38,8 +38,8 @@ IMAGES: dict[str, Image] = {
             "apt-get install -y python3.11 python3.11-venv ninja-build build-essential",
         ],
     ),
-    "debian": Image(
-        "debian",
+    "debian-bookworm": Image(
+        "debian-bookworm",
         "debian",
         "debian:bookworm",
         [
@@ -47,8 +47,8 @@ IMAGES: dict[str, Image] = {
             "apt-get install -y python3 python3-pip python3-venv ninja-build build-essential",
         ],
     ),
-    "alpine": Image(
-        "alpine",
+    "alpine-3.18": Image(
+        "alpine-3.18",
         "alpine",
         "alpine:3.18",
         [
@@ -65,8 +65,8 @@ IMAGES: dict[str, Image] = {
             "pacman -S --noconfirm python python-pip python-virtualenv ninja base-devel",
         ],
     ),
-    "fedora": Image(
-        "fedora",
+    "fedora-39": Image(
+        "fedora-39",
         "fedora",
         "fedora:39",
         [
