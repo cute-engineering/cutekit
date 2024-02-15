@@ -56,5 +56,5 @@ class PluginsArgs:
 
 
 def setup(args: PluginsArgs):
-    if args.safemod:
+    if not args.safemod:
         loadAll()

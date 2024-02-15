@@ -467,8 +467,11 @@ def _(args: _ProfileArgs):
     profile(args.fullCmd(), rate=args.rate, what=args.what)
 
 
-class CompresseArgs:
+class CompressFormatArg:
     format: str = cli.arg(None, "format", "The compression format", default="zstd")
+
+
+class CompresseArgs(CompressFormatArg):
     dest: Optional[str] = cli.arg(None, "dest", "The destination file or directory")
     path: str = cli.operand("path", "The file or directory to compress")
 

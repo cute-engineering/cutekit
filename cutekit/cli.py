@@ -383,8 +383,8 @@ def arg(
     return Field(FieldKind.FLAG, shortName, longName, description, default)
 
 
-def operand(longName: str = "", description: str = "") -> Any:
-    return Field(FieldKind.OPERAND, None, longName, description)
+def operand(longName: str = "", description: str = "", default: Any = None) -> Any:
+    return Field(FieldKind.OPERAND, None, longName, description, default)
 
 
 def extra(longName: str = "", description: str = "") -> Any:
@@ -475,8 +475,14 @@ class Schema:
                 return arg
         raise ValueError(f"Unknown argument '{key}'")
 
-    def _setOperand(self, tok: OperandToken):
-        return
+    def _setOperand(self, obj: Any, value: Any):
+        if len(self.operands) == 0:
+            raise ValueError(f"Unexpected operand '{value}'")
+
+        for operand in self.operands:
+            if operand.getAttr(obj) is None or operand.isList():
+                operand.putValue(obj, value)
+                return
 
     def _instanciate(self) -> Any:
         if self.typ is None:
@@ -484,6 +490,16 @@ class Schema:
         res = self.typ()
         for arg in self.args:
             arg.setDefault(res)
+
+        for operand in self.operands:
+            if operand.isList():
+                setattr(res, operand._fieldName, [])
+            else:
+                setattr(res, operand._fieldName, None)
+
+        if self.extras:
+            self.extras.setDefault(res)
+
         return res
 
     def parse(self, args: list[str]) -> Any:
@@ -499,7 +515,7 @@ class Schema:
             if stack[0] == "--":
                 if not self.extras:
                     raise ValueError("Unexpected '--'")
-                self._setExtra(res, stack.pop(0))
+                self.extras.putValue(res, stack[1:])
                 break
 
             toks = parseArg(stack.pop(0))
@@ -508,7 +524,7 @@ class Schema:
                     arg = self._lookupArg(tok.key, tok.short)
                     arg.putValue(res, tok.value, tok.subkey)
                 elif isinstance(tok, OperandToken):
-                    self._setOperand(tok)
+                    self._setOperand(res, tok.value)
                 else:
                     raise ValueError(f"Unexpected token: {type(tok)}")
 
@@ -634,10 +650,14 @@ class Command:
                     self.callable()
 
             if self.subcommands:
-                if len(rest) == 0 and not self.populated:
-                    raise ValueError("Expected subcommand")
+                if len(rest) > 0:
+                    if not self.populated:
+                        raise ValueError("Expected subcommand")
+                    else:
+                        self.lookupSubcommand(rest[0]).eval(rest)
                 else:
-                    self.lookupSubcommand(rest[0]).eval(rest)
+                    print("Usage: " + cmd + self.usage(), end="\n\n")
+                    return
             elif len(rest) > 0:
                 raise ValueError(f"Unknown operand '{rest[0]}'")
 

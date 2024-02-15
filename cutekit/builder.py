@@ -389,7 +389,7 @@ def _():
 
 
 class BuildArgs(model.TargetArgs):
-    component: str = cli.operand("component", "Component to build")
+    component: str = cli.operand("component", "Component to build", default="__main__")
 
 
 @cli.command("b", "builder/build", "Build a component or all components")
@@ -409,16 +409,14 @@ class RunArgs(BuildArgs, shell.DebugArgs, shell.ProfileArgs):
 
 @cli.command("r", "builder/run", "Run a component")
 def runCmd(args: RunArgs):
-    componentSpec = args.consumeArg() or "__main__"
-
     args.props |= {"debug": args.debug}
     scope = TargetScope.use(args)
 
     component = scope.registry.lookup(
-        componentSpec, model.Component, includeProvides=True
+        args.component, model.Component, includeProvides=True
     )
     if component is None:
-        raise RuntimeError(f"Component {componentSpec} not found")
+        raise RuntimeError(f"Component {args.component} not found")
 
     product = build(scope, component)[0]
 
