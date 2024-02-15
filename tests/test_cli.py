@@ -211,15 +211,6 @@ def test_cli_arg_dict_str():
     )
 
 
-class StrOptArg:
-    value: str | None = cli.arg(None, "value")
-
-
-def test_cli_arg_str_opt():
-    assert_equal(extractParse(StrOptArg, []).value, None)
-    assert_equal(extractParse(StrOptArg, ["--value=foo"]).value, "foo")
-
-
 class FooArg:
     foo: str = cli.arg(None, "foo")
 
@@ -237,3 +228,37 @@ def test_cli_arg_inheritance():
     assert_equal(res.foo, "foo")
     assert_equal(res.bar, "bar")
     assert_equal(res.baz, "baz")
+
+
+class ExtraArg:
+    value: str = cli.arg(None, "value")
+    extra: list[str] = cli.extra("extra")
+
+
+def test_cli_extra_args():
+    res = extractParse(ExtraArg, ["--value=foo", "--", "bar", "baz"])
+    assert_equal(res.value, "foo")
+    assert_equal(res.extra, ["bar", "baz"])
+
+
+class StrOperandArg:
+    value: str = cli.operand(None, "value")
+
+
+def test_cli_operand_args():
+    res = extractParse(StrOperandArg, ["foo"])
+    assert_equal(res.value, "foo")
+
+
+class ListOperandArg:
+    value: list[str] = cli.operand(None, "value")
+
+
+def test_cli_operand_list_args():
+    res = extractParse(ListOperandArg, ["foo", "bar"])
+    assert_equal(res.value, ["foo", "bar"])
+
+
+def test_cli_operand_list_args_empty():
+    res = extractParse(ListOperandArg, [])
+    assert_equal(res.value, [])
