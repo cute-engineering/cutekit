@@ -1,3 +1,7 @@
+import sys
+from typing import Optional
+
+
 BLACK = "\033[30m"
 RED = "\033[31m"
 GREEN = "\033[32m"
@@ -48,8 +52,38 @@ def indent(text: str, indent: int = 4) -> str:
 
 
 def title(text: str):
-    print(f"{BOLD}{text}{RESET}:")
+    print(f"{BOLD+WHITE+UNDERLINE}{text}{RESET}")
+
+
+def subtitle(text: str):
+    print(f"{BOLD+WHITE}{text}{RESET}:")
 
 
 def p(text: str):
     return indent(wordwrap(text))
+
+
+def error(msg: str) -> None:
+    print(f"{RED}Error:{RESET} {msg}\n", file=sys.stderr)
+
+
+def warning(msg: str) -> None:
+    print(f"{YELLOW}Warning:{RESET} {msg}\n", file=sys.stderr)
+
+
+def ask(msg: str, default: Optional[bool] = None) -> bool:
+    if default is None:
+        msg = f"{msg} [y/n] "
+    elif default:
+        msg = f"{msg} [Y/n] "
+    else:
+        msg = f"{msg} [y/N] "
+
+    while True:
+        result = input(msg).lower()
+        if result in ("y", "yes"):
+            return True
+        elif result in ("n", "no"):
+            return False
+        elif result == "" and default is not None:
+            return default

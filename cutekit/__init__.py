@@ -2,11 +2,12 @@ import sys
 import os
 import logging
 
+from pathlib import Path
+
 from . import (
-    builder,  # noqa: F401 this is imported for side effects
-    cli,
+    builder,
+    cli,  # noqa: F401 this is imported for side effects
     const,
-    graph,  # noqa: F401 this is imported for side effects
     model,
     plugins,
     pods,  # noqa: F401 this is imported for side effects
@@ -28,48 +29,75 @@ def ensure(version: tuple[int, int, int]):
     )
 
 
-def setupLogger(verbose: bool):
-    if verbose:
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format=f"{vt100.CYAN}%(asctime)s{vt100.RESET} {vt100.YELLOW}%(levelname)s{vt100.RESET} %(name)s: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-    else:
-        projectRoot = model.Project.topmost()
-        logFile = const.GLOBAL_LOG_FILE
-        if projectRoot is not None:
-            logFile = os.path.join(projectRoot.dirname(), const.PROJECT_LOG_FILE)
+class logger:
+    class LoggerArgs:
+        verbose: bool = cli.arg(None, "verbose", "Enable verbose logging")
 
-        shell.mkdir(os.path.dirname(logFile))
+    @staticmethod
+    def setup(args: LoggerArgs):
+        if args.verbose:
+            logging.basicConfig(
+                level=logging.DEBUG,
+                format=f"{vt100.CYAN}%(asctime)s{vt100.RESET} {vt100.YELLOW}%(levelname)s{vt100.RESET} %(name)s: %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+        else:
+            projectRoot = model.Project.topmost()
+            logFile = const.GLOBAL_LOG_FILE
+            if projectRoot is not None:
+                logFile = os.path.join(projectRoot.dirname(), const.PROJECT_LOG_FILE)
 
-        logging.basicConfig(
-            level=logging.INFO,
-            filename=logFile,
-            filemode="w",
-            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
+            shell.mkdir(os.path.dirname(logFile))
+
+            logging.basicConfig(
+                level=logging.INFO,
+                filename=logFile,
+                filemode="w",
+                format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+
+
+class RootArgs(
+    plugins.PluginsArgs,
+    pods.PodSetupArgs,
+    logger.LoggerArgs,
+):
+    pass
+
+
+@cli.command(None, "/", const.DESCRIPTION)
+def _(args: RootArgs):
+    const.setup()
+    logger.setup(args)
+    plugins.setup(args)
+    pods.setup(args)
+
+
+@cli.command("u", "usage", "Show usage information")
+def _():
+    print(f"Usage: {const.ARGV0} <command> [args...]")
+
+
+@cli.command("v", "version", "Show current version")
+def _():
+    print(f"CuteKit v{const.VERSION_STR}")
 
 
 def main() -> int:
     try:
         shell.mkdir(const.GLOBAL_CK_DIR)
-        extraArgs = os.environ.get("CK_EXTRA_ARGS", None)
-        args = cli.parse((extraArgs.split(" ") if extraArgs else []) + sys.argv[1:])
-        setupLogger(args.consumeOpt("verbose", False) is True)
-
-        const.setup()
-        plugins.setup(args)
-        pods.setup(args)
-        cli.exec(args)
-
+        extra = os.environ.get("CK_EXTRA_ARGS", None)
+        args = [const.ARGV0] + (extra.split(" ") if extra else []) + sys.argv[1:]
+        cli._root.eval(args)
         return 0
+
     except RuntimeError as e:
         logging.exception(e)
-        cli.error(str(e))
+        vt100.error(str(e))
         cli.usage()
+        return 1
+
     except KeyboardInterrupt:
         print()
-
-    return 1
+        return 1

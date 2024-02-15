@@ -11,6 +11,6 @@ For example you can add a new command to the CLI:
 from cutekit import cli
 
 @cli.command("h", "hello", "Print hello world")
-def _(args: cli.Args) -> None:
+def _() -> None:
     print("Hello world!")
 ```
