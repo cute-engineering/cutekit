@@ -14,7 +14,7 @@ import dataclasses as dt
 
 from pathlib import Path
 from typing import Literal, Optional
-from . import const, cli
+from . import cli, const
 
 _logger = logging.getLogger(__name__)
 
@@ -426,28 +426,53 @@ def compress(path: str, dest: Optional[str] = None, format: str = "zstd") -> str
 # --- Commands --------------------------------------------------------------- #
 
 
-@cli.command("s", "scripts", "Manage scripts")
-def _(args: cli.Args):
+@cli.command("s", "shell", "Shell like commands")
+def _():
     pass
 
 
-@cli.command("d", "debug", "Debug a program")
-def _(args: cli.Args):
-    wait = args.consumeOpt("wait", False) is True
-    debugger = args.consumeOpt("debugger", "lldb")
-    command = [str(args.consumeArg()), *args.extra]
-    debug(command, debugger=str(debugger), wait=wait)
+class CommandArgs:
+    cmd: str = cli.operand("command", "The command to debug")
+    args: list[str] = cli.extra("args", "The arguments to pass to the command")
+
+    def fullCmd(self) -> list[str]:
+        return [self.cmd, *self.args]
 
 
-@cli.command("p", "profile", "Profile a program")
-def _(args: cli.Args):
-    command = [str(args.consumeArg()), *args.extra]
-    profile(command)
+class DebugArgs:
+    wait: bool = cli.arg(None, "wait", "Wait for the debugger to attach")
+    debbuger: str = cli.arg(None, "debugger", "The debugger to use", default="lldb")
 
 
-@cli.command("c", "compress", "Compress a file or directory")
-def _(args: cli.Args):
-    path = str(args.consumeArg())
-    dest = args.consumeOpt("dest", None)
-    format = args.consumeOpt("format", "zstd")
-    compress(path, dest, format)
+class _DebugArgs(DebugArgs, CommandArgs):
+    pass
+
+
+@cli.command("d", "shell/debug", "Debug a program")
+def _(args: _DebugArgs):
+    debug(args.fullCmd(), debugger=str(args.debugger), wait=args.wait)
+
+
+class ProfileArgs:
+    rate: int = cli.arg(None, "rate", "The sampling rate", default=1000)
+    what: str = cli.arg(None, "what", "What to profile (cpu or mem)", default="cpu")
+
+
+class _ProfileArgs(ProfileArgs, CommandArgs):
+    pass
+
+
+@cli.command("p", "shell/profile", "Profile a program")
+def _(args: _ProfileArgs):
+    profile(args.fullCmd(), rate=args.rate, what=args.what)
+
+
+class CompresseArgs:
+    format: str = cli.arg(None, "format", "The compression format", default="zstd")
+    dest: Optional[str] = cli.arg(None, "dest", "The destination file or directory")
+    path: str = cli.operand("path", "The file or directory to compress")
+
+
+@cli.command("c", "shell/compress", "Compress a file or directory")
+def _(args: CompresseArgs):
+    compress(args.path, dest=args.dest, format=args.format)

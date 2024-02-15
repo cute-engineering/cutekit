@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 
-from . import shell, model, const, cli
+from . import cli, shell, model, const, vt100
 
 import importlib.util as importlib
 
@@ -24,7 +24,7 @@ def load(path: str):
         spec.loader.exec_module(module)
     except Exception as e:
         _logger.error(f"Failed to load plugin {path}: {e}")
-        cli.warning(f"Plugin {path} loading skipped due to error")
+        vt100.warning(f"Plugin {path} loading skipped due to error")
 
 
 def loadAll():
@@ -51,6 +51,10 @@ def loadAll():
                     load(os.path.join(pluginDir, files))
 
 
-def setup(args: cli.Args):
-    if not bool(args.consumeOpt("safemode", False)):
+class PluginsArgs:
+    safemod: bool = cli.arg(None, "safemode", "disable plugin loading")
+
+
+def setup(args: PluginsArgs):
+    if args.safemod:
         loadAll()

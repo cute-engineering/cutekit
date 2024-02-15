@@ -77,16 +77,42 @@ IMAGES: dict[str, Image] = {
 }
 
 
-def setup(args: cli.Args):
+class PodSetupArgs:
+    pod: str | bool | None = cli.arg(
+        None, "pod", "Reincarnate cutekit within the specified pod"
+    )
+
+
+class PodNameArg:
+    name: str = cli.arg(None, "name", "Name of the pod")
+
+
+class PodImageArg:
+    image: str = cli.arg(None, "image", "Base image to use for the pod")
+
+
+class PodCreateArgs(PodNameArg, PodImageArg):
+    pass
+
+
+class PodKillArgs(PodNameArg):
+    all: bool = cli.arg("a", "all", "Kill all pods")
+
+
+class PodExecArgs(PodNameArg):
+    cmd: str = cli.operand("cmd", "Command to execute")
+    args: list[str] = cli.extra("args", "Extra arguments to pass to the command")
+
+
+def setup(args: PodSetupArgs):
     """
     Reincarnate cutekit within a docker container, this is
     useful for cross-compiling
     """
-    pod = args.consumeOpt("pod", False)
-    if not pod:
+    if not args.pod:
         return
-    if isinstance(pod, str):
-        pod = pod.strip()
+    if isinstance(args.pod, str):
+        pod = args.pod.strip()
         pod = podPrefix + pod
     if pod is True:
         pod = defaultPodName
@@ -114,7 +140,7 @@ def setup(args: cli.Args):
 
 
 @cli.command("p", "pod", "Manage pods")
-def _(args: cli.Args):
+def _():
     pass
 
 
@@ -125,22 +151,22 @@ def tryDecode(data: Optional[bytes], default: str = "") -> str:
 
 
 @cli.command("c", "pod/create", "Create a new pod")
-def _(args: cli.Args):
+def _(args: PodCreateArgs):
     """
     Create a new development pod with cutekit installed and the current
     project mounted at /project
     """
     project = model.Project.ensure()
 
-    name = str(args.consumeOpt("name", defaultPodName))
+    name = args.name
     if not name.startswith(podPrefix):
         name = f"{podPrefix}{name}"
-    image = IMAGES[str(args.consumeOpt("image", defaultPodImage))]
+    image = IMAGES[args.image]
 
     client = docker.from_env()
     try:
         existing = client.containers.get(name)
-        if cli.ask(f"Pod '{name[len(podPrefix):]}' already exists, kill it?", False):
+        if vt100.ask(f"Pod '{name[len(podPrefix):]}' already exists, kill it?", False):
             existing.stop()
             existing.remove()
         else:
@@ -177,10 +203,12 @@ def _(args: cli.Args):
 
 
 @cli.command("k", "pod/kill", "Stop and remove a pod")
-def _(args: cli.Args):
+def _(args: PodKillArgs):
     client = docker.from_env()
-    name = str(args.consumeOpt("name", defaultPodName))
-    all = args.consumeOpt("all", False) is True
+
+    name = args.name
+    all = args.all
+
     if not name.startswith(podPrefix):
         name = f"{podPrefix}{name}"
 
@@ -191,25 +219,19 @@ def _(args: cli.Args):
                     continue
                 container.stop()
                 container.remove()
-                print(f"Pod '{container.name[len(podPrefix) :]}' killed")
+                print(f"Pod '{args.name}' killed")
             return
 
         container = client.containers.get(name)
         container.stop()
         container.remove()
-        print(f"Pod '{name[len(podPrefix) :]}' killed")
+        print(f"Pod '{args.name}' killed")
     except docker.errors.NotFound:
-        raise RuntimeError(f"Pod '{name[len(podPrefix):]}' does not exist")
-
-
-@cli.command("s", "pod/shell", "Open a shell in a pod")
-def _(args: cli.Args):
-    args.args.insert(0, "/bin/bash")
-    podExecCmd(args)
+        raise RuntimeError(f"Pod '{args.name}' does not exist")
 
 
 @cli.command("l", "pod/list", "List all pods")
-def _(args: cli.Args):
+def _():
     client = docker.from_env()
     hasPods = False
     for container in client.containers.list(all=True):
@@ -223,16 +245,13 @@ def _(args: cli.Args):
 
 
 @cli.command("e", "pod/exec", "Execute a command in a pod")
-def podExecCmd(args: cli.Args):
-    name = str(args.consumeOpt("name", defaultPodName))
+def podExecCmd(args: PodExecArgs):
+    name = args.name
+
     if not name.startswith(podPrefix):
         name = f"{podPrefix}{name}"
 
-    cmd = args.consumeArg()
-    if cmd is None:
-        raise RuntimeError("Missing command to execute")
-
     try:
-        shell.exec("docker", "exec", "-it", name, cmd, *args.extra)
+        shell.exec("docker", "exec", "-it", name, args.cmd, *args.args)
     except Exception:
-        raise RuntimeError(f"Pod '{name[len(podPrefix):]}' does not exist")
+        raise RuntimeError(f"Pod '{args.name}' does not exist")

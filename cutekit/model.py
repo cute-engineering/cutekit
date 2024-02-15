@@ -7,11 +7,10 @@ from enum import Enum
 from typing import Any, Generator, Optional, Type, cast
 from pathlib import Path
 from dataclasses_json import DataClassJsonMixin
-from typing import Union
 
 from cutekit import const, shell
 
-from . import jexpr, compat, utils, cli, vt100
+from . import cli, jexpr, compat, utils, vt100
 
 _logger = logging.getLogger(__name__)
 
@@ -171,7 +170,7 @@ class Project(Manifest):
                 Project.fetchs(project.extern)
 
     @staticmethod
-    def use(args: cli.Args) -> "Project":
+    def use() -> "Project":
         global _project
         if _project is None:
             _project = Project.ensure()
@@ -179,29 +178,37 @@ class Project(Manifest):
 
 
 @cli.command("m", "model", "Manage the model")
-def _(args: cli.Args):
+def _():
     pass
 
 
 @cli.command("i", "model/install", "Install required external packages")
-def _(args: cli.Args):
-    project = Project.use(args)
+def _():
+    project = Project.use()
     Project.fetchs(project.extern)
 
 
+class ModelInitArgs:
+    repo: str = cli.arg(
+        None,
+        "repo",
+        "The repository to fetch templates from",
+        default=const.DEFAULT_REPO_TEMPLATES,
+    )
+    list: bool = cli.arg("l", "list", "List available templates")
+    template: str = cli.operand("template", "The template to use")
+    name: str = cli.operand("name", "The name of the project")
+
+
 @cli.command("I", "model/init", "Initialize a new project")
-def _(args: cli.Args):
+def _(args: ModelInitArgs):
     import requests
-
-    repo = args.consumeOpt("repo", const.DEFAULT_REPO_TEMPLATES)
-    list = args.consumeOpt("list")
-
-    template = args.consumeArg()
-    name = args.consumeArg()
 
     _logger.info("Fetching registry...")
 
-    r = requests.get(f"https://raw.githubusercontent.com/{repo}/main/registry.json")
+    r = requests.get(
+        f"https://raw.githubusercontent.com/{args.repo}/main/registry.json"
+    )
 
     if r.status_code != 200:
         _logger.error("Failed to fetch registry")
@@ -209,34 +216,34 @@ def _(args: cli.Args):
 
     registry = r.json()
 
-    if list:
+    if args.list:
         print(
             "\n".join(f"* {entry['id']} - {entry['description']}" for entry in registry)
         )
         return
 
-    if not template:
+    if not args.template:
         raise RuntimeError("Template not specified")
 
     def template_match(t: jexpr.Json) -> str:
-        return t["id"] == template
+        return t["id"] == args.template
 
     if not any(filter(template_match, registry)):
-        raise LookupError(f"Couldn't find a template named {template}")
+        raise LookupError(f"Couldn't find a template named {args.template}")
 
-    if not name:
-        _logger.info(f"No name was provided, defaulting to {template}")
-        name = template
+    if not args.name:
+        _logger.info(f"No name was provided, defaulting to {args.template}")
+        args.name = args.template
 
-    if os.path.exists(name):
-        raise RuntimeError(f"Directory {name} already exists")
+    if os.path.exists(args.name):
+        raise RuntimeError(f"Directory {args.name} already exists")
 
-    print(f"Creating project {name} from template {template}...")
-    shell.cloneDir(f"https://github.com/{repo}", template, name)
-    print(f"Project {name} created\n")
+    print(f"Creating project {args.name} from template {args.template}...")
+    shell.cloneDir(f"https://github.com/{args.repo}", args.template, args.name)
+    print(f"Project {args.name} created\n")
 
     print("We suggest that you begin by typing:")
-    print(f"  {vt100.GREEN}cd {name}{vt100.RESET}")
+    print(f"  {vt100.GREEN}cd {args.name}{vt100.RESET}")
     print(
         f"  {vt100.GREEN}cutekit install{vt100.BRIGHT_BLACK} # Install external packages{vt100.RESET}"
     )
@@ -263,6 +270,17 @@ DEFAULT_TOOLS: Tools = {
 }
 
 
+class RegistryArgs:
+    props: dict[str, str] = cli.arg(None, "prop", "Set a property")
+    mixins: list[str] = cli.arg(None, "mixins", "Apply mixins")
+
+
+class TargetArgs(RegistryArgs):
+    target: str = cli.arg(
+        None, "target", "The target to use", default="host-" + shell.uname().machine
+    )
+
+
 @dt.dataclass
 class Target(Manifest):
     props: Props = dt.field(default_factory=dict)
@@ -287,10 +305,9 @@ class Target(Manifest):
         return os.path.join(const.BUILD_DIR, f"{self.id}{postfix}")
 
     @staticmethod
-    def use(args: cli.Args, props: Props = {}) -> "Target":
-        registry = Registry.use(args, props)
-        targetSpec = str(args.consumeOpt("target", "host-" + shell.uname().machine))
-        return registry.ensure(targetSpec, Target)
+    def use(args: TargetArgs) -> "Target":
+        registry = Registry.use(args)
+        return registry.ensure(args.target, Target)
 
     def route(self, componentSpec: str):
         """
@@ -536,18 +553,14 @@ class Registry(DataClassJsonMixin):
         return m
 
     @staticmethod
-    def use(args: cli.Args, props: Props = {}) -> "Registry":
+    def use(args: RegistryArgs) -> "Registry":
         global _registry
 
         if _registry is not None:
             return _registry
 
-        project = Project.use(args)
-        mixins = str(args.consumeOpt("mixins", "")).split(",")
-        if mixins == [""]:
-            mixins = []
-        props |= cast(dict[str, str], args.consumePrefix("prop:"))
-        _registry = Registry.load(project, mixins, props)
+        project = Project.use()
+        _registry = Registry.load(project, args.mixins, args.props)
         return _registry
 
     @staticmethod
@@ -608,11 +621,11 @@ class Registry(DataClassJsonMixin):
                             )
                         else:
                             victim.resolved[target.id].injected.append(c.id)
-                            victim.resolved[
-                                target.id
-                            ].required = utils.uniqPreserveOrder(
-                                c.resolved[target.id].required
-                                + victim.resolved[target.id].required
+                            victim.resolved[target.id].required = (
+                                utils.uniqPreserveOrder(
+                                    c.resolved[target.id].required
+                                    + victim.resolved[target.id].required
+                                )
                             )
 
             # Resolve tooling
@@ -639,9 +652,8 @@ class Registry(DataClassJsonMixin):
 
 
 @cli.command("l", "model/list", "List all components and targets")
-def _(args: cli.Args):
+def _(args: TargetArgs):
     registry = Registry.use(args)
-
     components = list(registry.iter(Component))
     targets = list(registry.iter(Target))
 
@@ -659,3 +671,103 @@ def _(args: cli.Args):
     else:
         print(vt100.p(", ".join(map(lambda m: m.id, targets))))
     print()
+
+
+def view(
+    registry: Registry,
+    target: Target,
+    scope: Optional[str] = None,
+    showExe: bool = True,
+    showDisabled: bool = False,
+):
+    from graphviz import Digraph  # type: ignore
+
+    g = Digraph(target.id, filename="graph.gv")
+
+    g.attr("graph", splines="ortho", rankdir="BT", ranksep="1.5")
+    g.attr("node", shape="ellipse")
+    g.attr(
+        "graph",
+        label=f"<<B>{scope or 'Full Dependency Graph'}</B><BR/>{target.id}>",
+        labelloc="t",
+    )
+
+    scopeInstance = None
+
+    if scope is not None:
+        scopeInstance = registry.lookup(scope, Component)
+
+    for component in registry.iterEnabled(target):
+        if not component.type == Kind.LIB and not showExe:
+            continue
+
+        if (
+            scopeInstance is not None
+            and component.id != scope
+            and component.id not in scopeInstance.resolved[target.id].required
+        ):
+            continue
+
+        if component.resolved[target.id].enabled:
+            fillcolor = "lightgrey" if component.type == model.Kind.LIB else "lightblue"
+            shape = "plaintext" if not scope == component.id else "box"
+
+            g.node(
+                component.id,
+                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(component.description, 40,newline='<BR/>')}>",
+                shape=shape,
+                style="filled",
+                fillcolor=fillcolor,
+            )
+
+            for req in component.requires:
+                g.edge(component.id, req)
+
+            for req in component.provides:
+                isChosen = target.routing.get(req, None) == component.id
+
+                g.edge(
+                    req,
+                    component.id,
+                    arrowhead="none",
+                    color=("blue" if isChosen else "black"),
+                )
+        elif showDisabled:
+            g.node(
+                component.id,
+                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(component.description, 40,newline='<BR/>')}<BR/><BR/><I>{vt100.wordwrap(str(component.resolved[target.id].reason), 40,newline='<BR/>')}</I>>",
+                shape="plaintext",
+                style="filled",
+                fontcolor="#999999",
+                fillcolor="#eeeeee",
+            )
+
+            for req in component.requires:
+                g.edge(component.id, req, color="#aaaaaa")
+
+            for req in component.provides:
+                g.edge(req, component.id, arrowhead="none", color="#aaaaaa")
+
+    g.view(filename=os.path.join(target.builddir, "graph.gv"))
+
+
+class GraphArgs(TargetArgs):
+    onlyLibs: bool = cli.arg(False, "only-libs", "Show only libraries")
+    showDisabled: bool = cli.arg(False, "show-disabled", "Show disabled components")
+    scope: str = cli.arg(
+        None, "scope", "Show only the specified component and its dependencies"
+    )
+
+
+@cli.command("g", "model/graph", "Show the dependency graph")
+def _(args: GraphArgs):
+    registry = Registry.use(args)
+    target = Target.use(args)
+
+    view(
+        registry,
+        target,
+        scope=args.scope,
+        showExe=not args.onlyLibs,
+        showDisabled=args.showDisabled,
+    )
