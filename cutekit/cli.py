@@ -687,7 +687,7 @@ def _resolvePath(path: list[str]) -> Command:
     return cmd
 
 
-def command(shortName: str, longName: str, description: str = "") -> Callable:
+def command(shortName: Optional[str], longName: str, description: str = "") -> Callable:
     def wrap(fn: Callable):
         schema = Schema.extractFromCallable(fn)
         path = _splitPath(longName)
