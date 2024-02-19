@@ -1,4 +1,5 @@
 import sys
+import logging
 from typing import Optional
 import docker  # type: ignore
 import os
@@ -6,6 +7,7 @@ import dataclasses as dt
 
 from . import cli, model, shell, vt100, const
 
+_logger = logging.getLogger(__name__)
 
 podPrefix = "CK__"
 projectRoot = "/project"
@@ -111,6 +113,7 @@ def setup(args: PodSetupArgs):
     """
     if not args.pod:
         return
+    _logger.info(f"Reincarnating into pod '{args.pod}'...")
     if isinstance(args.pod, str):
         pod = args.pod.strip()
         pod = podPrefix + pod

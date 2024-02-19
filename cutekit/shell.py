@@ -38,7 +38,12 @@ def uname() -> Uname:
         distrib = {"NAME": "Unknown"}
 
     result = Uname(
-        un.system, distrib["NAME"], un.node, un.release, un.version, un.machine
+        un.system,
+        distrib["NAME"],
+        un.node,
+        un.release,
+        un.version,
+        un.machine,
     )
 
     match result.machine:
@@ -48,6 +53,8 @@ def uname() -> Uname:
             result.machine = "x86_64"
         case _:
             pass
+
+    _logger.debug(f"uname: {result}")
 
     return result
 
@@ -128,6 +135,7 @@ def wget(url: str, path: Optional[str] = None) -> str:
         )
 
     if os.path.exists(path):
+        _logger.debug(f"Using cached {path} for {url}")
         return path
 
     _logger.debug(f"Downloading {url} to {path}")
@@ -292,6 +300,8 @@ def cpTree(src: str, dst: str):
 
 
 def cloneDir(url: str, path: str, dest: str) -> str:
+    _logger.debug(f"Cloning {url} to {dest}")
+
     with tempfile.TemporaryDirectory() as tmp:
         mkdir(tmp)
         exec(
@@ -378,7 +388,6 @@ def gzip(path: str, dest: Optional[str] = None) -> str:
     """
     Compress a file or directory
     """
-
     if dest is None:
         dest = path + ".gz"
 
