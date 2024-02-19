@@ -3,7 +3,6 @@ import logging
 import dataclasses as dt
 
 from pathlib import Path
-import sys
 from typing import Callable, Literal, TextIO, Union
 
 from . import cli, shell, rules, model, ninja, const, vt100

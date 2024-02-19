@@ -1,14 +1,16 @@
-import sys
 from enum import Enum
 from types import GenericAlias
 import typing as tp
 import dataclasses as dt
+import logging
 
 from typing import Any, Callable, Optional, Union
 from cutekit import vt100, const
 
 
 T = tp.TypeVar("T")
+
+_logger = logging.getLogger(__name__)
 
 # --- Scan -------------------------------------------------------------- #
 
@@ -542,6 +544,7 @@ class Command:
     callable: Optional[tp.Callable] = None
     subcommands: dict[str, "Command"] = dt.field(default_factory=dict)
     populated: bool = False
+    path: list[str] = dt.field(default_factory=list)
 
     def _spliceArgs(self, args: list[str]) -> tuple[list[str], list[str]]:
         rest = args[:]
@@ -554,12 +557,12 @@ class Command:
             rest = []
         return curr, rest
 
-    def help(self, cmd):
-        vt100.title(f"{cmd}")
+    def help(self):
+        vt100.title(f"{self.longName}")
         print()
 
         vt100.subtitle("Usage")
-        print(vt100.indent(f"{cmd}{self.usage()}"))
+        print(vt100.indent(f"{' '.join(self.path)}{self.usage()}"))
         print()
 
         vt100.subtitle("Description")
@@ -631,23 +634,38 @@ class Command:
                 return sub
         raise ValueError(f"Unknown subcommand '{name}'")
 
+    def invoke(self, argv: list[str]):
+        if self.callable:
+            if self.schema:
+                args = self.schema.parse(argv)
+                self.callable(args)
+            else:
+                self.callable()
+
     def eval(self, args: list[str]):
         cmd = args.pop(0)
         curr, rest = self._spliceArgs(args)
+
         if "-h" in curr or "--help" in curr:
-            self.help(cmd)
+            if len(self.path) == 0:
+                # HACK: This is a special case for the root command
+                #       it need to always be run because it might
+                #       load some plugins that will register subcommands
+                #       that need to be displayed in the help.
+                self.invoke([])
+            self.help()
             return
+
         if "-u" in curr or "--usage" in curr:
+            if len(self.path) == 0:
+                # HACK: Same as the help flag, the root command needs to be
+                #       always run to load plugins
+                self.invoke([])
             print("Usage: " + cmd + self.usage(), end="\n\n")
             return
 
         try:
-            if self.callable:
-                if self.schema:
-                    args = self.schema.parse(curr)
-                    self.callable(args)
-                else:
-                    self.callable()
+            self.invoke(curr)
 
             if self.subcommands:
                 if len(rest) > 0:
@@ -692,14 +710,18 @@ def command(shortName: Optional[str], longName: str, description: str = "") -> C
         schema = Schema.extractFromCallable(fn)
         path = _splitPath(longName)
         cmd = _resolvePath(path)
+
+        _logger.info(f"Registering command '{'.'.join(path)}'")
         if cmd.populated:
             raise ValueError(f"Command '{longName}' is already defined")
+
         cmd.shortName = shortName
         cmd.longName = len(path) > 0 and path[-1] or ""
         cmd.description = description
         cmd.schema = schema
         cmd.callable = fn
         cmd.populated = True
+        cmd.path = [const.ARGV0] + path
         return fn
 
     return wrap

@@ -565,6 +565,8 @@ class Registry(DataClassJsonMixin):
 
     @staticmethod
     def load(project: Project, mixins: list[str], props: Props) -> "Registry":
+        _logger.info(f"Loading model for project '{project.id}'")
+
         r = Registry(project)
         r._append(project)
 
@@ -752,8 +754,8 @@ def view(
 
 
 class GraphArgs(TargetArgs):
-    onlyLibs: bool = cli.arg(False, "only-libs", "Show only libraries")
-    showDisabled: bool = cli.arg(False, "show-disabled", "Show disabled components")
+    onlyLibs: bool = cli.arg(None, "only-libs", "Show only libraries")
+    showDisabled: bool = cli.arg(None, "show-disabled", "Show disabled components")
     scope: str = cli.arg(
         None, "scope", "Show only the specified component and its dependencies"
     )

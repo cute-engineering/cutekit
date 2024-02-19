@@ -52,7 +52,7 @@ def loadAll():
 
 
 class PluginsArgs:
-    safemod: bool = cli.arg(None, "safemode", "disable plugin loading")
+    safemod: bool = cli.arg(None, "safemode", "Disable plugin loading")
 
 
 def setup(args: PluginsArgs):
