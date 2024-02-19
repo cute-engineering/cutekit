@@ -4,7 +4,7 @@ import typing as tp
 import dataclasses as dt
 import logging
 
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional
 from cutekit import vt100, const
 
 
@@ -536,7 +536,7 @@ class Schema:
 @dt.dataclass
 class Command:
     shortName: Optional[str]
-    longName: str
+    path: list[str] = dt.field(default_factory=list)
     description: str = ""
     epilog: Optional[str] = None
 
@@ -544,7 +544,10 @@ class Command:
     callable: Optional[tp.Callable] = None
     subcommands: dict[str, "Command"] = dt.field(default_factory=dict)
     populated: bool = False
-    path: list[str] = dt.field(default_factory=list)
+
+    @property
+    def longName(self) -> str:
+        return self.path[-1]
 
     def _spliceArgs(self, args: list[str]) -> tuple[list[str], list[str]]:
         rest = args[:]
@@ -600,9 +603,6 @@ class Command:
         if self.epilog:
             print(self.epilog)
             print()
-
-        # for name, sub in self.subcommands.items():
-        #     sub.help(f"{cmd} {name}")
 
     def usage(self) -> str:
         res = " "
@@ -716,7 +716,6 @@ def command(shortName: Optional[str], longName: str, description: str = "") -> C
             raise ValueError(f"Command '{longName}' is already defined")
 
         cmd.shortName = shortName
-        cmd.longName = len(path) > 0 and path[-1] or ""
         cmd.description = description
         cmd.schema = schema
         cmd.callable = fn
