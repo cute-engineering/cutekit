@@ -76,7 +76,7 @@ def _(args: RootArgs):
 
 @cli.command("u", "usage", "Show usage information")
 def _():
-    print(f"Usage: {const.ARGV0} <command> [args...]")
+    print(f"Usage: {const.ARGV0} {cli._root.usage()}")
 
 
 @cli.command("v", "version", "Show current version")

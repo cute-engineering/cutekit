@@ -237,6 +237,8 @@ def _(args: PodKillArgs):
 def _():
     client = docker.from_env()
     hasPods = False
+
+    vt100.subtitle("Pods")
     for container in client.containers.list(all=True):
         if not container.name.startswith(podPrefix):
             continue
@@ -245,6 +247,14 @@ def _():
 
     if not hasPods:
         print(vt100.p("(No pod found)"))
+
+    print()
+
+    vt100.subtitle("Images")
+    for name, image in IMAGES.items():
+        print(vt100.p(f"{name}"))
+
+    print()
 
 
 @cli.command("e", "pod/exec", "Execute a command in a pod")

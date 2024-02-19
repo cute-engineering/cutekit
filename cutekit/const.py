@@ -18,7 +18,9 @@ class Uninitialized:
 VERSION = (0, 7, 0, "dev")
 VERSION_STR = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}{'-' + VERSION[3] if len(VERSION) >= 4 else ''}"
 MODULE_DIR = os.path.dirname(os.path.realpath(__file__))
-ARGV0 = os.path.basename(sys.argv[0])
+
+
+ARGV0 = "cutekit"
 PROJECT_CK_DIR = ".cutekit"
 GLOBAL_CK_DIR = os.path.join(os.path.expanduser("~"), ".cutekit")
 BUILD_DIR = os.path.join(PROJECT_CK_DIR, "build")
