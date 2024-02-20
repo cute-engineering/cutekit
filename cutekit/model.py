@@ -96,7 +96,8 @@ _project: Optional["Project"] = None
 class Extern(DataClassJsonMixin):
     git: str
     tag: str
-    deep: bool = dt.field(default=False)
+    shallow: bool = dt.field(default=True)
+    depth: int = dt.field(default=1)
 
 
 @dt.dataclass
@@ -161,8 +162,8 @@ class Project(Manifest):
                 extPath,
             ]
 
-            if not ext.deep:
-                cmd += ["--depth", "1"]
+            if ext.shallow:
+                cmd += ["--depth", str(ext.depth)]
 
             shell.exec(*cmd, quiet=True)
             project = Project.at(Path(extPath))
