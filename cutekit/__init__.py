@@ -1,16 +1,13 @@
-import sys
 import os
 import logging
 
-from pathlib import Path
-
 from . import (
-    builder,
-    cli,  # noqa: F401 this is imported for side effects
+    builder,  # noqa: F401 this is imported for side effects
+    cli,
     const,
     model,
     plugins,
-    pods,  # noqa: F401 this is imported for side effects
+    pods,
     shell,
     vt100,
 )
@@ -68,6 +65,7 @@ class RootArgs(
 
 @cli.command(None, "/", const.DESCRIPTION)
 def _(args: RootArgs):
+    shell.mkdir(const.GLOBAL_CK_DIR)
     const.setup()
     logger.setup(args)
     plugins.setup(args)
@@ -76,7 +74,7 @@ def _(args: RootArgs):
 
 @cli.command("u", "usage", "Show usage information")
 def _():
-    print(f"Usage: {const.ARGV0} {cli._root.usage()}")
+    cli.usage()
 
 
 @cli.command("v", "version", "Show current version")
@@ -86,15 +84,13 @@ def _():
 
 def main() -> int:
     try:
-        shell.mkdir(const.GLOBAL_CK_DIR)
-        extra = os.environ.get("CK_EXTRA_ARGS", None)
-        args = [const.ARGV0] + (extra.split(" ") if extra else []) + sys.argv[1:]
-        cli._root.eval(args)
+        cli.exec()
         return 0
 
     except RuntimeError as e:
         logging.exception(e)
         vt100.error(str(e))
+        cli.usage()
         return 1
 
     except KeyboardInterrupt:
