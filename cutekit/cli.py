@@ -1,14 +1,13 @@
 from enum import Enum
+import os
+import sys
 from types import GenericAlias
 import typing as tp
 import dataclasses as dt
 import logging
 
 from typing import Any, Callable, Optional
-from cutekit import vt100, const
-
-
-T = tp.TypeVar("T")
+from cutekit import vt100, const, utils
 
 _logger = logging.getLogger(__name__)
 
@@ -647,7 +646,7 @@ class Command:
         curr, rest = self._spliceArgs(args)
 
         if "-h" in curr or "--help" in curr:
-            if len(self.path) == 0:
+            if len(self.path) == 1:
                 # HACK: This is a special case for the root command
                 #       it need to always be run because it might
                 #       load some plugins that will register subcommands
@@ -657,7 +656,7 @@ class Command:
             return
 
         if "-u" in curr or "--usage" in curr:
-            if len(self.path) == 0:
+            if len(self.path) == 1:
                 # HACK: Same as the help flag, the root command needs to be
                 #       always run to load plugins
                 self.invoke([])
@@ -724,3 +723,18 @@ def command(shortName: Optional[str], longName: str, description: str = "") -> C
         return fn
 
     return wrap
+
+
+def usage():
+    print(f"Usage: {const.ARGV0} {_root.usage()}")
+
+
+def exec():
+    extra = os.environ.get("CK_EXTRA_ARGS", None)
+    args = [const.ARGV0] + (extra.split(" ") if extra else []) + sys.argv[1:]
+    _root.eval(args)
+
+
+def defaults(typ: type[utils.T]) -> utils.T:
+    schema = Schema.extract(typ)
+    return tp.cast(utils.T, schema._instanciate())
