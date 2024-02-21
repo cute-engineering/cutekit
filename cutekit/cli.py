@@ -292,6 +292,9 @@ class Field:
         if self.longName is None:
             self.longName = name
 
+    def isBool(self) -> bool:
+        return self._fieldType == bool
+
     def isList(self) -> bool:
         return (
             isinstance(self._fieldType, GenericAlias)
@@ -520,10 +523,19 @@ class Schema:
                 break
 
             toks = parseArg(stack.pop(0))
-            for tok in toks:
+            while len(toks) > 0:
+                tok = toks.pop(0)
                 if isinstance(tok, ArgumentToken):
                     arg = self._lookupArg(tok.key, tok.short)
-                    arg.putValue(res, tok.value, tok.subkey)
+                    if tok.short and not arg.isBool():
+                        if len(stack) == 0:
+                            raise ValueError(
+                                f"Expected value for argument '-{arg.shortName}'"
+                            )
+
+                        arg.putValue(res, parseValue(stack.pop(0)))
+                    else:
+                        arg.putValue(res, tok.value, tok.subkey)
                 elif isinstance(tok, OperandToken):
                     self._setOperand(res, tok.value)
                 else:
