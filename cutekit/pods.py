@@ -80,9 +80,8 @@ IMAGES: dict[str, Image] = {
 
 
 class PodSetupArgs:
-    pod: str | bool | None = cli.arg(
-        None, "pod", "Reincarnate cutekit within the specified pod"
-    )
+    pod: str = cli.arg(None, "pod", "Reincarnate cutekit within the specified pod")
+    reincarnated: bool = cli.arg(None, "reincarnated", "Reincarnated mode")
 
 
 class PodNameArg:
