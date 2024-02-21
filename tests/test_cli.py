@@ -121,10 +121,13 @@ def extractParse(type: type[utils.T], args: list[str]) -> utils.T:
 
 
 class IntArg:
-    value: int = cli.arg(None, "value")
+    value: int = cli.arg("v", "value")
 
 
 def test_cli_arg_int():
+    assert_equal(extractParse(IntArg, ["-v", "-1"]).value, -1)
+    assert_equal(extractParse(IntArg, ["-v", "0"]).value, 0)
+    assert_equal(extractParse(IntArg, ["-v", "1"]).value, 1)
 
     assert_equal(extractParse(IntArg, ["--value=-1"]).value, -1)
     assert_equal(extractParse(IntArg, ["--value=0"]).value, 0)
@@ -132,19 +135,24 @@ def test_cli_arg_int():
 
 
 class StrArg:
-    value: str = cli.arg(None, "value")
+    value: str = cli.arg("v", "value")
 
 
 def test_cli_arg_str1():
     assert_equal(extractParse(StrArg, ["--value=foo"]).value, "foo")
+    assert_equal(extractParse(StrArg, ["-v", "foo"]).value, "foo")
     assert_equal(extractParse(StrArg, ["--value='foo, bar'"]).value, "foo, bar")
+    assert_equal(extractParse(StrArg, ["-v", "'foo, bar'"]).value, "foo, bar")
 
 
 class BoolArg:
-    value: bool = cli.arg(None, "value")
+    value: bool = cli.arg("v", "value")
 
 
 def test_cli_arg_bool():
+    assert_is(extractParse(BoolArg, []).value, False)
+
+    assert_is(extractParse(BoolArg, ["-v"]).value, True)
     assert_is(extractParse(BoolArg, ["--value"]).value, True)
 
     assert_is(extractParse(BoolArg, ["--value=true"]).value, True)
@@ -165,17 +173,19 @@ def test_cli_arg_bool():
 
 
 class IntListArg:
-    value: list[int] = cli.arg(None, "value")
+    value: list[int] = cli.arg("v", "value")
 
 
 def test_cli_arg_list_int1():
     assert_equal(extractParse(IntListArg, []).value, [])
     assert_equal(extractParse(IntListArg, ["--value=1", "--value=2"]).value, [1, 2])
+    assert_equal(extractParse(IntListArg, ["-v", "1", "-v", "2"]).value, [1, 2])
     assert_equal(extractParse(IntListArg, ["--value=1,2"]).value, [1, 2])
+    assert_equal(extractParse(IntListArg, ["-v", "1,2"]).value, [1, 2])
 
 
 class StrListArg:
-    value: list[str] = cli.arg(None, "value")
+    value: list[str] = cli.arg("v", "value")
 
 
 def test_cli_arg_list_str():
