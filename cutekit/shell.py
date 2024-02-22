@@ -263,7 +263,10 @@ def _profileMem(cmd: list[str]):
     exec("heaptrack", "-o", perfFile, *cmd)
 
 
-def profile(cmd: list[str], rate=1000, what: Literal["cpu", "mem"] = "cpu"):
+def profile(cmd: list[str], rate=1000, what: str = "cpu"):
+    if what not in ["cpu", "mem"]:
+        raise RuntimeError("Only cpu and mem can be profile, not " + what)
+
     if what == "cpu":
         _profileCpu(cmd, rate)
     elif what == "mem":
