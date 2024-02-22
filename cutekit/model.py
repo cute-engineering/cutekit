@@ -712,7 +712,7 @@ def view(
             continue
 
         if component.resolved[target.id].enabled:
-            fillcolor = "lightgrey" if component.type == model.Kind.LIB else "lightblue"
+            fillcolor = "lightgrey" if component.type == Kind.LIB else "lightblue"
             shape = "plaintext" if not scope == component.id else "box"
 
             g.node(

@@ -32,7 +32,7 @@ class TargetScope(Scope):
     target: model.Target
 
     @staticmethod
-    def use(args: model.TargetArgs) -> "TargetScope":
+    def use(args: model.TargetArgs) -> "TargetScope":  # type: ignore[override]
         registry = model.Registry.use(args)
         target = model.Target.use(args)
         return TargetScope(registry, target)
@@ -324,8 +324,8 @@ def gen(out: TextIO, scope: TargetScope):
 
     w.separator("Tools")
 
-    for i in scope.target.tools:
-        tool = scope.target.tools[i]
+    for i in target.tools:
+        tool = target.tools[i]
         rule = rules.rules[i]
         w.variable(i, tool.cmd)
         w.variable(
@@ -401,14 +401,14 @@ def _(args: BuildArgs):
 
 
 class RunArgs(BuildArgs, shell.DebugArgs, shell.ProfileArgs):
-    debug: bool = cli.arg(None, "debug", "Attach a debugger")
-    profile: bool = cli.arg(None, "profile", "Profile the execution")
+    debug: bool = cli.arg("d", "debug", "Attach a debugger")
+    profile: bool = cli.arg("p", "profile", "Profile the execution")
     args: list[str] = cli.extra("args", "Arguments to pass to the component")
 
 
 @cli.command("r", "builder/run", "Run a component")
 def runCmd(args: RunArgs):
-    args.props |= {"debug": args.debug}
+    args.props |= {"debug": str(args.debug).lower()}
     scope = TargetScope.use(args)
 
     component = scope.registry.lookup(

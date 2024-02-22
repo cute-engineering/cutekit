@@ -308,10 +308,14 @@ class Field:
         )
 
     def innerType(self) -> type:
+        assert self._fieldType
+
         if self.isList():
+            assert isinstance(self._fieldType, GenericAlias)
             return self._fieldType.__args__[0]
 
         if self.isDict():
+            assert isinstance(self._fieldType, GenericAlias)
             return self._fieldType.__args__[1]
 
         return self._fieldType
@@ -362,6 +366,7 @@ class Field:
         return val
 
     def putValue(self, obj: Any, value: Any, subkey: Optional[str] = None):
+        assert self._fieldName
         value = self.castValue(value, subkey)
         field = getattr(obj, self._fieldName)
         if isinstance(field, list):
@@ -375,6 +380,7 @@ class Field:
             setattr(obj, self._fieldName, value)
 
     def getAttr(self, obj: Any) -> Any:
+        assert self._fieldName
         return getattr(obj, self._fieldName)
 
 
@@ -496,6 +502,7 @@ class Schema:
             arg.setDefault(res)
 
         for operand in self.operands:
+            assert operand._fieldName
             if operand.isList():
                 setattr(res, operand._fieldName, [])
             else:
@@ -696,7 +703,7 @@ class Command:
             return
 
 
-_root = Command(None, const.ARGV0)
+_root = Command(None, [const.ARGV0])
 
 
 def _splitPath(path: str) -> list[str]:
@@ -709,9 +716,11 @@ def _resolvePath(path: list[str]) -> Command:
     if path == "/":
         return _root
     cmd = _root
+    visited = []
     for name in path:
+        visited.append(name)
         if name not in cmd.subcommands:
-            cmd.subcommands[name] = Command(None, name)
+            cmd.subcommands[name] = Command(None, visited)
         cmd = cmd.subcommands[name]
     return cmd
 
