@@ -32,7 +32,7 @@ class Uname:
 def uname() -> Uname:
     un = platform.uname()
 
-    if hasattr(platform, "freedesktop_os_release"):
+    if un.system == "Linux" and hasattr(platform, "freedesktop_os_release"):
         distrib = platform.freedesktop_os_release()
     else:
         distrib = {"NAME": "Unknown"}
