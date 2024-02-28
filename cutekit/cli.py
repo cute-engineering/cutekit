@@ -444,6 +444,8 @@ class Schema:
             elif baseSchema.extras:
                 raise ValueError("Only one extra argument is allowed")
 
+        s.args = sorted(s.args, key=lambda f: f.longName)
+
         return s
 
     @staticmethod
