@@ -624,11 +624,11 @@ class Registry(DataClassJsonMixin):
                             )
                         else:
                             victim.resolved[target.id].injected.append(c.id)
-                            victim.resolved[target.id].required = (
-                                utils.uniqPreserveOrder(
-                                    c.resolved[target.id].required
-                                    + victim.resolved[target.id].required
-                                )
+                            victim.resolved[
+                                target.id
+                            ].required = utils.uniqPreserveOrder(
+                                c.resolved[target.id].required
+                                + victim.resolved[target.id].required
                             )
 
             # Resolve tooling
@@ -700,7 +700,7 @@ def view(
     if scope is not None:
         scopeInstance = registry.lookup(scope, Component)
 
-    for component in registry.iterEnabled(target):
+    for component in registry.iter(Component):
         if not component.type == Kind.LIB and not showExe:
             continue
 
