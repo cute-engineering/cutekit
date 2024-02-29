@@ -47,15 +47,8 @@ if [ ! -f .cutekit/tools/ready ]; then
     fi
     source .cutekit/venv/bin/activate
 
-    echo "Downloading CuteKit..."
-    if [ ! -d .cutekit/tools/cutekit ]; then
-        git clone --depth 1 https://github.com/cute-engineering/cutekit .cutekit/tools/cutekit --branch "$CUTEKIT_VERSION"
-    else
-        echo "CuteKit already downloaded."
-    fi
-
     echo "Installing Tools..."
-    $CUTEKIT_PYTHON -m pip install -e .cutekit/tools/cutekit
+    $CUTEKIT_PYTHON -m pip install "git+https://github.com/cute-engineering/cutekit@$CUTEKIT_VERSION"
 
     echo "Installing plugins requirements..."
     if [ -f "meta/plugins/requirements.txt" ]; then
