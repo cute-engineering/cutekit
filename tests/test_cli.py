@@ -1,9 +1,7 @@
 from cutekit import cli, utils
 from asserts import (
     assert_is,
-    assert_true,
     assert_equal,
-    assert_raises,
     assert_is_instance,
 )
 
