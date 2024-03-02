@@ -13,7 +13,7 @@ import tempfile
 import dataclasses as dt
 
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Optional
 from . import cli, const
 
 _logger = logging.getLogger(__name__)
