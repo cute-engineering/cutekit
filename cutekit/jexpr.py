@@ -1,12 +1,19 @@
 import os
 import json
 import re
-import tomllib
 
 from pathlib import Path
 
+from types import ModuleType
 from typing import Any, Optional, cast, Callable, Final
 from . import shell
+
+tomllib: Optional[ModuleType]
+try:
+    import tomllib
+except ImportError:
+    tomllib = None
+
 
 Json = Any
 Builtin = Callable[..., Json]
@@ -63,12 +70,15 @@ def read(path: Path) -> Json:
     try:
         with open(path, "r") as f:
             if path.suffix == ".toml":
-                tomlStr = f.read()
-                toml = tomllib.loads(tomlStr)
-                schema = extraSchema(tomlStr)
-                if schema:
-                    toml["$schema"] = schema
-                return toml
+                if tomllib is None:
+                    raise RuntimeError("In order to read TOML files, you need to upgrade to Python3.11 or higher.")
+                else:
+                    tomlStr = f.read()
+                    toml = tomllib.loads(tomlStr)
+                    schema = extraSchema(tomlStr)
+                    if schema:
+                        toml["$schema"] = schema
+                    return toml
             else:
                 return json.load(f)
     except Exception as e:
