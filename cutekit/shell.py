@@ -19,6 +19,12 @@ from . import cli, const
 _logger = logging.getLogger(__name__)
 
 
+class ShellException(RuntimeError):
+    def __init__(self, message: str, code: int):
+        super().__init__(message)
+        self.code = code
+
+
 @dt.dataclass
 class Uname:
     sysname: str
@@ -179,10 +185,10 @@ def exec(*args: str, quiet: bool = False, cwd: Optional[str] = None) -> bool:
         raise RuntimeError(f"{cmdName}: Interrupted")
 
     if proc.returncode == -signal.SIGSEGV:
-        raise RuntimeError(f"{cmdName}: Segmentation fault")
+        raise ShellException(f"{cmdName}: Segmentation fault", -signal.SIGSEGV)
 
     if proc.returncode != 0:
-        raise RuntimeError(f"{cmdName}: Process exited with code {proc.returncode}")
+        raise ShellException(f"{cmdName}: Process exited with code {proc.returncode}", proc.returncode)
 
     return True
 
@@ -198,10 +204,10 @@ def popen(*args: str) -> str:
         raise RuntimeError(f"{cmdName}: Command not found")
 
     if proc.returncode == -signal.SIGSEGV:
-        raise RuntimeError(f"{cmdName}: Segmentation fault")
+        raise ShellException(f"{cmdName}: Segmentation fault", -signal.SIGSEGV)
 
     if proc.returncode != 0:
-        raise RuntimeError(f"{cmdName}: Process exited with code {proc.returncode}")
+        raise ShellException(f"{cmdName}: Process exited with code {proc.returncode}", proc.returncode)
 
     return proc.stdout.decode("utf-8").strip()
 
