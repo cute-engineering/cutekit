@@ -406,9 +406,12 @@ class RunArgs(BuildArgs, shell.DebugArgs, shell.ProfileArgs):
     args: list[str] = cli.extra("args", "Arguments to pass to the component")
 
 
-@cli.command("r", "builder/run", "Run a component")
+@cli.command("r", "builder/run", "Run a component or __main__ if not specified")
 def runCmd(args: RunArgs):
     args.props |= {"debug": str(args.debug).lower()}
+    if args.component is None:
+        args.component = "__main__"
+
     scope = TargetScope.use(args)
 
     component = scope.registry.lookup(
