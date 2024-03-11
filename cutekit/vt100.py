@@ -87,3 +87,6 @@ def ask(msg: str, default: Optional[bool] = None) -> bool:
             return False
         elif result == "" and default is not None:
             return default
+
+def rgb(r: int, g: int, b: int) -> str:
+    return f"\033[38;2;{r};{g};{b}m"

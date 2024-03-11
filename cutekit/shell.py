@@ -14,7 +14,7 @@ import dataclasses as dt
 
 from pathlib import Path
 from typing import Optional
-from . import cli, const
+from . import cli, const, jexpr
 
 _logger = logging.getLogger(__name__)
 
@@ -35,6 +35,7 @@ class Uname:
     machine: str
 
 
+@jexpr.exposed("shell.uname")
 def uname() -> Uname:
     un = platform.uname()
 
@@ -44,7 +45,7 @@ def uname() -> Uname:
         distrib = {"NAME": "Unknown"}
 
     result = Uname(
-        un.system,
+        un.system.lower(),
         distrib["NAME"],
         un.node,
         un.release,
@@ -188,7 +189,9 @@ def exec(*args: str, quiet: bool = False, cwd: Optional[str] = None) -> bool:
         raise ShellException(f"{cmdName}: Segmentation fault", -signal.SIGSEGV)
 
     if proc.returncode != 0:
-        raise ShellException(f"{cmdName}: Process exited with code {proc.returncode}", proc.returncode)
+        raise ShellException(
+            f"{cmdName}: Process exited with code {proc.returncode}", proc.returncode
+        )
 
     return True
 
@@ -207,9 +210,16 @@ def popen(*args: str) -> str:
         raise ShellException(f"{cmdName}: Segmentation fault", -signal.SIGSEGV)
 
     if proc.returncode != 0:
-        raise ShellException(f"{cmdName}: Process exited with code {proc.returncode}", proc.returncode)
+        raise ShellException(
+            f"{cmdName}: Process exited with code {proc.returncode}", proc.returncode
+        )
 
     return proc.stdout.decode("utf-8").strip()
+
+
+@jexpr.exposed("shell.popen")
+def _(*args: str) -> list[str]:
+    return popen(*args).splitlines()
 
 
 def debug(cmd: list[str], debugger: str = "lldb", wait: bool = False):
@@ -330,6 +340,7 @@ def cloneDir(url: str, path: str, dest: str) -> str:
 LATEST_CACHE: dict[str, str] = {}
 
 
+@jexpr.exposed("shell.latest")
 def latest(cmd: str) -> str:
     """
     Find the latest version of a command
@@ -379,6 +390,7 @@ def latest(cmd: str) -> str:
     return chosen
 
 
+@jexpr.exposed("shell.which")
 def which(cmd: str) -> Optional[str]:
     """
     Find the path of a command
@@ -386,6 +398,7 @@ def which(cmd: str) -> Optional[str]:
     return shutil.which(cmd)
 
 
+@jexpr.exposed("shell.nproc")
 def nproc() -> int:
     """
     Return the number of processors
