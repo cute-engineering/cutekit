@@ -1,90 +1,250 @@
 import os
-import json
 import re
+import inspect
+import json
+
+import datetime
+import asyncio as aio
+import aiofiles as aiof
 
 from pathlib import Path
+from typing import Any, Optional
 
-from types import ModuleType
-from typing import Any, Optional, cast, Callable, Final
-from . import shell
-
-tomllib: Optional[ModuleType]
-try:
-    import tomllib
-except ImportError:
-    tomllib = None
+from . import cli
 
 
-Json = Any
-Builtin = Callable[..., Json]
+REXPR = re.compile("{[^}]*}")
 
-BUILTINS: Final[dict[str, Builtin]] = {
-    "uname": lambda arg, ctx: getattr(shell.uname(), arg).lower(),
-    "include": lambda arg, ctx: evalRead(Path(arg)),
-    "evalRead": lambda arg, ctx: evalRead(Path(arg)),
-    "join": lambda lhs, rhs, ctx: cast(
-        Json, {**lhs, **rhs} if isinstance(lhs, dict) else lhs + rhs
-    ),
-    "concat": lambda *args, ctx: "".join(args),
-    "first": lambda arg, ctx: arg[0],
-    "last": lambda arg, ctx: arg[-1],
-    "eval": lambda arg, ctx: eval(arg, ctx["filepath"]),
-    "read": lambda arg, ctx: read(arg),
-    "exec": lambda *args, ctx: shell.popen(*args).splitlines(),
-    "latest": lambda arg, ctx: shell.latest(arg),
-    "abspath": lambda *args, ctx: os.path.normpath(
-        os.path.join(os.path.dirname(ctx["filepath"]), *args)
-    ),
-}
+Jexpr = dict[str, "Jexpr"] | list["Jexpr"] | str | bool | float | int | None
+GLOBALS: dict[str, Any] = dict()
 
 
-def eval(jexpr: Json, filePath: Path) -> Json:
-    if isinstance(jexpr, dict):
-        result = {}
-        for k in cast(dict[str, Json], jexpr):
-            result[k] = eval(jexpr[k], filePath)
-        return cast(Json, result)
-    elif isinstance(jexpr, list):
-        jexpr = cast(list[Json], jexpr)
-        if len(jexpr) > 0 and isinstance(jexpr[0], str) and jexpr[0].startswith("@"):
-            funcName = jexpr[0][1:]
-            if funcName in BUILTINS:
-                return BUILTINS[funcName](
-                    *eval(jexpr[1:], filePath), ctx={"filepath": filePath}
-                )
+def _isListExpr(expr: Jexpr) -> bool:
+    return (
+        isinstance(expr, list)
+        and len(expr) > 0
+        and isinstance(expr[0], str)
+        and expr[0].startswith("@")
+    )
 
-            raise RuntimeError(f"Unknown macro {funcName}")
-        else:
-            return list(map(lambda j: eval(j, filePath), jexpr))
+
+async def _evalListExprAsync(
+    expr: list[Jexpr],
+    locals: dict[str, Any] | None,
+    globals: dict[str, Any],
+    depth: int = 0,
+) -> Jexpr:
+    def _ctx(f):
+        return lambda *args, **kwargs: f(
+            *args, **kwargs, locals=locals, globals=globals, depth=depth + 1
+        )
+
+    if not isinstance(expr, list):
+        raise ValueError(f"Expected list, got {expr}")
+
+    if not isinstance(expr[0], str):
+        raise ValueError(f"Expected string, got {expr[0]}")
+
+    fName = await _ctx(expandAsync)(expr[0][1:])
+    fVal = eval(fName, globals, locals)
+    return fVal(*await _ctx(expandAsync)(expr[1:]))
+
+
+async def _evalStrExprAsync(
+    expr: str, locals: dict[str, Any] | None, globals: dict[str, Any], depth: int
+) -> str:
+    def _ctx(f):
+        return lambda *args, **kwargs: f(
+            *args, **kwargs, locals=locals, globals=globals, depth=depth
+        )
+
+    result = ""
+    while span := REXPR.search(expr):
+        result += expr[: span.start()]
+        code = span.group()[1:-1]
+        value = eval(code, globals, locals)
+        result += str(await _ctx(expandAsync)(value))
+        expr = expr[span.end() :]
+    result += expr
+    return result
+
+
+async def expandAsync(
+    expr: Jexpr,
+    locals: dict[str, Any] | None = None,
+    globals: dict[str, Any] = GLOBALS,
+    depth: int = 0,
+) -> Jexpr:
+    """
+    Expand a Jexpr expression.
+    """
+
+    def _ctx(f):
+        return lambda *args, **kwargs: f(
+            *args, **kwargs, locals=locals, globals=globals, depth=depth + 1
+        )
+
+    if depth > 10:
+        raise ValueError(f"Recursion limit reached: {expr}")
+
+    if inspect.isawaitable(expr):
+        expr = await expr
+
+    if isinstance(expr, dict):
+        result: dict[str, Jexpr] = {}
+        for k in expr:
+            key = await _ctx(expandAsync)(k)
+            result[key] = await _ctx(expandAsync)(expr[k])
+        return result
+
+    elif _isListExpr(expr):
+        return await _ctx(_evalListExprAsync)(expr)
+
+    elif isinstance(expr, list):
+        return [await _ctx(expandAsync)(e) for e in expr]
+
+    elif isinstance(expr, str):
+        return await _ctx(_evalStrExprAsync)(expr)
+
     else:
-        return jexpr
+        return expr
 
 
-def extraSchema(toml: str) -> Optional[str]:
+def _extractSchema(toml: str) -> Optional[str]:
     schemaRegex = re.compile(r"#:schema\s+(.*)")
     schema = schemaRegex.search(toml)
     return schema.group(1) if schema else None
 
 
-def read(path: Path) -> Json:
+def _loadToml(buf: str) -> Jexpr:
     try:
-        with open(path, "r") as f:
+        import tomllib
+
+        toml = tomllib.loads(buf)
+        schema = _extractSchema(buf)
+        if schema:
+            toml["$schema"] = schema
+        return toml
+    except ImportError:
+        raise RuntimeError(
+            "In order to read TOML files, you need to upgrade to Python3.11 or higher."
+        )
+
+
+async def readAsync(path: Path) -> Jexpr:
+    """
+    Read a JSON or TOML file.
+    """
+    try:
+        async with aiof.open(path, "r") as f:
             if path.suffix == ".toml":
-                if tomllib is None:
-                    raise RuntimeError("In order to read TOML files, you need to upgrade to Python3.11 or higher.")
-                else:
-                    tomlStr = f.read()
-                    toml = tomllib.loads(tomlStr)
-                    schema = extraSchema(tomlStr)
-                    if schema:
-                        toml["$schema"] = schema
-                    return toml
+                return _loadToml(await f.read())
             else:
-                return json.load(f)
+                return json.loads(await f.read())
     except Exception as e:
         raise RuntimeError(f"Failed to read {path}: {e}")
 
 
-def evalRead(path: Path) -> Json:
-    data = read(path)
-    return eval(data, path)
+async def includeAsync(
+    path: Path, locals: dict[str, Any] | None = None, globals: dict[str, Any] = GLOBALS
+) -> Jexpr:
+    """
+    Read and expand a JSON or TOML file.
+    """
+    globalsWithFile = globals.copy()
+    globalsWithFile["__file__"] = path
+    return await expandAsync(await readAsync(path), locals, globals)
+
+
+def include(
+    path: Path, locals: dict[str, Any] | None = None, globals: dict[str, Any] = GLOBALS
+) -> Jexpr:
+    """
+    Read and expand a JSON or TOML file.
+    """
+    return aio.run(includeAsync(path, locals, globals))
+
+
+def _assign(obj: dict, key: str, value: Any) -> None:
+    if isinstance(obj, dict):
+        obj[key] = value
+    else:
+        setattr(obj, key, value)
+
+
+def _get(obj: dict, key: str) -> Any:
+    if isinstance(obj, dict):
+        return obj[key]
+    else:
+        return getattr(obj, key)
+
+
+class Namespace: ...
+
+
+def expose(path: str, value: Any) -> None:
+    """
+    Expose a value to the Jexpr environment.
+    """
+    els = path.split(".")
+    obj = GLOBALS
+    for el in els[:-1]:
+        if el not in obj:
+            _assign(obj, el, Namespace())
+        obj = _get(obj, el)
+
+    _assign(obj, els[-1], value)
+
+
+def exposed(path: str) -> Any:
+    """
+    Decorator to expose a value to the Jexpr environment.
+    """
+
+    def decorator(value: Any) -> Any:
+        expose(path, value)
+        return value
+
+    return decorator
+
+
+def _union(lhs, rhs):
+    if isinstance(lhs, dict):
+        return {**lhs, **rhs}
+    else:
+        return lhs + rhs
+
+
+def _relpath(*args):
+    return os.path.normpath(os.path.join(os.path.dirname(__file__), *args))
+
+
+expose("jexpr.include", lambda path: includeAsync(Path(path)))
+expose("jexpr.expand", lambda expr: expandAsync(expr))
+expose("jexpr.read", lambda path: readAsync(Path(path)))
+
+expose("utils.relpath", _relpath)
+expose("utils.union", _union)
+expose("utils.concat", lambda *args: "".join(args))
+expose("utils.first", lambda arg: arg[0] if arg else None)
+expose("utils.last", lambda arg: arg[-1] if arg else None)
+
+
+class EvalArgs:
+    path: str = cli.operand("path", "Path to the file to evaluate.")
+
+
+@cli.command(None, "jexpr", "Utilities for working with Jexpr files.")
+def _():
+    pass
+
+
+@cli.command(None, "jexpr/eval", "Evaluate a Jexpr file.")
+def _(args: EvalArgs):
+    startTime = datetime.datetime.now()
+    print(json.dumps(aio.run(includeAsync(Path(args.path))), indent=2))
+    endTime = datetime.datetime.now()
+
+    delaMs = (endTime - startTime).total_seconds() * 1000
+
+    print(f"\nElapsed time: {delaMs:.2f}ms")

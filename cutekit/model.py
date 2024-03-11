@@ -54,7 +54,12 @@ class Manifest(DataClassJsonMixin):
             pathWithSuffix = path.with_suffix(suffix)
             if pathWithSuffix.exists():
                 _logger.debug(f"Loading manifest from '{pathWithSuffix}'")
-                return Manifest.parse(pathWithSuffix, jexpr.evalRead(pathWithSuffix))
+                data = jexpr.include(pathWithSuffix)
+                if not isinstance(data, dict):
+                    raise RuntimeError(
+                        f"Manifest '{pathWithSuffix}' should be a dictionary"
+                    )
+                return Manifest.parse(pathWithSuffix, data)
         return None
 
     @staticmethod
@@ -226,7 +231,9 @@ def _(args: ModelInitArgs):
     if not args.template:
         raise RuntimeError("Template not specified")
 
-    def template_match(t: jexpr.Json) -> str:
+    def template_match(t: Any) -> bool:
+        if not isinstance(t, dict):
+            return False
         return t["id"] == args.template
 
     if not any(filter(template_match, registry)):
