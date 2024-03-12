@@ -2,7 +2,7 @@
 <br/>
 <br/>
 <p align="center">
-    <img src="logo.png" width="200" height="200">
+    <img src="https://branding.cute.engineering/projects/cutekit/logo.png" width="200" height="200">
 </p>
 <h1 align="center">CuteKit</h1>
 <p align="center">
@@ -16,8 +16,10 @@
 
 - [Table of contents](#table-of-contents)
 - [Introduction](#introduction)
+- [Installation](#installation)
 - [Quick-start](#quick-start)
 - [Example](#example)
+- [License](#license)
 
 
 ## Introduction
@@ -55,10 +57,10 @@ $ pip install --user -e .
 
 If you want to see how it works you can read the [doc/cutekit.md](doc/cutekit.md) file.
 
-# License
+## License
 
 <a href="https://opensource.org/licenses/MIT">
-  <img align="right" height="96" alt="MIT License" src="doc/mit.svg" />
+  <img align="right" height="96" alt="MIT License" src="https://branding.cute.engineering/licenses/mit.svg" />
 </a>
 
 Cutekit is licensed under the **MIT License**.
