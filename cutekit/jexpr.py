@@ -9,6 +9,8 @@ import aiofiles as aiof
 
 from pathlib import Path
 from typing import Any, Optional
+from async_eval import eval as asyncEval
+
 
 from . import cli
 
@@ -34,7 +36,7 @@ async def _evalListExprAsync(
     globals: dict[str, Any],
     depth: int = 0,
 ) -> Jexpr:
-    def _ctx(f):
+    def ctxWrap(f):
         return lambda *args, **kwargs: f(
             *args, **kwargs, locals=locals, globals=globals, depth=depth + 1
         )
@@ -45,15 +47,16 @@ async def _evalListExprAsync(
     if not isinstance(expr[0], str):
         raise ValueError(f"Expected string, got {expr[0]}")
 
-    fName = await _ctx(expandAsync)(expr[0][1:])
-    fVal = eval(fName, globals, locals)
-    return fVal(*await _ctx(expandAsync)(expr[1:]))
+    fName = await ctxWrap(expandAsync)(expr[0][1:])
+    fVal = asyncEval(fName, globals, locals)
+    res = fVal(*await ctxWrap(expandAsync)(expr[1:]))
+    return await ctxWrap(expandAsync)(res)
 
 
 async def _evalStrExprAsync(
     expr: str, locals: dict[str, Any] | None, globals: dict[str, Any], depth: int
 ) -> str:
-    def _ctx(f):
+    def ctxWrap(f):
         return lambda *args, **kwargs: f(
             *args, **kwargs, locals=locals, globals=globals, depth=depth
         )
@@ -62,8 +65,8 @@ async def _evalStrExprAsync(
     while span := REXPR.search(expr):
         result += expr[: span.start()]
         code = span.group()[1:-1]
-        value = eval(code, globals, locals)
-        result += str(await _ctx(expandAsync)(value))
+        value = asyncEval(code, globals, locals)
+        result += str(await ctxWrap(expandAsync)(value))
         expr = expr[span.end() :]
     result += expr
     return result
@@ -79,7 +82,7 @@ async def expandAsync(
     Expand a Jexpr expression.
     """
 
-    def _ctx(f):
+    def ctxWrap(f):
         return lambda *args, **kwargs: f(
             *args, **kwargs, locals=locals, globals=globals, depth=depth + 1
         )
@@ -93,18 +96,18 @@ async def expandAsync(
     if isinstance(expr, dict):
         result: dict[str, Jexpr] = {}
         for k in expr:
-            key = await _ctx(expandAsync)(k)
-            result[key] = await _ctx(expandAsync)(expr[k])
+            key = await ctxWrap(expandAsync)(k)
+            result[key] = await ctxWrap(expandAsync)(expr[k])
         return result
 
     elif _isListExpr(expr):
-        return await _ctx(_evalListExprAsync)(expr)
+        return await ctxWrap(_evalListExprAsync)(expr)
 
     elif isinstance(expr, list):
-        return [await _ctx(expandAsync)(e) for e in expr]
+        return [await ctxWrap(expandAsync)(e) for e in expr]
 
     elif isinstance(expr, str):
-        return await _ctx(_evalStrExprAsync)(expr)
+        return await ctxWrap(_evalStrExprAsync)(expr)
 
     else:
         return expr
