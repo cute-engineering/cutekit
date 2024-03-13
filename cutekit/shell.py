@@ -11,7 +11,6 @@ import platform
 import logging
 import tempfile
 import dataclasses as dt
-import asyncio as aio
 
 from pathlib import Path
 from typing import Optional
@@ -197,19 +196,15 @@ def exec(*args: str, quiet: bool = False, cwd: Optional[str] = None) -> bool:
     return True
 
 
-async def popenAsync(*args: str) -> str:
+def popen(*args: str) -> str:
     _logger.debug(f"Executing {args}...")
 
     cmdName = Path(args[0]).name
 
     try:
-        proc = await aio.create_subprocess_exec(
-            *args, stdout=aio.subprocess.PIPE, stderr=aio.subprocess.PIPE
-        )
+        proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=sys.stderr)
     except FileNotFoundError:
         raise RuntimeError(f"{cmdName}: Command not found")
-
-    stdout, stderr = await proc.communicate()
 
     if proc.returncode == -signal.SIGSEGV:
         raise ShellException(f"{cmdName}: Segmentation fault", -signal.SIGSEGV)
@@ -219,16 +214,12 @@ async def popenAsync(*args: str) -> str:
             f"{cmdName}: Process exited with code {proc.returncode}", proc.returncode
         )
 
-    return stdout.decode("utf-8").strip()
-
-
-def popen(*args: str) -> str:
-    return aio.run(popenAsync(*args))
+    return proc.stdout.decode("utf-8").strip()
 
 
 @jexpr.exposed("shell.popen")
-async def _(*args: str) -> list[str]:
-    return (await popenAsync(*args)).splitlines()
+def _(*args: str) -> list[str]:
+    return popen(*args).splitlines()
 
 
 def debug(cmd: list[str], debugger: str = "lldb", wait: bool = False):

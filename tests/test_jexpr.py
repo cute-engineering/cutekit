@@ -1,5 +1,3 @@
-import asyncio as aio
-
 from cutekit import jexpr, shell
 
 
@@ -11,7 +9,7 @@ GLOBALS = {"sum": _sum, "shell": shell}
 
 
 def _expand(expr: jexpr.Jexpr) -> jexpr.Jexpr:
-    return aio.run(jexpr.expandAsync(expr, globals=GLOBALS))
+    return jexpr.expand(expr, globals=GLOBALS)
 
 
 def test_expand_str():

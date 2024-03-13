@@ -1,17 +1,10 @@
 import os
 import re
-import inspect
 import json
-
 import datetime
-import asyncio as aio
-import aiofiles as aiof
 
 from pathlib import Path
 from typing import Any, Optional
-from async_eval import eval as asyncEval
-
-
 from . import cli
 
 
@@ -30,30 +23,7 @@ def _isListExpr(expr: Jexpr) -> bool:
     )
 
 
-async def _evalListExprAsync(
-    expr: list[Jexpr],
-    locals: dict[str, Any] | None,
-    globals: dict[str, Any],
-    depth: int = 0,
-) -> Jexpr:
-    def ctxWrap(f):
-        return lambda *args, **kwargs: f(
-            *args, **kwargs, locals=locals, globals=globals, depth=depth + 1
-        )
-
-    if not isinstance(expr, list):
-        raise ValueError(f"Expected list, got {expr}")
-
-    if not isinstance(expr[0], str):
-        raise ValueError(f"Expected string, got {expr[0]}")
-
-    fName = await ctxWrap(expandAsync)(expr[0][1:])
-    fVal = asyncEval(fName, globals, locals)
-    res = fVal(*await ctxWrap(expandAsync)(expr[1:]))
-    return await ctxWrap(expandAsync)(res)
-
-
-async def _evalStrExprAsync(
+def _evalStrExpr(
     expr: str, locals: dict[str, Any] | None, globals: dict[str, Any], depth: int
 ) -> str:
     def ctxWrap(f):
@@ -65,14 +35,14 @@ async def _evalStrExprAsync(
     while span := REXPR.search(expr):
         result += expr[: span.start()]
         code = span.group()[1:-1]
-        value = asyncEval(code, globals, locals)
-        result += str(await ctxWrap(expandAsync)(value))
+        value = eval(code, globals, locals)
+        result += str(ctxWrap(expand)(value))
         expr = expr[span.end() :]
     result += expr
     return result
 
 
-async def expandAsync(
+def expand(
     expr: Jexpr,
     locals: dict[str, Any] | None = None,
     globals: dict[str, Any] = GLOBALS,
@@ -90,24 +60,30 @@ async def expandAsync(
     if depth > 10:
         raise ValueError(f"Recursion limit reached: {expr}")
 
-    if inspect.isawaitable(expr):
-        expr = await expr
-
     if isinstance(expr, dict):
         result: dict[str, Jexpr] = {}
         for k in expr:
-            key = await ctxWrap(expandAsync)(k)
-            result[key] = await ctxWrap(expandAsync)(expr[k])
+            key = ctxWrap(expand)(k)
+            result[key] = ctxWrap(expand)(expr[k])
         return result
 
     elif _isListExpr(expr):
-        return await ctxWrap(_evalListExprAsync)(expr)
+        if not isinstance(expr, list):
+            raise ValueError(f"Expected list, got {expr}")
+
+        if not isinstance(expr[0], str):
+            raise ValueError(f"Expected string, got {expr[0]}")
+
+        fName = ctxWrap(expand)(expr[0][1:])
+        fVal = eval(fName, globals, locals)
+        res = fVal(*ctxWrap(expand)(expr[1:]))
+        return ctxWrap(expand)(res)
 
     elif isinstance(expr, list):
-        return [await ctxWrap(expandAsync)(e) for e in expr]
+        return [ctxWrap(expand)(e) for e in expr]
 
     elif isinstance(expr, str):
-        return await ctxWrap(_evalStrExprAsync)(expr)
+        return ctxWrap(_evalStrExpr)(expr)
 
     else:
         return expr
@@ -134,29 +110,18 @@ def _loadToml(buf: str) -> Jexpr:
         )
 
 
-async def readAsync(path: Path) -> Jexpr:
+def read(path: Path) -> Jexpr:
     """
     Read a JSON or TOML file.
     """
     try:
-        async with aiof.open(path, "r") as f:
+        with open(path, "r") as f:
             if path.suffix == ".toml":
-                return _loadToml(await f.read())
+                return _loadToml(f.read())
             else:
-                return json.loads(await f.read())
+                return json.loads(f.read())
     except Exception as e:
         raise RuntimeError(f"Failed to read {path}: {e}")
-
-
-async def includeAsync(
-    path: Path, locals: dict[str, Any] | None = None, globals: dict[str, Any] = GLOBALS
-) -> Jexpr:
-    """
-    Read and expand a JSON or TOML file.
-    """
-    globalsWithFile = globals.copy()
-    globalsWithFile["__file__"] = path
-    return await expandAsync(await readAsync(path), locals, globals)
 
 
 def include(
@@ -165,7 +130,9 @@ def include(
     """
     Read and expand a JSON or TOML file.
     """
-    return aio.run(includeAsync(path, locals, globals))
+    globalsWithFile = globals.copy()
+    globalsWithFile["__file__"] = path
+    return expand(read(path), locals, globals)
 
 
 def _assign(obj: dict, key: str, value: Any) -> None:
@@ -222,9 +189,9 @@ def _relpath(*args):
     return os.path.normpath(os.path.join(os.path.dirname(__file__), *args))
 
 
-expose("jexpr.include", lambda path: includeAsync(Path(path)))
-expose("jexpr.expand", lambda expr: expandAsync(expr))
-expose("jexpr.read", lambda path: readAsync(Path(path)))
+expose("jexpr.include", lambda path: include(Path(path)))
+expose("jexpr.expand", lambda expr: expand(expr))
+expose("jexpr.read", lambda path: read(Path(path)))
 
 expose("utils.relpath", _relpath)
 expose("utils.union", _union)
@@ -245,7 +212,7 @@ def _():
 @cli.command(None, "jexpr/eval", "Evaluate a Jexpr file.")
 def _(args: EvalArgs):
     startTime = datetime.datetime.now()
-    print(json.dumps(aio.run(includeAsync(Path(args.path))), indent=2))
+    print(json.dumps(include(Path(args.path))), indent=2)
     endTime = datetime.datetime.now()
 
     delaMs = (endTime - startTime).total_seconds() * 1000
