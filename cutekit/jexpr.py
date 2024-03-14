@@ -4,14 +4,12 @@ import json
 import datetime
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 from . import cli
 
 
-REXPR = re.compile("{[^}]*}")
-
 Jexpr = dict[str, "Jexpr"] | list["Jexpr"] | str | bool | float | int | None
-GLOBALS: dict[str, Any] = dict()
+_globals: dict[str, Any] = dict()
 
 
 def _isListExpr(expr: Jexpr) -> bool:
@@ -23,39 +21,46 @@ def _isListExpr(expr: Jexpr) -> bool:
     )
 
 
-def _evalStrExpr(
-    expr: str, locals: dict[str, Any] | None, globals: dict[str, Any], depth: int
-) -> str:
-    def ctxWrap(f):
-        return lambda *args, **kwargs: f(
-            *args, **kwargs, locals=locals, globals=globals, depth=depth
-        )
+def _extractStr(expr: str, expand: Callable[[Jexpr], Jexpr]) -> str:
+    res = ""
+    depth = 0
+    strStart = 0
+    exprStart = 0
+    for i, c in enumerate(expr):
+        if c == "{":
+            if depth == 0:
+                res += expr[strStart:i]
+                exprStart = i + 1
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                subexpr = expr[exprStart:i]
+                try:
+                    res += str(expand(subexpr))
+                except Exception as e:
+                    raise ValueError(f"Failed to expand '{subexpr}': {e}")
 
-    result = ""
-    while span := REXPR.search(expr):
-        result += expr[: span.start()]
-        code = span.group()[1:-1]
-        value = eval(code, globals, locals)
-        result += str(ctxWrap(expand)(value))
-        expr = expr[span.end() :]
-    result += expr
-    return result
+                strStart = i + 1
+
+    if depth != 0:
+        raise ValueError(f"Unbalanced braces in {expr}")
+    res += expr[strStart:]
+    return res
 
 
 def expand(
     expr: Jexpr,
     locals: dict[str, Any] | None = None,
-    globals: dict[str, Any] = GLOBALS,
+    globals: dict[str, Any] = _globals,
     depth: int = 0,
 ) -> Jexpr:
     """
     Expand a Jexpr expression.
     """
 
-    def ctxWrap(f):
-        return lambda *args, **kwargs: f(
-            *args, **kwargs, locals=locals, globals=globals, depth=depth + 1
-        )
+    def _expand(expr: Jexpr) -> Jexpr:
+        return expand(expr, locals=locals, globals=globals, depth=depth + 1)
 
     if depth > 10:
         raise ValueError(f"Recursion limit reached: {expr}")
@@ -63,8 +68,8 @@ def expand(
     if isinstance(expr, dict):
         result: dict[str, Jexpr] = {}
         for k in expr:
-            key = ctxWrap(expand)(k)
-            result[key] = ctxWrap(expand)(expr[k])
+            key = _expand(k)
+            result[key] = _expand(expr[k])
         return result
 
     elif _isListExpr(expr):
@@ -74,16 +79,21 @@ def expand(
         if not isinstance(expr[0], str):
             raise ValueError(f"Expected string, got {expr[0]}")
 
-        fName = ctxWrap(expand)(expr[0][1:])
+        fName = _expand(expr[0][1:])
         fVal = eval(fName, globals, locals)
-        res = fVal(*ctxWrap(expand)(expr[1:]))
-        return ctxWrap(expand)(res)
+        res = fVal(*_expand(expr[1:]))
+        return _expand(res)
 
     elif isinstance(expr, list):
-        return [ctxWrap(expand)(e) for e in expr]
+        return [_expand(e) for e in expr]
 
     elif isinstance(expr, str):
-        return ctxWrap(_evalStrExpr)(expr)
+        return _extractStr(
+            expr,
+            lambda e: eval(e, globals, locals)
+            if not (e.startswith("{") and e.endswith("}"))
+            else e,
+        )
 
     else:
         return expr
@@ -125,7 +135,7 @@ def read(path: Path) -> Jexpr:
 
 
 def include(
-    path: Path, locals: dict[str, Any] | None = None, globals: dict[str, Any] = GLOBALS
+    path: Path, locals: dict[str, Any] | None = None, globals: dict[str, Any] = _globals
 ) -> Jexpr:
     """
     Read and expand a JSON or TOML file.
@@ -157,7 +167,7 @@ def expose(path: str, value: Any) -> None:
     Expose a value to the Jexpr environment.
     """
     els = path.split(".")
-    obj = GLOBALS
+    obj = _globals
     for el in els[:-1]:
         if el not in obj:
             _assign(obj, el, Namespace())
