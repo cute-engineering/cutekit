@@ -1,7 +1,7 @@
 import os
 import json
 from typing import Optional
-from . import model, cli, vt100, jexpr
+from . import model, cli, vt100, jexpr, const
 
 
 def graph(
@@ -91,7 +91,15 @@ class GraphArgs(model.TargetArgs):
 
 
 def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jexpr:
-    j: jexpr.Jexpr = {"folders": []}
+    workspace = {
+        "folders": [],
+        "tasks": {
+            "version": "2.0.0",
+            "tasks": [],
+        },
+    }
+
+    folders = workspace["folders"]
 
     def pickEmoji(proj: model.Project) -> str:
         if proj.id == project.id:
@@ -101,14 +109,101 @@ def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jex
     for proj in registry.iter(model.Project):
         name = proj.id.split("/")[-1].replace("-", " ").capitalize()
 
-        j["folders"].append(
+        folders.append(
             {
                 "path": proj.dirname(),
                 "name": f"{pickEmoji(proj)} {name}",
             }
         )
 
-    return j
+    folders.append(
+        {
+            "name": "⚙️ CuteKit (Project)",
+            "path": const.PROJECT_CK_DIR,
+        }
+    )
+
+    folders.append(
+        {
+            "name": "⚙️ CuteKit (Global)",
+            "path": const.GLOBAL_CK_DIR,
+        }
+    )
+
+    tasks = workspace["tasks"]["tasks"]
+
+    for comp in registry.iter(model.Component):
+        if comp.type != model.Kind.EXE:
+            continue
+
+        tasks.append(
+            {
+                "label": f"▶️ Run {comp.id}",
+                "type": "shell",
+                "command": f"ck builder run --mixins=release {comp.id}",
+                "problemMatcher": [],
+            }
+        )
+
+        tasks.append(
+            {
+                "label": f"🪲 Debug {comp.id}",
+                "type": "shell",
+                "command": f"ck builder run --mixins=release,debug --debug {comp.id}",
+                "problemMatcher": [],
+            }
+        )
+
+    tasks.append(
+        {
+            "label": "⚙️ Build Workspace",
+            "type": "shell",
+            "command": "cutekit builder build",
+            "group": {
+                "kind": "build",
+                "isDefault": True,
+            },
+        }
+    )
+
+    tasks.append(
+        {
+            "label": "⚙️ Update Workspace",
+            "type": "shell",
+            "command": "cutekit export code-workspace --write",
+            "problemMatcher": [],
+        }
+    )
+
+    tasks.append(
+        {
+            "label": "🧹 Clean Workspace",
+            "type": "shell",
+            "command": "cutekit builder clean",
+            "problemMatcher": [],
+        }
+    )
+
+    tasks.append(
+        {
+            "label": "💣 Nuke Workspace",
+            "type": "shell",
+            "command": "cutekit builder nuke",
+            "problemMatcher": [],
+        }
+    )
+
+    return workspace
+
+
+def compileFlags(
+    lang: str, registry: model.Registry, target: model.Target
+) -> list[str]:
+    flags = []
+    if lang == "c++":
+        flags.append("-xc++")
+
+    return flags
 
 
 @cli.command("e", "export", "Export various artifacts")
@@ -132,16 +227,44 @@ def _(args: GraphArgs):
 
 class WorkspaceArgs(model.RegistryArgs):
     open: bool = cli.arg(None, "open", "Open the workspace file in VSCode")
+    write: bool = cli.arg(None, "write", "Write the workspace file to disk")
 
 
 @cli.command("w", "export/code-workspace", "Generate a VSCode workspace file")
 def _(args: WorkspaceArgs):
     project = model.Project.use()
+    projectName = project.id.split("/")[-1].replace("-", " ").lower()
     registry = model.Registry.use(args)
     j = codeWorkspace(project, registry)
-    if args.open:
-        with open("workspace.code-workspace", "w") as f:
+
+    args.write = args.write or args.open
+
+    if args.write:
+        with open(f"{projectName}.code-workspace", "w") as f:
             f.write(json.dumps(j, indent=2))
-        os.system("code workspace.code-workspace")
+
+        print(f"Wrote {projectName}.code-workspace")
     else:
         print(json.dumps(j, indent=2))
+
+    if args.open:
+        os.system(f"code {projectName}.code-workspace")
+
+
+class CompileFlagsArgs(model.TargetArgs):
+    lang: str = cli.arg(None, "lang", "The language to generate flags for (c++ or c)")
+    write: bool = cli.arg(None, "write", "Write the flags to a file")
+
+
+@cli.command(
+    "c", "export/compile-flags", "Generate compile flags suitable for use with clangd"
+)
+def _(args: CompileFlagsArgs):
+    registry = model.Registry.use(args)
+    target = model.Target.use(args)
+
+    if args.write:
+        with open("compile-flags.txt", "w") as f:
+            f.write("\n".join(compileFlags(args.lang, registry, target)))
+    else:
+        print("\n".join(compileFlags(args.lang, registry, target)))
