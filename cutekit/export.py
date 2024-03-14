@@ -138,7 +138,8 @@ def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jex
 
         tasks.append(
             {
-                "label": f"▶️ Run {comp.id}",
+                "icon": {"id": "play", "color": "terminal.ansiBlue"},
+                "label": f"Run {comp.id}",
                 "type": "shell",
                 "command": f"ck builder run --mixins=release {comp.id}",
                 "problemMatcher": [],
@@ -147,7 +148,8 @@ def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jex
 
         tasks.append(
             {
-                "label": f"🪲 Debug {comp.id}",
+                "icon": {"id": "debug", "color": "terminal.ansiGreen"},
+                "label": f"Debug {comp.id}",
                 "type": "shell",
                 "command": f"ck builder run --mixins=release,debug --debug {comp.id}",
                 "problemMatcher": [],
@@ -156,7 +158,8 @@ def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jex
 
     tasks.append(
         {
-            "label": "⚙️ Build Workspace",
+            "icon": {"id": "gear", "color": "terminal.ansiYellow"},
+            "label": "Build Workspace",
             "type": "shell",
             "command": "cutekit builder build",
             "group": {
@@ -168,7 +171,8 @@ def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jex
 
     tasks.append(
         {
-            "label": "⚙️ Update Workspace",
+            "icon": {"id": "sync", "color": "terminal.ansiYellow"},
+            "label": "Update Workspace",
             "type": "shell",
             "command": "cutekit export code-workspace --write",
             "problemMatcher": [],
@@ -177,7 +181,8 @@ def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jex
 
     tasks.append(
         {
-            "label": "🧹 Clean Workspace",
+            "icon": {"id": "trash", "color": "terminal.ansiRed"},
+            "label": "Clean Workspace",
             "type": "shell",
             "command": "cutekit builder clean",
             "problemMatcher": [],
@@ -186,7 +191,8 @@ def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jex
 
     tasks.append(
         {
-            "label": "💣 Nuke Workspace",
+            "icon": {"id": "trash", "color": "terminal.ansiRed"},
+            "label": "Nuke Workspace",
             "type": "shell",
             "command": "cutekit builder nuke",
             "problemMatcher": [],
