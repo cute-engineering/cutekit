@@ -143,6 +143,7 @@ def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jex
                 "type": "shell",
                 "command": f"ck builder run --mixins=release {comp.id}",
                 "problemMatcher": [],
+                "detail": comp.description,
             }
         )
 
@@ -153,6 +154,7 @@ def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jex
                 "type": "shell",
                 "command": f"ck builder run --mixins=release,debug --debug {comp.id}",
                 "problemMatcher": [],
+                "detail": comp.description,
             }
         )
 
@@ -166,16 +168,43 @@ def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jex
                 "kind": "build",
                 "isDefault": True,
             },
+            "detail": "Build the entire workspace",
+        }
+    )
+
+    tasks.append(
+        {
+            "icon": {"id": "beaker", "color": "terminal.ansiCyan"},
+            "label": "Run all tests",
+            "type": "shell",
+            "command": "cutekit builder test",
+            "group": {
+                "kind": "build",
+                "isDefault": True,
+            },
+            "detail": "Run all tests in the workspace",
         }
     )
 
     tasks.append(
         {
             "icon": {"id": "sync", "color": "terminal.ansiYellow"},
-            "label": "Update Workspace",
+            "label": "Sync Workspace",
             "type": "shell",
             "command": "cutekit export code-workspace --write",
             "problemMatcher": [],
+            "detail": "Generate a VSCode workspace file",
+        }
+    )
+
+    tasks.append(
+        {
+            "icon": {"id": "arrow-circle-down", "color": "terminal.ansiCyan"},
+            "label": "Install externs",
+            "type": "shell",
+            "command": "cutekit model install",
+            "problemMatcher": [],
+            "detail": "Install external dependencies",
         }
     )
 
@@ -186,6 +215,7 @@ def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jex
             "type": "shell",
             "command": "cutekit builder clean",
             "problemMatcher": [],
+            "detail": "Clean the workspace",
         }
     )
 
@@ -196,6 +226,7 @@ def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jex
             "type": "shell",
             "command": "cutekit builder nuke",
             "problemMatcher": [],
+            "detail": "Nuke the workspace",
         }
     )
 
