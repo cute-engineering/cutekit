@@ -16,8 +16,10 @@ def test_expand_str():
     assert _expand("foo") == "foo"
     assert _expand("{1}") == "1"
     assert _expand("{1 + 2}") == "3"
+    assert _expand("{{1 + 2}}") == "{1 + 2}"
     assert _expand("{sum(1, 2)}") == "3"
     assert _expand("hello{sum(1, 2)}world") == "hello3world"
+    assert _expand("hello{sum(1, 2)}{{}}world") == "hello3{}world"
     assert _expand("{shell.latest('clang')}") == shell.latest("clang")
 
 
