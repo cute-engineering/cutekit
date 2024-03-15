@@ -41,6 +41,7 @@ rules: dict[str, Rule] = {
             "-Werror",
             "-fcolor-diagnostics",
             "-fno-exceptions",
+            "-fno-rtti",
         ],
         ["$out.d"],
     ),
