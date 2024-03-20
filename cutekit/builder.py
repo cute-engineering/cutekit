@@ -389,15 +389,25 @@ def _():
 
 class BuildArgs(model.TargetArgs):
     component: str = cli.operand("component", "Component to build", default="__main__")
+    universe: bool = cli.arg("u", "universe", "Does it for all targets")
 
 
 @cli.command("b", "builder/build", "Build a component or all components")
 def _(args: BuildArgs):
-    scope = TargetScope.use(args)
-    component = None
-    if args.component is not None:
-        component = scope.registry.lookup(args.component, model.Component)
-    build(scope, component if component is not None else "all")[0]
+    if args.universe:
+        registry = model.Registry.use(args)
+        for target in registry.iter(model.Target):
+            scope = TargetScope(registry, target)
+            component = None
+            if args.component is not None:
+                component = scope.registry.lookup(args.component, model.Component)
+            build(scope, component if component is not None else "all")[0]
+    else:
+        scope = TargetScope.use(args)
+        component = None
+        if args.component is not None:
+            component = scope.registry.lookup(args.component, model.Component)
+        build(scope, component if component is not None else "all")[0]
 
 
 class RunArgs(BuildArgs, shell.DebugArgs, shell.ProfileArgs):
