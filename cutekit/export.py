@@ -97,6 +97,11 @@ def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jex
             "version": "2.0.0",
             "tasks": [],
         },
+        "extensions": {
+            "recommendations": [
+                "llvm-vs-code-extensions.vscode-clangd",
+            ]
+        },
     }
 
     folders = workspace["folders"]
