@@ -470,7 +470,7 @@ class Resolver:
 
         component = self._registry.lookup(keep, Component)
         if not component:
-            return Resolved(reason="No provider for 'myembed'")
+            return Resolved(f"No provider for '{keep}'")
 
         result: list[str] = []
 
