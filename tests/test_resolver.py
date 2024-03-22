@@ -67,6 +67,21 @@ def test_deps_routing_with_props():
     assert resolved.reason == "No provider for 'myembed'"
 
 
+def test_deps_routing_with_bool_props():
+    r = model.Registry("")
+    r._append(model.Component("myapp", enableIf={"freestanding": [False]}))
+    t = model.Target(
+        "host", routing={"myembed": "myimplB"}, props={"freestanding": True}
+    )
+    res = model.Resolver(r, t)
+    resolved = res.resolve("myapp")
+    assert not resolved.enabled
+    assert (
+        resolved.reason
+        == "Props missmatch for 'freestanding': Got 'True' but expected 'False'"
+    )
+
+
 def test_deps_routing_with_props_and_requires():
     r = model.Registry("")
     r._append(model.Component("myapp", requires=["mylib"]))

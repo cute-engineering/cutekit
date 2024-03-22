@@ -681,3 +681,13 @@ def _(args: TargetArgs):
     else:
         print(vt100.p(", ".join(map(lambda m: m.id, targets))))
     print()
+
+
+@cli.command("d", "model/dump", "Dump the model")
+def _(args: TargetArgs):
+    registry = Registry.use(args)
+    print("[")
+    for m in registry.manifests.values():
+        print(m.to_json(indent=2), end="")
+        print(",")
+    print("]")
