@@ -97,8 +97,10 @@ class GraphArgs(model.TargetArgs):
     )
 
 
-def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jexpr:
-    workspace = {
+def codeWorkspace(
+    project: model.Project, registry: model.Registry, all: bool = False
+) -> jexpr.Jexpr:
+    workspace: dict[str, jexpr.Jexpr] = {
         "folders": [],
         "tasks": {
             "version": "2.0.0",
@@ -128,19 +130,20 @@ def codeWorkspace(project: model.Project, registry: model.Registry) -> jexpr.Jex
             }
         )
 
-    folders.append(
-        {
-            "name": "⚙️ CuteKit (Project)",
-            "path": const.PROJECT_CK_DIR,
-        }
-    )
+    if all:
+        folders.append(
+            {
+                "name": "⚙️ CuteKit (Project)",
+                "path": const.PROJECT_CK_DIR,
+            }
+        )
 
-    folders.append(
-        {
-            "name": "⚙️ CuteKit (Global)",
-            "path": const.GLOBAL_CK_DIR,
-        }
-    )
+        folders.append(
+            {
+                "name": "⚙️ CuteKit (Global)",
+                "path": const.GLOBAL_CK_DIR,
+            }
+        )
 
     tasks = workspace["tasks"]["tasks"]
 
@@ -277,6 +280,9 @@ def _(args: GraphArgs):
 class WorkspaceArgs(model.RegistryArgs):
     open: bool = cli.arg(None, "open", "Open the workspace file in VSCode")
     write: bool = cli.arg(None, "write", "Write the workspace file to disk")
+    all: bool = cli.arg(
+        None, "all", "Also include the CuteKit project and global directories"
+    )
 
 
 @cli.command("w", "export/code-workspace", "Generate a VSCode workspace file")
