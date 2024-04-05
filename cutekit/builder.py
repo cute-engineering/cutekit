@@ -5,7 +5,7 @@ import dataclasses as dt
 from pathlib import Path
 from typing import Callable, Literal, TextIO, Union
 
-from . import cli, shell, rules, model, ninja, const, vt100
+from . import cli, shell, rules, model, ninja, const, vt100, mixins
 
 _logger = logging.getLogger(__name__)
 
@@ -472,3 +472,10 @@ def _():
 def _():
     model.Project.use()
     shell.rmrf(const.PROJECT_CK_DIR)
+
+
+@cli.command("m", "builder/mixins", "List all available mixins")
+def _():
+    vt100.title("Mixins")
+    print(vt100.indent(vt100.wordwrap(", ".join(mixins.mixins.keys()))))
+    print()

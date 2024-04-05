@@ -91,7 +91,6 @@ def main() -> int:
     except RuntimeError as e:
         logging.exception(e)
         vt100.error(str(e))
-        cli.usage()
         return 1
 
     except KeyboardInterrupt:
