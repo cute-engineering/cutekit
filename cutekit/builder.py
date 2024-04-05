@@ -389,7 +389,7 @@ def _():
 
 class BuildArgs(model.TargetArgs):
     component: str = cli.operand("component", "Component to build", default="__main__")
-    universe: bool = cli.arg("u", "universe", "Does it for all targets")
+    universe: bool = cli.arg(None, "universe", "Does it for all targets")
 
 
 @cli.command("b", "builder/build", "Build a component or all components")
