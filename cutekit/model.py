@@ -50,6 +50,9 @@ class Manifest(DataClassJsonMixin):
 
     @staticmethod
     def tryLoad(path: Path) -> Optional["Manifest"]:
+        """
+        Try to load a manifest from a given path
+        """
         for suffix in Manifest.SUFFIXES:
             pathWithSuffix = path.with_suffix(suffix)
             if pathWithSuffix.exists():
@@ -79,6 +82,12 @@ class Manifest(DataClassJsonMixin):
         return os.path.relpath(os.path.dirname(self.path), Path.cwd())
 
     def subpath(self, path) -> Path:
+        """
+        Return a subpath of the manifest
+
+        Example:
+            manifest.subpath("src") -> Path(manifest.dirname() + "/src")
+        """
         return Path(self.dirname()) / path
 
     def ensureType(self, t: Type[utils.T]) -> utils.T:
@@ -572,23 +581,25 @@ class Registry(DataClassJsonMixin):
         return _registry
 
     @staticmethod
-    def load(project: Project, mixins: list[str], props: Props) -> "Registry":
-        _logger.info(f"Loading model for project '{project.id}'")
-
-        r = Registry(project)
-        r._append(project)
-
-        # Lookup and load all extern projects
-        for externDir in project.externDirs:
+    def _loadExterns(r: "Registry", p: Project):
+        """
+        Load all externs for the project
+        """
+        for externDir in p.externDirs:
             extern = r._append(
                 Manifest.tryLoad(Path(externDir) / "project")
                 or Manifest.tryLoad(Path(externDir) / "manifest")
             )
 
-            if extern is not None:
+            if extern is None:
                 _logger.warn("Extern project does not have a project or manifest")
 
-        # Load all manifests from projects
+    @staticmethod
+    def _loadManifests(r: "Registry"):
+        """
+        Load all manifests for each project in the registry
+        """
+
         for project in list(r.iter(Project)):
             targetDir = os.path.join(project.dirname(), const.TARGETS_DIR)
             targetFiles = shell.find(targetDir, Manifest.SUFFIXES_GLOBS)
@@ -608,7 +619,12 @@ class Registry(DataClassJsonMixin):
             for componentFile in componentFiles:
                 r._append(Manifest.load(Path(componentFile)).ensureType(Component))
 
-        # Resolve all dependencies for all targets
+    @staticmethod
+    def _loadDependencies(r: "Registry", mixins: list[str], props: Props):
+        """
+        Resolve all dependencies for all targets
+        """
+
         for target in r.iter(Target):
             target.props |= props
 
@@ -657,6 +673,20 @@ class Registry(DataClassJsonMixin):
                 if c.resolved[target.id].enabled:
                     for k, v in c.tools.items():
                         tools[k].args += v.args
+
+    @staticmethod
+    def load(project: Project, mixins: list[str], props: Props) -> "Registry":
+        """
+        Load the model for a given project, applying mixins and props
+        """
+        _logger.info(f"Loading model for project '{project.id}'")
+
+        r = Registry(project)
+        r._append(project)
+
+        Registry._loadExterns(r, project)
+        Registry._loadManifests(r)
+        Registry._loadDependencies(r, mixins, props)
 
         return r
 

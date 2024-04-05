@@ -158,6 +158,8 @@ def _(args: PodCreateArgs):
     Create a new development pod with cutekit installed and the current
     project mounted at /project
     """
+    args.name = args.name or "default"
+
     project = model.Project.ensure()
 
     name = args.name
@@ -168,15 +170,15 @@ def _(args: PodCreateArgs):
     client = docker.from_env()
     try:
         existing = client.containers.get(name)
-        if vt100.ask(f"Pod '{name[len(podPrefix):]}' already exists, kill it?", False):
+        if vt100.ask(f"Pod '{args.name}' already exists, kill it?", False):
             existing.stop()
             existing.remove()
         else:
-            raise RuntimeError(f"Pod '{name[len(podPrefix):]}' already exists")
+            raise RuntimeError(f"Pod '{args.name}' already exists")
     except docker.errors.NotFound:
         pass
 
-    print(f"Starting pod '{name[len(podPrefix) :]}'...")
+    print(f"Starting pod '{args.name}'...")
 
     container = client.containers.run(
         image.image,
@@ -192,7 +194,7 @@ def _(args: PodCreateArgs):
         detach=True,
     )
 
-    print(f"Initializing pod '{name[len(podPrefix) :]}'...")
+    print(f"Initializing pod '{args.name}'...")
     for cmd in image.setup:
         print(vt100.p(cmd))
         exitCode, output = container.exec_run(f"/bin/sh -c '{cmd}'", demux=True)
@@ -201,13 +203,14 @@ def _(args: PodCreateArgs):
                 f"Failed to initialize pod with command '{cmd}':\n\nSTDOUT:\n{vt100.indent(vt100.wordwrap(tryDecode(output[0], '<empty>')))}\nSTDERR:\n{vt100.indent(vt100.wordwrap(tryDecode(output[1], '<empty>')))}"
             )
 
-    print(f"Created pod '{name[len(podPrefix) :]}' from image '{image.image}'")
+    print(f"Created pod '{args.name}' from image '{image.image}'")
 
 
 @cli.command("k", "pod/kill", "Stop and remove a pod")
 def _(args: PodKillArgs):
-    client = docker.from_env()
+    args.name = args.name or "default"
 
+    client = docker.from_env()
     name = args.name
     all = args.all
 
@@ -258,6 +261,8 @@ def _():
 
 @cli.command("e", "pod/exec", "Execute a command in a pod")
 def podExecCmd(args: PodExecArgs):
+    args.name = args.name or "default"
+
     name = args.name
 
     if not name.startswith(podPrefix):

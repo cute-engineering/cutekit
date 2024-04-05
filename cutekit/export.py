@@ -1,5 +1,6 @@
 import os
 import json
+import html
 from typing import Optional
 from . import model, cli, vt100, jexpr, const
 
@@ -43,9 +44,12 @@ def graph(
             fillcolor = "lightgrey" if component.type == model.Kind.LIB else "lightblue"
             shape = "plaintext" if not scope == component.id else "box"
 
+            descr = component.description
+            descr = descr.replace("&", "&amp;")
+
             g.node(
                 component.id,
-                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(component.description, 40,newline='<BR/>')}>",
+                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(descr, 40,newline='<BR/>')}>",
                 shape=shape,
                 style="filled",
                 fillcolor=fillcolor,
@@ -64,9 +68,12 @@ def graph(
                     color=("blue" if isChosen else "black"),
                 )
         elif showDisabled:
+            descr = component.description
+            descr = descr.replace("&", "&amp;")
+
             g.node(
                 component.id,
-                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(component.description, 40,newline='<BR/>')}<BR/><BR/><I>{vt100.wordwrap(str(component.resolved[target.id].reason), 40,newline='<BR/>')}</I>>",
+                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(descr, 40,newline='<BR/>')}<BR/><BR/><I>{vt100.wordwrap(str(component.resolved[target.id].reason), 40,newline='<BR/>')}</I>>",
                 shape="plaintext",
                 style="filled",
                 fontcolor="#999999",
@@ -275,7 +282,7 @@ class WorkspaceArgs(model.RegistryArgs):
 @cli.command("w", "export/code-workspace", "Generate a VSCode workspace file")
 def _(args: WorkspaceArgs):
     project = model.Project.use()
-    projectName = project.id.split("/")[-1].replace("-", " ").lower()
+    projectName = project.id.split("/")[-1].lower()
     registry = model.Registry.use(args)
     j = codeWorkspace(project, registry)
 
