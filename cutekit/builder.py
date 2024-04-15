@@ -418,7 +418,10 @@ class RunArgs(BuildArgs, shell.DebugArgs, shell.ProfileArgs):
 
 @cli.command("r", "builder/run", "Run a component or __main__ if not specified")
 def runCmd(args: RunArgs):
-    args.props |= {"debug": str(args.debug).lower()}
+    if args.debug:
+        args.mixins.append("debug")
+        args.props |= {"debug": True}
+
     if args.component is None:
         args.component = "__main__"
 

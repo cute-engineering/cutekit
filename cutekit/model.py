@@ -288,7 +288,7 @@ DEFAULT_TOOLS: Tools = {
 
 
 class RegistryArgs:
-    props: dict[str, str] = cli.arg(None, "prop", "Set a property")
+    props: dict[str, str] = cli.arg(None, "props", "Set a property")
     mixins: list[str] = cli.arg(None, "mixins", "Apply mixins")
 
 
