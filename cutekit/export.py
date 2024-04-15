@@ -290,7 +290,7 @@ def _(args: WorkspaceArgs):
     project = model.Project.use()
     projectName = project.id.split("/")[-1].lower()
     registry = model.Registry.use(args)
-    j = codeWorkspace(project, registry)
+    j = codeWorkspace(project, registry, args.all)
 
     args.write = args.write or args.open
 
