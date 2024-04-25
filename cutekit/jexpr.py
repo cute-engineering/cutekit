@@ -222,7 +222,7 @@ def _():
 @cli.command(None, "jexpr/eval", "Evaluate a Jexpr file.")
 def _(args: EvalArgs):
     startTime = datetime.datetime.now()
-    print(json.dumps(include(Path(args.path))), indent=2)
+    print(json.dumps(include(Path(args.path)), indent=2))
     endTime = datetime.datetime.now()
 
     delaMs = (endTime - startTime).total_seconds() * 1000
