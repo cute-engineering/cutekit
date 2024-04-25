@@ -1,7 +1,7 @@
 import os
 import json
 import html
-from typing import Optional
+from typing import Any, Optional
 from . import model, cli, vt100, jexpr, const
 
 
@@ -100,7 +100,7 @@ class GraphArgs(model.TargetArgs):
 def codeWorkspace(
     project: model.Project, registry: model.Registry, all: bool = False
 ) -> jexpr.Jexpr:
-    workspace: dict[str, jexpr.Jexpr] = {
+    workspace: Any = {
         "folders": [],
         "tasks": {
             "version": "2.0.0",

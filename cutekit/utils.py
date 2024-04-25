@@ -1,5 +1,5 @@
 import os
-from typing import Any, TypeVar, cast, Optional, Union
+from typing import Any, Callable, TypeVar, cast, Optional, Union
 import json
 import hashlib
 
@@ -12,6 +12,19 @@ def uniqPreserveOrder(lst: list[T]) -> list[T]:
         if i in result:
             result.remove(i)
         result.append(i)
+    return result
+
+
+def uniq(lst: list[T], key: Callable[[T], Any] | None = None) -> list[T]:
+    if key is None:
+        return list(set(lst))
+    seen = set()
+    result = []
+    for item in lst:
+        k = key(item)
+        if k not in seen:
+            seen.add(k)
+            result.append(item)
     return result
 
 

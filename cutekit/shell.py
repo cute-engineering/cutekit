@@ -70,7 +70,6 @@ def sha256sum(path: str) -> str:
     with open(path, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()
 
-
 def find(
     path: str | list[str], wildcards: list[str] = [], recusive: bool = True
 ) -> list[str]:
