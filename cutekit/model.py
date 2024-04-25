@@ -107,11 +107,99 @@ _project: Optional["Project"] = None
 
 
 @dt.dataclass
-class Extern(DataClassJsonMixin):
-    git: str
-    tag: str
+class Extern:
+    id: str = dt.field(default="")
+    description: str = dt.field(default="(No description)")
+
+    # The following properties are for package comming from git
+    git: str = dt.field(default="")
+    tag: str = dt.field(default="")
     shallow: bool = dt.field(default=True)
     depth: int = dt.field(default=1)
+
+    # Name under which the extern is installed
+    # might be the package name on linux or MacOS
+    names: list[str] = dt.field(default_factory=list)
+
+    def _fetchLibrary(self) -> list["Manifest"]:
+        """
+        Locate a library on the host system and create a virtual
+        manifest for it
+        """
+        c = Component(f"{self.id}-host")
+        c.description = f"Host version of {self.id}"
+        c.path = "src/_virtual"
+        c.enableIf = {"host": [True]}
+        c.provides = [self.id]
+
+        def pkgExists(name: str) -> bool:
+            try:
+                shell.popen("pkg-config", "--exists", name)
+                return True
+            except shell.ShellException:
+                return False
+
+        for name in self.names:
+            if not pkgExists(name):
+                continue
+
+            cflags = shell.popen("pkg-config", "--cflags", self.id).strip()
+            ldflags = shell.popen("pkg-config", "--libs", self.id).strip()
+
+            c.tools["cc"] = Tool(args=cflags.split())
+            c.tools["cxx"] = Tool(args=cflags.split())
+            c.tools["ld"] = Tool(args=ldflags.split())
+
+            return [c]
+
+        return []
+
+    def _fetchGit(self) -> list[Manifest]:
+        """
+        Fetch an extern from a git repository
+        """
+        path = os.path.join(const.EXTERN_DIR, self.id)
+
+        if os.path.exists(path):
+            print(f"Skipping {self.id}, already installed")
+            project = Project.at(Path(path))
+            if not project:
+                _logger.warn("Extern project does not have a project")
+                return []
+            return [project] + project.fetchExterns()
+
+        print(f"Installing {self.id}-{self.tag} from {self.git}...")
+        cmd = [
+            "git",
+            "clone",
+            "--quiet",
+            "--branch",
+            self.tag,
+            self.git,
+            path,
+        ]
+
+        if self.shallow:
+            cmd += ["--depth", str(self.depth)]
+
+        shell.exec(*cmd, quiet=True)
+        project = Project.at(Path(path))
+        if project is None:
+            # Maybe it's a single manifest project.
+            # It's useful for externs that are simple self-contained libraries
+            # that don't need a full project structure
+            manifest = Manifest.tryLoad(Path(path) / "manifest")
+            if manifest is not None:
+                return [manifest]
+            _logger.warn("Extern project does not have a project or manifest")
+            return []
+        return [cast(Manifest, project)] + project.fetchExterns()
+
+    def fetch(self) -> list[Manifest]:
+        if self.git:
+            return self._fetchGit()
+        else:
+            return self._fetchLibrary()
 
 
 @dt.dataclass
@@ -156,33 +244,17 @@ class Project(Manifest):
             return None
         return projectManifest.ensureType(Project)
 
-    @staticmethod
-    def fetchs(extern: dict[str, Extern]):
-        for extSpec, ext in extern.items():
-            extPath = os.path.join(const.EXTERN_DIR, extSpec)
+    def fetchExterns(self) -> list[Manifest]:
+        """
+        Fetch all externs for the project
+        """
 
-            if os.path.exists(extPath):
-                print(f"Skipping {extSpec}, already installed")
-                continue
+        res = []
+        for extSpec, ext in self.extern.items():
+            ext.id = extSpec
+            res.extend(ext.fetch())
 
-            print(f"Installing {extSpec}-{ext.tag} from {ext.git}...")
-            cmd = [
-                "git",
-                "clone",
-                "--quiet",
-                "--branch",
-                ext.tag,
-                ext.git,
-                extPath,
-            ]
-
-            if ext.shallow:
-                cmd += ["--depth", str(ext.depth)]
-
-            shell.exec(*cmd, quiet=True)
-            project = Project.at(Path(extPath))
-            if project is not None:
-                Project.fetchs(project.extern)
+        return utils.uniq(res, lambda x: x.id)
 
     @staticmethod
     def use() -> "Project":
@@ -200,7 +272,7 @@ def _():
 @cli.command("i", "model/install", "Install required external packages")
 def _():
     project = Project.use()
-    Project.fetchs(project.extern)
+    project.fetchExterns()
 
 
 class ModelInitArgs:
@@ -288,7 +360,7 @@ DEFAULT_TOOLS: Tools = {
 
 
 class RegistryArgs:
-    props: dict[str, str] = cli.arg(None, "props", "Set a property")
+    props: dict[str, jexpr.Jexpr] = cli.arg(None, "props", "Set a property")
     mixins: list[str] = cli.arg(None, "mixins", "Apply mixins")
 
 
@@ -585,14 +657,9 @@ class Registry(DataClassJsonMixin):
         """
         Load all externs for the project
         """
-        for externDir in p.externDirs:
-            extern = r._append(
-                Manifest.tryLoad(Path(externDir) / "project")
-                or Manifest.tryLoad(Path(externDir) / "manifest")
-            )
-
-            if extern is None:
-                _logger.warn("Extern project does not have a project or manifest")
+        externs = p.fetchExterns()
+        for extern in externs:
+            r._append(extern)
 
     @staticmethod
     def _loadManifests(r: "Registry"):
