@@ -145,8 +145,8 @@ class Extern:
 
             _logger.info(f"Found {name} on the host system")
 
-            cflags = shell.popen("pkg-config", "--cflags", self.id).strip()
-            ldflags = shell.popen("pkg-config", "--libs", self.id).strip()
+            cflags = shell.popen("pkg-config", "--cflags", name).strip()
+            ldflags = shell.popen("pkg-config", "--libs", name).strip()
 
             c.tools["cc"] = Tool(args=cflags.split())
             c.tools["cxx"] = Tool(args=cflags.split())
