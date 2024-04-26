@@ -149,23 +149,24 @@ def wilcard(scope: ComponentScope, wildcards: list[str]) -> list[str]:
 
 
 def compile(
-    w: ninja.Writer, scope: ComponentScope, rule: str, srcs: list[str]
+    w: ninja.Writer | None, scope: ComponentScope, rule: str, srcs: list[str]
 ) -> list[str]:
     res: list[str] = []
     for src in srcs:
         rel = Path(src).relative_to(scope.component.dirname())
         dest = buildpath(scope, path="__obj__") / rel.with_suffix(rel.suffix + ".o")
         t = scope.target.tools[rule]
-        w.build(
-            str(dest),
-            rule,
-            inputs=src,
-            order_only=t.files,
-            variables={
-                "ck_target": scope.target.id,
-                "ck_component": scope.component.id,
-            },
-        )
+        if w:
+            w.build(
+                str(dest),
+                rule,
+                inputs=src,
+                order_only=t.files,
+                variables={
+                    "ck_target": scope.target.id,
+                    "ck_component": scope.component.id,
+                },
+            )
         res.append(str(dest))
     return res
 
@@ -174,7 +175,7 @@ def compileObjs(w: ninja.Writer, scope: ComponentScope) -> list[str]:
     objs = []
     for rule in rules.rules.values():
         if rule.id not in ["cp", "ld", "ar"]:
-            objs += compile(w, scope, rule.id, wilcard(scope, rule.fileIn))
+            objs += compile(w, scope, rule.id, srcs=wilcard(scope, rule.fileIn))
     return objs
 
 
@@ -233,7 +234,7 @@ def collectLibs(
     return res
 
 
-def collectInjectedLibs(scope: ComponentScope) -> list[str]:
+def collectInjectedObjs(scope: ComponentScope) -> list[str]:
     res: list[str] = []
     for r in scope.component.resolved[scope.target.id].injected:
         req = scope.registry.lookup(r, model.Component)
@@ -243,7 +244,7 @@ def collectInjectedLibs(scope: ComponentScope) -> list[str]:
             continue
         if not req.type == model.Kind.LIB:
             raise RuntimeError(f"Component {r} is not a library")
-        res.append(outfile(scope.openComponentScope(req)))
+        res.extend(compileObjs(None, scope.openComponentScope(req)))
 
     return res
 
@@ -269,15 +270,14 @@ def link(
             },
         )
     else:
-        wholeLibs = collectInjectedLibs(scope)
+        injectedObjs = collectInjectedObjs(scope)
         libs = collectLibs(scope)
         w.build(
             out,
             "ld",
-            objs + wholeLibs + libs,
+            objs + libs,
             variables={
-                "objs": " ".join(objs),
-                "wholeLibs": " ".join(wholeLibs),
+                "objs": " ".join(objs + injectedObjs),
                 "libs": " ".join(libs),
                 "ck_target": scope.target.id,
                 "ck_component": scope.component.id,

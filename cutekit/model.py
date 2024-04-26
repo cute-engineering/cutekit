@@ -126,7 +126,7 @@ class Extern:
         Locate a library on the host system and create a virtual
         manifest for it
         """
-        c = Component(f"{self.id}-host")
+        c = Component(f"{self.id}-host", Kind.LIB)
         c.description = f"Host version of {self.id}"
         c.path = "src/_virtual"
         c.enableIf = {"host": [True]}
@@ -142,6 +142,8 @@ class Extern:
         for name in self.names:
             if not pkgExists(name):
                 continue
+
+            _logger.info(f"Found {name} on the host system")
 
             cflags = shell.popen("pkg-config", "--cflags", self.id).strip()
             ldflags = shell.popen("pkg-config", "--libs", self.id).strip()
@@ -161,14 +163,14 @@ class Extern:
         path = os.path.join(const.EXTERN_DIR, self.id)
 
         if os.path.exists(path):
-            print(f"Skipping {self.id}, already installed")
+            _logger.info(f"Extern {self.id} already exists at {path}")
             project = Project.at(Path(path))
             if not project:
                 _logger.warn("Extern project does not have a project")
                 return []
             return [project] + project.fetchExterns()
 
-        print(f"Installing {self.id}-{self.tag} from {self.git}...")
+        _logger.info(f"Installing {self.id}-{self.tag} from {self.git}...")
         cmd = [
             "git",
             "clone",
