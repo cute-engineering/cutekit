@@ -80,10 +80,7 @@ mixins: dict[str, Mixin] = {
         makeMixinSan("leak"),
     ),
     "tune": makeMixinTune("native"),
-    "release": combineMixins(
-        makeMixinOptimize("3"),
-        makeMixinTune("native"),
-    ),
+    "release": combineMixins(makeMixinOptimize("3")),
     "o3": makeMixinOptimize("3"),
     "o2": makeMixinOptimize("2"),
     "o1": makeMixinOptimize("1"),
