@@ -160,31 +160,26 @@ class Extern:
         """
         Fetch an extern from a git repository
         """
+
         path = os.path.join(const.EXTERN_DIR, self.id)
 
-        if os.path.exists(path):
-            _logger.info(f"Extern {self.id} already exists at {path}")
-            project = Project.at(Path(path))
-            if not project:
-                _logger.warn("Extern project does not have a project")
-                return []
-            return [project] + project.fetchExterns()
+        if not os.path.exists(path):
+            print(f"Installing {self.id}-{self.tag} from {self.git}...")
+            cmd = [
+                "git",
+                "clone",
+                "--quiet",
+                "--branch",
+                self.tag,
+                self.git,
+                path,
+            ]
 
-        _logger.info(f"Installing {self.id}-{self.tag} from {self.git}...")
-        cmd = [
-            "git",
-            "clone",
-            "--quiet",
-            "--branch",
-            self.tag,
-            self.git,
-            path,
-        ]
+            if self.shallow:
+                cmd += ["--depth", str(self.depth)]
 
-        if self.shallow:
-            cmd += ["--depth", str(self.depth)]
+            shell.exec(*cmd, quiet=True)
 
-        shell.exec(*cmd, quiet=True)
         project = Project.at(Path(path))
         if project is None:
             # Maybe it's a single manifest project.
@@ -598,6 +593,12 @@ class Registry(DataClassJsonMixin):
         self.manifests[m.id] = m
         return m
 
+    def _extend(self, ms: list[Manifest]) -> list[Manifest]:
+        """
+        Append a list of manifests to the model
+        """
+        return [self._append(m) for m in ms]
+
     def iter(self, type: Type[utils.T]) -> Generator[utils.T, None, None]:
         """
         Iterate over all manifests of a given type
@@ -659,9 +660,7 @@ class Registry(DataClassJsonMixin):
         """
         Load all externs for the project
         """
-        externs = p.fetchExterns()
-        for extern in externs:
-            r._append(extern)
+        r._extend(p.fetchExterns())
 
     @staticmethod
     def _loadManifests(r: "Registry"):
