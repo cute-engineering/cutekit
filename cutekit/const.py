@@ -25,6 +25,7 @@ GLOBAL_CK_DIR = os.path.join(os.path.expanduser("~"), ".cutekit")
 BUILD_DIR = os.path.join(PROJECT_CK_DIR, "build")
 CACHE_DIR = os.path.join(PROJECT_CK_DIR, "cache")
 EXTERN_DIR = os.path.join(PROJECT_CK_DIR, "extern")
+GENERATED_DIR = os.path.join(PROJECT_CK_DIR, "generated")
 TMP_DIR = os.path.join(PROJECT_CK_DIR, "tmp")
 SRC_DIR = "src"
 META_DIR = "meta"
