@@ -95,6 +95,9 @@ def _computeHashid(scope: TargetScope) -> list[str]:
 def _computeCinc(scope: TargetScope) -> list[str]:
     res = set()
 
+    includeAliases = os.path.join(const.GENERATED_DIR, "__aliases__")
+    res.add(f"-I{includeAliases}")
+
     for c in scope.registry.iterEnabled(scope.target):
         if "cpp-root-include" in c.props:
             res.add(c.dirname())
@@ -345,6 +348,27 @@ def gen(out: TextIO, scope: TargetScope):
     all(w, scope)
 
 
+def generateGlobalHeaders(registry: model.Registry):
+    generatedDir = Path(shell.mkdir(os.path.join(const.GENERATED_DIR, "__aliases__")))
+    for c in registry.iter(model.Component):
+        if c.type != model.Kind.LIB:
+            continue
+
+        modPath = os.path.join(c.dirname(), "mod.h")
+        aliasPath = generatedDir / c.id
+        targetPath = f"{c.id}/{os.path.basename(modPath)}"
+
+        if not os.path.exists(modPath) and not os.path.exists(aliasPath):
+            continue
+
+        print(f"Generating alias <{c.id}> -> <{targetPath}>")
+        # We can't generate an alias using symlinks because
+        # because this will break #pragma once in some compilers.
+        with open(aliasPath, "w") as f:
+            f.write("#pragma once\n")
+            f.write(f"#include <{c.id}/{os.path.basename(modPath)}>\n")
+
+
 def build(
     scope: TargetScope,
     components: Union[list[model.Component], model.Component, Literal["all"]] = "all",
@@ -362,6 +386,8 @@ def build(
 
     if isinstance(components, model.Component):
         components = [components]
+
+    generateGlobalHeaders(scope.registry)
 
     products: list[ProductScope] = []
     for c in components:
