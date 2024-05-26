@@ -174,7 +174,7 @@ def compile(
     return res
 
 
-def compileObjs(w: ninja.Writer, scope: ComponentScope) -> list[str]:
+def compileObjs(w: ninja.Writer | None, scope: ComponentScope) -> list[str]:
     objs = []
     for rule in rules.rules.values():
         if rule.id not in ["cp", "ld", "ar"]:
