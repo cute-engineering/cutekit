@@ -22,6 +22,11 @@ class Scope:
     def key(self) -> str:
         return self.registry.project.id
 
+    @property
+    def targets(self):
+        for t in self.registry.iter(model.Target):
+            yield self.openTargetScope(t)
+
     def openTargetScope(self, t: model.Target):
         return TargetScope(self.registry, t)
 
@@ -40,6 +45,11 @@ class TargetScope(Scope):
     def key(self) -> str:
         return super().key() + "/" + self.target.id + "/" + self.target.hashid
 
+    @property
+    def components(self):
+        for c in self.registry.iterEnabled(self.target):
+            yield self.openComponentScope(c)
+
     def openComponentScope(self, c: model.Component):
         return ComponentScope(self.registry, self.target, c)
 
@@ -57,6 +67,24 @@ class ComponentScope(TargetScope):
     def openProductScope(self, path: Path):
         return ProductScope(self.registry, self.target, self.component, path)
 
+    def subdirs(self) -> list[str]:
+        component = self.component
+        result = [component.dirname()]
+        for subs in component.subdirs:
+            result.append(os.path.join(component.dirname(), subs))
+        return result
+
+    def wilcard(self, wildcards: list[str] | str) -> list[str]:
+        if isinstance(wildcards, str):
+            wildcards = [wildcards]
+        return shell.find(self.subdirs(), wildcards, recusive=False)
+
+    def buildpath(self, path: str | Path) -> Path:
+        return Path(self.target.builddir) / self.component.id / path
+
+    def genpath(self, path: str | Path) -> Path:
+        return Path(const.GENERATED_DIR) / self.component.id / path
+
 
 @dt.dataclass
 class ProductScope(ComponentScope):
@@ -68,10 +96,21 @@ class ProductScope(ComponentScope):
 Compute = Callable[[TargetScope], list[str]]
 _vars: dict[str, Compute] = {}
 
+Hook = Callable[[ComponentScope], None]
+_hooks: dict[str, Hook] = {}
+
 
 def var(name: str) -> Callable[[Compute], Compute]:
     def decorator(func: Compute):
         _vars[name] = func
+        return func
+
+    return decorator
+
+
+def hook(name: str) -> Callable[[Hook], Hook]:
+    def decorator(func: Hook):
+        _hooks[name] = func
         return func
 
     return decorator
@@ -96,7 +135,9 @@ def _computeCinc(scope: TargetScope) -> list[str]:
     res = set()
 
     includeAliases = os.path.join(const.GENERATED_DIR, "__aliases__")
-    res.add(f"-I{includeAliases}")
+    includeGenerated = os.path.join(const.GENERATED_DIR)
+    res.add(includeAliases)
+    res.add(includeGenerated)
 
     for c in scope.registry.iterEnabled(scope.target):
         if "cpp-root-include" in c.props:
@@ -130,25 +171,7 @@ def _computeCdef(scope: TargetScope) -> list[str]:
     return sorted(res)
 
 
-def buildpath(scope: ComponentScope, path) -> Path:
-    return Path(scope.target.builddir) / scope.component.id / path
-
-
 # --- Compilation ------------------------------------------------------------ #
-
-
-def subdirs(scope: ComponentScope) -> list[str]:
-    component = scope.component
-    result = [component.dirname()]
-
-    for subs in component.subdirs:
-        result.append(os.path.join(component.dirname(), subs))
-
-    return result
-
-
-def wilcard(scope: ComponentScope, wildcards: list[str]) -> list[str]:
-    return shell.find(subdirs(scope), list(wildcards), recusive=False)
 
 
 def compile(
@@ -157,7 +180,7 @@ def compile(
     res: list[str] = []
     for src in srcs:
         rel = Path(src).relative_to(scope.component.dirname())
-        dest = buildpath(scope, path="__obj__") / rel.with_suffix(rel.suffix + ".o")
+        dest = scope.buildpath(path="__obj__") / rel.with_suffix(rel.suffix + ".o")
         t = scope.target.tools[rule]
         if w:
             w.build(
@@ -178,7 +201,7 @@ def compileObjs(w: ninja.Writer | None, scope: ComponentScope) -> list[str]:
     objs = []
     for rule in rules.rules.values():
         if rule.id not in ["cp", "ld", "ar"]:
-            objs += compile(w, scope, rule.id, srcs=wilcard(scope, rule.fileIn))
+            objs += compile(w, scope, rule.id, srcs=scope.wilcard(rule.fileIn))
     return objs
 
 
@@ -196,7 +219,7 @@ def compileRes(
     res: list[str] = []
     for r in listRes(scope.component):
         rel = Path(r).relative_to(scope.component.subpath("res"))
-        dest = buildpath(scope, "__res__") / rel
+        dest = scope.buildpath("__res__") / rel
         w.build(
             str(dest),
             "cp",
@@ -215,9 +238,9 @@ def compileRes(
 
 def outfile(scope: ComponentScope) -> str:
     if scope.component.type == model.Kind.LIB:
-        return str(buildpath(scope, f"__lib__/{scope.component.id}.a"))
+        return str(scope.buildpath(f"__lib__/{scope.component.id}.a"))
     else:
-        return str(buildpath(scope, f"__bin__/{scope.component.id}.out"))
+        return str(scope.buildpath(f"__bin__/{scope.component.id}.out"))
 
 
 def collectLibs(
@@ -348,9 +371,10 @@ def gen(out: TextIO, scope: TargetScope):
     all(w, scope)
 
 
-def generateGlobalHeaders(registry: model.Registry):
+@hook("generate-global-aliases")
+def _globalHeaderHook(scope: TargetScope):
     generatedDir = Path(shell.mkdir(os.path.join(const.GENERATED_DIR, "__aliases__")))
-    for c in registry.iter(model.Component):
+    for c in scope.registry.iter(model.Component):
         if c.type != model.Kind.LIB:
             continue
 
@@ -358,7 +382,7 @@ def generateGlobalHeaders(registry: model.Registry):
         aliasPath = generatedDir / c.id
         targetPath = f"{c.id}/{os.path.basename(modPath)}"
 
-        if not os.path.exists(modPath) and not os.path.exists(aliasPath):
+        if not os.path.exists(modPath) or os.path.exists(aliasPath):
             continue
 
         print(f"Generating alias <{c.id}> -> <{targetPath}>")
@@ -387,7 +411,9 @@ def build(
     if isinstance(components, model.Component):
         components = [components]
 
-    generateGlobalHeaders(scope.registry)
+    for k, v in _hooks.items():
+        print(f"Running hook '{k}'")
+        v(scope)
 
     products: list[ProductScope] = []
     for c in components:
