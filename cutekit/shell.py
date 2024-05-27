@@ -70,12 +70,16 @@ def sha256sum(path: str) -> str:
     with open(path, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()
 
+
 def find(
     path: str | list[str], wildcards: list[str] = [], recusive: bool = True
 ) -> list[str]:
     _logger.debug(f"Looking for files in {path} matching {wildcards}")
 
     result: list[str] = []
+
+    if isinstance(wildcards, str):
+        wildcards = [wildcards]
 
     if isinstance(path, list):
         for p in path:
