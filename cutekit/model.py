@@ -32,7 +32,7 @@ class Kind(Enum):
 class Manifest(DataClassJsonMixin):
     id: str
     type: Kind = dt.field(default=Kind.UNKNOWN)
-    path: str = dt.field(default="")
+    path: Path = dt.field(default=Path.cwd())
     SUFFIXES = [".json", ".toml"]
     SUFFIXES_GLOBS = ["*.json", "*.toml"]
 
@@ -45,7 +45,7 @@ class Manifest(DataClassJsonMixin):
         kind = Kind(data["type"])
         del data["$schema"]
         obj = KINDS[kind].from_dict(data)
-        obj.path = str(path)
+        obj.path = path
         return obj
 
     @staticmethod
@@ -75,20 +75,11 @@ class Manifest(DataClassJsonMixin):
             raise RuntimeError(f"Could not find manifest at '{path}'")
         return manifest
 
-    def dirname(self) -> str:
+    def dirname(self) -> Path:
         """
         Return the directory of the manifest
         """
-        return os.path.relpath(os.path.dirname(self.path), Path.cwd())
-
-    def subpath(self, path) -> Path:
-        """
-        Return a subpath of the manifest
-
-        Example:
-            manifest.subpath("src") -> Path(manifest.dirname() + "/src")
-        """
-        return Path(self.dirname()) / path
+        return self.path.absolute().parent
 
     def ensureType(self, t: Type[utils.T]) -> utils.T:
         """
@@ -128,7 +119,7 @@ class Extern:
         """
         c = Component(f"{self.id}-host", Kind.LIB)
         c.description = f"Host version of {self.id}"
-        c.path = "src/_virtual"
+        c.path = Path("src") / "_virtual"
         c.enableIf = {"host": [True]}
         c.provides = [self.id]
 
@@ -161,9 +152,9 @@ class Extern:
         Fetch an extern from a git repository
         """
 
-        path = os.path.join(const.EXTERN_DIR, self.id)
+        path = const.EXTERN_DIR / self.id
 
-        if not os.path.exists(path):
+        if not path.exists():
             print(f"Installing {self.id}-{self.tag} from {self.git}...")
             cmd = [
                 "git",
@@ -205,9 +196,8 @@ class Project(Manifest):
     extern: dict[str, Extern] = dt.field(default_factory=dict)
 
     @property
-    def externDirs(self) -> list[str]:
-        res = map(lambda e: os.path.join(const.EXTERN_DIR, e), self.extern.keys())
-        return list(res)
+    def externDirs(self) -> list[Path]:
+        return [const.EXTERN_DIR / e for e in self.extern.keys()]
 
     @staticmethod
     def topmost() -> Optional["Project"]:
@@ -384,11 +374,11 @@ class Target(Manifest):
         return self._hashid
 
     @property
-    def builddir(self) -> str:
+    def builddir(self) -> Path:
         postfix = f"-{self.hashid[:8]}"
         if self.props.get("host"):
             postfix += f"-{str(const.HOSTID)[:8]}"
-        return os.path.join(const.BUILD_DIR, f"{self.id}{postfix}")
+        return const.BUILD_DIR / f"{self.id}{postfix}"
 
     @staticmethod
     def use(args: TargetArgs) -> "Target":
@@ -431,6 +421,9 @@ class Component(Manifest):
     subdirs: list[str] = dt.field(default_factory=list)
     injects: list[str] = dt.field(default_factory=list)
     resolved: dict[str, Resolved] = dt.field(default_factory=dict)
+
+    def subpath(self, *subpath: str) -> Path:
+        return self.path.parent.joinpath(*subpath)
 
     def isEnabled(self, target: Target) -> tuple[bool, str]:
         for k, v in self.enableIf.items():
@@ -669,14 +662,14 @@ class Registry(DataClassJsonMixin):
         """
 
         for project in list(r.iter(Project)):
-            targetDir = os.path.join(project.dirname(), const.TARGETS_DIR)
+            targetDir = project.dirname() / const.TARGETS_DIR
             targetFiles = shell.find(targetDir, Manifest.SUFFIXES_GLOBS)
 
             for targetFile in targetFiles:
                 r._append(Manifest.load(Path(targetFile)).ensureType(Target))
 
             componentFiles = shell.find(
-                os.path.join(project.dirname(), const.SRC_DIR),
+                project.dirname() / const.SRC_DIR,
                 ["manifest" + s for s in Manifest.SUFFIXES],
             )
 

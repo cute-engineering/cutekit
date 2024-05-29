@@ -1,5 +1,5 @@
-import os
 import logging
+from pathlib import Path
 
 from . import (
     builder,  # noqa: F401 this is imported for side effects
@@ -43,9 +43,9 @@ class logger:
             projectRoot = model.Project.topmost()
             logFile = const.GLOBAL_LOG_FILE
             if projectRoot is not None:
-                logFile = os.path.join(projectRoot.dirname(), const.PROJECT_LOG_FILE)
+                logFile = projectRoot.dirname() / const.PROJECT_LOG_FILE
 
-            shell.mkdir(os.path.dirname(logFile))
+            logFile.parent.mkdir(parents=True, exist_ok=True)
 
             logging.basicConfig(
                 level=logging.INFO,

@@ -1,6 +1,6 @@
 import logging
-import os
 import sys
+from pathlib import Path
 
 from . import cli, shell, model, const, vt100
 
@@ -9,7 +9,7 @@ import importlib.util as importlib
 _logger = logging.getLogger(__name__)
 
 
-def load(path: str):
+def load(path: Path):
     _logger.info(f"Loading plugin {path}")
     spec = importlib.spec_from_file_location("plugin", path)
 
@@ -34,21 +34,19 @@ def loadAll():
     if project is None:
         _logger.info("Not in project, skipping plugin loading")
         return
-    paths = list(
-        map(lambda e: os.path.join(const.EXTERN_DIR, e), project.extern.keys())
-    ) + ["."]
+    paths = list(map(lambda e: const.EXTERN_DIR / e, project.extern.keys())) + ["."]
 
     for dirname in paths:
-        pluginDir = os.path.join(project.dirname(), dirname, const.META_DIR, "plugins")
-        pluginDir = os.path.normpath(pluginDir)
-        initFile = os.path.join(pluginDir, "__init__.py")
+        pluginDir = (
+            project.dirname() / dirname / const.META_DIR / "plugins"
+        ).absolute()
+        initFile = pluginDir / "__init__.py"
 
-        if os.path.isfile(initFile):
+        if initFile.exists():
             load(initFile)
         else:
-            for files in shell.readdir(pluginDir):
-                if files.endswith(".py"):
-                    load(os.path.join(pluginDir, files))
+            for file in pluginDir.glob("*.py"):
+                load(file)
 
 
 class PluginsArgs:

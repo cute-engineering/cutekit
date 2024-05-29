@@ -189,7 +189,7 @@ def _(args: PodCreateArgs):
                 "bind": toolingRoot + "/cutekit",
                 "mode": "ro",
             },
-            os.path.abspath(project.dirname()): {"bind": projectRoot, "mode": "rw"},
+            project.dirname().absolute(): {"bind": projectRoot, "mode": "rw"},
         },
         detach=True,
     )

@@ -67,23 +67,23 @@ class ComponentScope(TargetScope):
     def openProductScope(self, path: Path):
         return ProductScope(self.registry, self.target, self.component, path)
 
-    def subdirs(self) -> list[str]:
+    def subdirs(self) -> list[Path]:
         component = self.component
         result = [component.dirname()]
         for subs in component.subdirs:
-            result.append(os.path.join(component.dirname(), subs))
+            result.append(component.dirname() / subs)
         return result
 
-    def wilcard(self, wildcards: list[str] | str) -> list[str]:
+    def wildcard(self, wildcards: list[str] | str) -> list[Path]:
         if isinstance(wildcards, str):
             wildcards = [wildcards]
         return shell.find(self.subdirs(), wildcards, recusive=False)
 
     def buildpath(self, path: str | Path) -> Path:
-        return Path(self.target.builddir) / self.component.id / path
+        return self.target.builddir / self.component.id / path
 
     def genpath(self, path: str | Path) -> Path:
-        return Path(const.GENERATED_DIR) / self.component.id / path
+        return const.GENERATED_DIR / self.component.id / path
 
 
 @dt.dataclass
@@ -96,7 +96,7 @@ class ProductScope(ComponentScope):
 Compute = Callable[[TargetScope], list[str]]
 _vars: dict[str, Compute] = {}
 
-Hook = Callable[[ComponentScope], None]
+Hook = Callable[[TargetScope], None]
 _hooks: dict[str, Hook] = {}
 
 
@@ -122,7 +122,7 @@ def _computeBuilddir(scope: TargetScope) -> list[str]:
     This variable is needed by ninja to know where to put
     the .ninja_log file.
     """
-    return [scope.target.builddir]
+    return [str(scope.target.builddir)]
 
 
 @var("hashid")
@@ -132,10 +132,10 @@ def _computeHashid(scope: TargetScope) -> list[str]:
 
 @var("cincs")
 def _computeCinc(scope: TargetScope) -> list[str]:
-    res = set()
+    res: set[Path] = set()
 
-    includeAliases = os.path.join(const.GENERATED_DIR, "__aliases__")
-    includeGenerated = os.path.join(const.GENERATED_DIR)
+    includeAliases = const.GENERATED_DIR / "__aliases__"
+    includeGenerated = const.GENERATED_DIR
     res.add(includeAliases)
     res.add(includeGenerated)
 
@@ -145,14 +145,14 @@ def _computeCinc(scope: TargetScope) -> list[str]:
         elif "cpp-excluded" in c.props:
             pass
         elif c.type == model.Kind.LIB:
-            res.add(str(Path(c.dirname()).parent))
+            res.add(c.dirname().parent)
 
     return sorted(map(lambda i: f"-I{i}", res))
 
 
 @var("cdefs")
 def _computeCdef(scope: TargetScope) -> list[str]:
-    res = set()
+    res: set[str] = set()
 
     def sanatize(s: str) -> str:
         TO_REPLACE = [" ", "-", "."]  # -> "_"
@@ -175,78 +175,78 @@ def _computeCdef(scope: TargetScope) -> list[str]:
 
 
 def compile(
-    w: ninja.Writer | None, scope: ComponentScope, rule: str, srcs: list[str]
-) -> list[str]:
-    res: list[str] = []
+    w: ninja.Writer | None, scope: ComponentScope, rule: str, srcs: list[Path]
+) -> list[Path]:
+    res: list[Path] = []
     for src in srcs:
-        rel = Path(src).relative_to(scope.component.dirname())
+        rel = src.relative_to(scope.component.dirname())
         dest = scope.buildpath(path="__obj__") / rel.with_suffix(rel.suffix + ".o")
         t = scope.target.tools[rule]
         if w:
             w.build(
                 str(dest),
                 rule,
-                inputs=src,
+                inputs=str(src),
                 order_only=t.files,
                 variables={
                     "ck_target": scope.target.id,
                     "ck_component": scope.component.id,
                 },
             )
-        res.append(str(dest))
+        res.append(dest)
     return res
 
 
-def compileObjs(w: ninja.Writer | None, scope: ComponentScope) -> list[str]:
+def compileObjs(w: ninja.Writer | None, scope: ComponentScope) -> list[Path]:
     objs = []
     for rule in rules.rules.values():
         if rule.id not in ["cp", "ld", "ar"]:
-            objs += compile(w, scope, rule.id, srcs=scope.wilcard(rule.fileIn))
+            objs += compile(w, scope, rule.id, srcs=scope.wildcard(rule.fileIn))
     return objs
 
 
 # --- Ressources ------------------------------------------------------------- #
 
 
-def listRes(component: model.Component) -> list[str]:
-    return shell.find(str(component.subpath("res")))
+def listRes(component: model.Component) -> list[Path]:
+    return shell.find(component.subpath("res"))
 
 
 def compileRes(
     w: ninja.Writer,
     scope: ComponentScope,
-) -> list[str]:
-    res: list[str] = []
+) -> list[Path]:
+    res: list[Path] = []
     for r in listRes(scope.component):
-        rel = Path(r).relative_to(scope.component.subpath("res"))
+        rel = r.relative_to(scope.component.subpath("res"))
         dest = scope.buildpath("__res__") / rel
         w.build(
             str(dest),
             "cp",
-            r,
+            str(r),
             variables={
                 "ck_target": scope.target.id,
                 "ck_component": scope.component.id,
             },
         )
-        res.append(str(dest))
+        res.append(dest)
     return res
 
 
 # --- Linking ---------------------------------------------------------------- #
 
 
-def outfile(scope: ComponentScope) -> str:
+def outfile(scope: ComponentScope) -> Path:
     if scope.component.type == model.Kind.LIB:
-        return str(scope.buildpath(f"__lib__/{scope.component.id}.a"))
+        return scope.buildpath(Path("__lib__") / f"{scope.component.id}.a")
     else:
-        return str(scope.buildpath(f"__bin__/{scope.component.id}.out"))
+        return scope.buildpath(Path("__bin__") / f"{scope.component.id}.out")
 
 
 def collectLibs(
     scope: ComponentScope,
-) -> list[str]:
-    res: list[str] = []
+) -> list[Path]:
+    res: list[Path] = []
     for r in scope.component.resolved[scope.target.id].required:
         req = scope.registry.lookup(r, model.Component)
         assert req is not None  # model.Resolver has already checked this
@@ -260,8 +260,8 @@ def collectLibs(
     return res
 
 
-def collectInjectedObjs(scope: ComponentScope) -> list[str]:
-    res: list[str] = []
+def collectInjectedObjs(scope: ComponentScope) -> list[Path]:
+    res: list[Path] = []
     for r in scope.component.resolved[scope.target.id].injected:
         req = scope.registry.lookup(r, model.Component)
         assert req is not None  # model.Resolver has already checked this
@@ -278,15 +278,15 @@ def collectInjectedObjs(scope: ComponentScope) -> list[str]:
 def link(
     w: ninja.Writer,
     scope: ComponentScope,
-) -> str:
+) -> Path:
     w.newline()
     out = outfile(scope)
 
-    res = compileRes(w, scope)
-    objs = compileObjs(w, scope)
+    res = [str(p) for p in compileRes(w, scope)]
+    objs = [str(p) for p in compileObjs(w, scope)]
     if scope.component.type == model.Kind.LIB:
         w.build(
-            out,
+            str(out),
             "ar",
             objs,
             implicit=res,
@@ -296,10 +296,10 @@ def link(
             },
         )
     else:
-        injectedObjs = collectInjectedObjs(scope)
-        libs = collectLibs(scope)
+        injectedObjs = [str(p) for p in collectInjectedObjs(scope)]
+        libs = [str(p) for p in collectLibs(scope)]
         w.build(
-            out,
+            str(out),
             "ld",
             objs + libs,
             variables={
@@ -316,11 +316,11 @@ def link(
 # --- Phony ------------------------------------------------------------------ #
 
 
-def all(w: ninja.Writer, scope: TargetScope) -> list[str]:
-    all: list[str] = []
+def all(w: ninja.Writer, scope: TargetScope) -> list[Path]:
+    all: list[Path] = []
     for c in scope.registry.iterEnabled(scope.target):
         all.append(link(w, scope.openComponentScope(c)))
-    w.build("all", "phony", all)
+    w.build("all", "phony", [str(p) for p in all])
     w.default("all")
     return all
 
@@ -373,24 +373,26 @@ def gen(out: TextIO, scope: TargetScope):
 
 @hook("generate-global-aliases")
 def _globalHeaderHook(scope: TargetScope):
-    generatedDir = Path(shell.mkdir(os.path.join(const.GENERATED_DIR, "__aliases__")))
+    generatedDir = Path(const.GENERATED_DIR) / "__aliases__"
+    generatedDir.mkdir(parents=True, exist_ok=True)
+
     for c in scope.registry.iter(model.Component):
         if c.type != model.Kind.LIB:
             continue
 
-        modPath = os.path.join(c.dirname(), "mod.h")
+        modPath = c.dirname() / "mod.h"
         aliasPath = generatedDir / c.id
-        targetPath = f"{c.id}/{os.path.basename(modPath)}"
+        targetPath = Path(c.id) / modPath.name
 
-        if not os.path.exists(modPath) or os.path.exists(aliasPath):
+        if not modPath.exists() or aliasPath.exists():
             continue
 
         print(f"Generating alias <{c.id}> -> <{targetPath}>")
         # We can't generate an alias using symlinks because
         # because this will break #pragma once in some compilers.
-        with open(aliasPath, "w") as f:
+        with aliasPath.open("w") as f:
             f.write("#pragma once\n")
-            f.write(f"#include <{c.id}/{os.path.basename(modPath)}>\n")
+            f.write(f"#include <{c.id}/{modPath.parent}>\n")
 
 
 def build(
@@ -398,10 +400,10 @@ def build(
     components: Union[list[model.Component], model.Component, Literal["all"]] = "all",
 ) -> list[ProductScope]:
     all = False
-    shell.mkdir(scope.target.builddir)
-    ninjaPath = os.path.join(scope.target.builddir, "build.ninja")
+    scope.target.builddir.mkdir(parents=True, exist_ok=True)
+    ninjaPath = scope.target.builddir / "build.ninja"
 
-    with open(ninjaPath, "w") as f:
+    with ninjaPath.open("w") as f:
         gen(f, scope)
 
     if components == "all":
@@ -424,9 +426,9 @@ def build(
 
         products.append(s.openProductScope(Path(outfile(scope.openComponentScope(c)))))
 
-    outs = list(map(lambda p: str(p.path), products))
+    outs = [str(p.path) for p in products]
 
-    shell.exec("ninja", "-f", ninjaPath, *(outs if not all else []))
+    shell.exec("ninja", "-f", str(ninjaPath), *(outs if not all else []))
 
     return products
 
@@ -488,7 +490,7 @@ def runCmd(args: RunArgs):
     product = build(scope, component)[0]
 
     os.environ["CK_TARGET"] = product.target.id
-    os.environ["CK_BUILDDIR"] = product.target.builddir
+    os.environ["CK_BUILDDIR"] = str(product.target.builddir)
     os.environ["CK_COMPONENT"] = product.component.id
 
     command = [str(product.path), *args.args]

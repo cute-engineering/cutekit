@@ -1,4 +1,3 @@
-import os
 import re
 import json
 import datetime
@@ -196,7 +195,7 @@ def _union(lhs, rhs):
 
 
 def _relpath(*args):
-    return os.path.normpath(os.path.join(os.path.dirname(__file__), *args))
+    return Path(__file__).parent.joinpath(*args).absolute()
 
 
 expose("jexpr.include", lambda path: include(Path(path)))

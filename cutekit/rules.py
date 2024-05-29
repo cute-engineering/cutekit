@@ -14,7 +14,7 @@ class Rule:
 
 
 rules: dict[str, Rule] = {
-    "cp": Rule("cp", ["*"], "*", "$in $out"),
+    "cp": Rule("cp", ["*"], "*", "-r $in $out"),
     "cc": Rule(
         "cc",
         ["*.c"],

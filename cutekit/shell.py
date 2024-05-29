@@ -5,8 +5,8 @@ import errno
 import subprocess
 import signal
 import re
-import shutil
 import fnmatch
+import shutil
 import platform
 import logging
 import tempfile
@@ -72,9 +72,16 @@ def sha256sum(path: str) -> str:
 
 
 def find(
-    path: str | list[str], wildcards: list[str] = [], recusive: bool = True
+    path: str | list[str] | Path | list[Path],
+    wildcards: list[str] = [],
+    recusive: bool = True,
 ) -> list[str]:
     _logger.debug(f"Looking for files in {path} matching {wildcards}")
+
+    if isinstance(path, Path):
+        path = str(path)
+    elif isinstance(path, list) and isinstance(path[0], Path):
+        path = [str(p) for p in path]
 
     result: list[str] = []
 
@@ -110,41 +117,39 @@ def find(
                         break
 
     # sort for reproducibility
-    return sorted(result)
+    return [Path(p) for p in sorted(result)]
 
 
 def mkdir(path: str) -> str:
     _logger.debug(f"Creating directory {path}")
 
     try:
-        os.makedirs(path)
+        path.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
-        if not (exc.errno == errno.EEXIST and os.path.isdir(path)):
+        if not (exc.errno == errno.EEXIST and path.exists()):
             raise
     return path
 
 
-def rmrf(path: str) -> bool:
+def rmrf(path: Path) -> bool:
     _logger.debug(f"Removing directory {path}")
 
-    if not os.path.exists(path):
+    if not path.exists():
         return False
-    if os.path.isfile(path):
-        os.remove(path)
+    if path.is_file():
+        path.unlink()
     else:
         shutil.rmtree(path, ignore_errors=True)
     return True
 
 
-def wget(url: str, path: Optional[str] = None) -> str:
+def wget(url: str, path: Optional[Path] = None) -> Path:
     import requests
 
     if path is None:
-        path = os.path.join(
-            const.CACHE_DIR, hashlib.sha256(url.encode("utf-8")).hexdigest()
-        )
+        path = const.CACHE_DIR / hashlib.sha256(url.encode("utf-8")).hexdigest()
 
-    if os.path.exists(path):
+    if path.exists():
         _logger.debug(f"Using cached {path} for {url}")
         return path
 
@@ -152,8 +157,8 @@ def wget(url: str, path: Optional[str] = None) -> str:
 
     r = requests.get(url, stream=True)
     r.raise_for_status()
-    mkdir(os.path.dirname(path))
-    with open(path, "wb") as f:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as f:
         for chunk in r.iter_content(chunk_size=8192):
             if chunk:
                 f.write(chunk)
@@ -161,9 +166,13 @@ def wget(url: str, path: Optional[str] = None) -> str:
     return path
 
 
-def exec(*args: str, quiet: bool = False, cwd: Optional[str] = None) -> bool:
+def exec(*args: str | Path, quiet: bool = False, cwd: Optional[Path] = None) -> bool:
     _logger.debug(f"Executing {args}")
     cmdName = Path(args[0]).name
+
+    for index, arg in enumerate(args):
+        if isinstance(arg, Path):
+            args = (*args[:index], str(arg), *args[index + 1 :])
 
     try:
         proc = subprocess.run(
@@ -180,7 +189,7 @@ def exec(*args: str, quiet: bool = False, cwd: Optional[str] = None) -> bool:
             _logger.debug(proc.stderr.decode("utf-8"))
 
     except FileNotFoundError:
-        if cwd and not os.path.exists(cwd):
+        if cwd and not cwd.exists():
             raise RuntimeError(f"{cwd}: No such file or directory")
         else:
             raise RuntimeError(f"{args[0]}: Command not found")
@@ -199,8 +208,12 @@ def exec(*args: str, quiet: bool = False, cwd: Optional[str] = None) -> bool:
     return True
 
 
-def popen(*args: str) -> str:
+def popen(*args: str | Path) -> str:
     _logger.debug(f"Executing {args}...")
+
+    for index, arg in enumerate(args):
+        if isinstance(arg, Path):
+            args = (*args[:index], str(arg), *args[index + 1 :])
 
     cmdName = Path(args[0]).name
 
@@ -245,8 +258,8 @@ def debug(cmd: list[str], debugger: str = "lldb", wait: bool = False):
 
 
 def _profileCpu(cmd: list[str], rate=1000):
-    mkdir(const.TMP_DIR)
-    perfFile = f"{const.TMP_DIR}/cpu-profile.data"
+    const.TMP_DIR.mkdir(exist_ok=True)
+    perfFile = const.TMP_DIR / "cpu-profile.data"
     try:
         exec(
             "perf",
@@ -255,13 +268,13 @@ def _profileCpu(cmd: list[str], rate=1000):
             str(rate),
             "-g",
             "-o",
-            perfFile,
+            str(perfFile),
             "--call-graph",
             "dwarf",
             *cmd,
         )
     except Exception as e:
-        if not os.path.exists(perfFile):
+        if not perfFile.exists():
             raise e
 
     try:
@@ -294,48 +307,48 @@ def profile(cmd: list[str], rate=1000, what: str = "cpu"):
         raise RuntimeError(f"Unknown profile type {what}")
 
 
-def readdir(path: str) -> list[str]:
+def readdir(path: Path) -> list[Path]:
     _logger.debug(f"Reading directory {path}")
 
     try:
-        return os.listdir(path)
+        return list(path.iterdir())
     except FileNotFoundError:
         return []
 
 
-def cp(src: str, dst: str):
+def cp(src: Path, dst: Path):
     _logger.debug(f"Copying {src} to {dst}")
 
     shutil.copy(src, dst)
 
 
-def mv(src: str, dst: str):
+def mv(src: Path, dst: Path):
     _logger.debug(f"Moving {src} to {dst}")
 
     shutil.move(src, dst)
 
 
-def cpTree(src: str, dst: str):
+def cpTree(src: Path, dst: Path):
     _logger.debug(f"Copying {src} to {dst}")
 
-    shutil.copytree(src, dst, dirs_exist_ok=True)
+    shutil.copytree(str(src), str(dst), dirs_exist_ok=True)
 
 
-def cloneDir(url: str, path: str, dest: str) -> str:
+def cloneDir(url: str, path: Path, dest: Path) -> Path:
     _logger.debug(f"Cloning {url} to {dest}")
 
     with tempfile.TemporaryDirectory() as tmp:
-        mkdir(tmp)
+        tmpP = Path(tmp)
         exec(
             *["git", "clone", "-n", "--depth=1", "--filter=tree:0", url, tmp, "-q"],
             quiet=True,
         )
         exec(
-            *["git", "-C", tmp, "sparse-checkout", "set", "--no-cone", path, "-q"],
+            *["git", "-C", tmp, "sparse-checkout", "set", "--no-cone", str(path), "-q"],
             quiet=True,
         )
         exec(*["git", "-C", tmp, "checkout", "-q", "--no-progress"], quiet=True)
-        mv(os.path.join(tmp, path), dest)
+        mv(tmpP / path, dest)
 
     return dest
 

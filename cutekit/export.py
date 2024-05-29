@@ -86,7 +86,7 @@ def graph(
             for req in component.provides:
                 g.edge(req, component.id, arrowhead="none", color="#aaaaaa")
 
-    g.view(filename=os.path.join(target.builddir, "graph.gv"))
+    g.view(target.builddir / "graph.gv")
 
 
 class GraphArgs(model.TargetArgs):
