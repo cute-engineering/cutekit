@@ -307,6 +307,12 @@ class Field:
             and self._fieldType.__origin__ == dict
         )
 
+    def isUnion(self) -> bool:
+        return (
+            isinstance(self._fieldType, tp._SpecialForm)
+            and self._fieldType.__origin__ == tp.Union
+        )
+
     def innerType(self) -> type:
         assert self._fieldType
 
@@ -317,6 +323,9 @@ class Field:
         if self.isDict():
             assert isinstance(self._fieldType, GenericAlias)
             return self._fieldType.__args__[1]
+
+        if self.isUnion():
+            return str
 
         return self._fieldType
 
