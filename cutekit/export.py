@@ -1,6 +1,5 @@
 import os
 import json
-import html
 from typing import Any, Optional
 from . import model, cli, vt100, jexpr, const
 

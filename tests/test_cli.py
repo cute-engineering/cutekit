@@ -250,7 +250,7 @@ def test_cli_extra_args():
 
 
 class StrOperandArg:
-    value: str = cli.operand(None, "value")
+    value: str = cli.operand("value")
 
 
 def test_cli_operand_args():
@@ -259,7 +259,7 @@ def test_cli_operand_args():
 
 
 class ListOperandArg:
-    value: list[str] = cli.operand(None, "value")
+    value: list[str] = cli.operand("value")
 
 
 def test_cli_operand_list_args():

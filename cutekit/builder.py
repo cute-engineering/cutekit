@@ -96,7 +96,7 @@ class ProductScope(ComponentScope):
 Compute = Callable[[TargetScope], list[str]]
 _vars: dict[str, Compute] = {}
 
-Hook = Callable[[ComponentScope], None]
+Hook = Callable[[TargetScope], None]
 _hooks: dict[str, Hook] = {}
 
 

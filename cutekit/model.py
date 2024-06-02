@@ -578,13 +578,10 @@ class Registry(DataClassJsonMixin):
     project: Project
     manifests: dict[str, Manifest] = dt.field(default_factory=dict)
 
-    def _append(self, m: Optional[Manifest]) -> Optional[Manifest]:
+    def _append(self, m: Manifest) -> Manifest:
         """
         Append a manifest to the model
         """
-        if m is None:
-            return m
-
         if m.id in self.manifests:
             raise RuntimeError(
                 f"Duplicated manifest '{m.id}' at '{m.path}' already loaded from '{self.manifests[m.id].path}'"

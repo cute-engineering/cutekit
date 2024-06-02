@@ -69,7 +69,7 @@ def expand(
         result: dict[str, Jexpr] = {}
         for k in expr:
             key = _expand(k)
-            result[key] = _expand(expr[k])
+            result[str(key)] = _expand(expr[k])
         return result
 
     elif _isListExpr(expr):
@@ -80,7 +80,7 @@ def expand(
             raise ValueError(f"Expected string, got {expr[0]}")
 
         fName = _expand(expr[0][1:])
-        fVal = eval(fName, globals, locals)
+        fVal = eval(str(fName), globals, locals)
         res = fVal(*_expand(expr[1:]))
         return _expand(res)
 
@@ -90,8 +90,8 @@ def expand(
     elif isinstance(expr, str):
         return _extractStr(
             expr,
-            lambda e: eval(e, globals, locals)
-            if not (e.startswith("{") and e.endswith("}"))
+            lambda e: eval(str(e), globals, locals)
+            if not (isinstance(e, str) and e.startswith("{") and e.endswith("}"))
             else e,
         )
 
