@@ -238,6 +238,7 @@ def debug(cmd: list[str], debugger: str = "lldb", wait: bool = False):
             "gdb",
             *(("-ex", "b main") if wait else ()),
             *("-ex", "run"),
+            "--args",
             *cmd,
         )
     else:
