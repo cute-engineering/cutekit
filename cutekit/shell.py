@@ -458,6 +458,17 @@ def compress(path: str, dest: Optional[str] = None, format: str = "zstd") -> str
     return dest
 
 
+_cwd = os.getcwd()
+
+
+def restoreCwd():
+    """
+    Restore the current working directory to the one it was before
+    cutekit was started
+    """
+    os.chdir(_cwd)
+
+
 # --- Commands --------------------------------------------------------------- #
 
 

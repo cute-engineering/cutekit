@@ -193,6 +193,10 @@ class Extern:
         return [cast(Manifest, project)] + project.fetchExterns()
 
     def fetch(self) -> list[Manifest]:
+        """
+        Fetch the extern
+        """
+
         if self.git:
             return self._fetchGit()
         else:

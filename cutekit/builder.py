@@ -382,7 +382,7 @@ def _globalHeaderHook(scope: TargetScope):
         aliasPath = generatedDir / c.id
         targetPath = f"{c.id}/{os.path.basename(modPath)}"
 
-        if not os.path.exists(modPath) or os.path.exists(aliasPath):
+        if (not os.path.exists(modPath)) or os.path.exists(aliasPath):
             continue
 
         print(f"Generating alias <{c.id}> -> <{targetPath}>")
@@ -466,6 +466,9 @@ class RunArgs(BuildArgs, shell.DebugArgs, shell.ProfileArgs):
     debug: bool = cli.arg("d", "debug", "Attach a debugger")
     profile: bool = cli.arg("p", "profile", "Profile the execution")
     args: list[str] = cli.extra("args", "Arguments to pass to the component")
+    restoreCwd: bool = cli.arg(
+        None, "restore-cwd", "Restore the current working directory", default=True
+    )
 
 
 @cli.command("r", "builder/run", "Run a component or __main__ if not specified")
@@ -488,10 +491,13 @@ def runCmd(args: RunArgs):
     product = build(scope, component)[0]
 
     os.environ["CK_TARGET"] = product.target.id
-    os.environ["CK_BUILDDIR"] = product.target.builddir
+    os.environ["CK_BUILDDIR"] = str(Path(product.target.builddir).resolve())
     os.environ["CK_COMPONENT"] = product.component.id
 
-    command = [str(product.path), *args.args]
+    command = [str(product.path.resolve()), *args.args]
+
+    if args.restoreCwd:
+        shell.restoreCwd()
 
     if args.debug:
         shell.debug(command, debugger=args.debugger, wait=args.wait)
@@ -506,6 +512,7 @@ def _(args: RunArgs):
     # This is just a wrapper around the `run` command that try
     # to run a special hook component named __tests__.
     args.component = "__tests__"
+    args.restoreCwd = False
     runCmd(args)
 
 
