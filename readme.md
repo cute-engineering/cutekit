@@ -28,25 +28,13 @@
 
 ## Installation
 
-To install Cutekit, you may use your favourite package manager if it is available. Or you can install it manually by following the instructions below.
+To install Cutekit, just run the following command:
 
-### By using pip
 
 ```bash
-$ git clone https://github.com/cute-engineering/cutekit
-
-$ cd cutekit
-
-# If you want to use the latest version of Cutekit, you can switch to the dev branch.
-# $ git switch dev
-
-$ pip install --user -e .
+$ pip install git+https://github.com/cute-engineering/cutekit
 ```
-## Quick-start
 
-- If you directly want to start using Cutekit for a new project, you can just run `$ ck I host` and it will create a new project in the host directory (you can rename it later).
-
-- If you want to use Cutekit for writing operating systems, you can create a new [limine](https://github.com/limine-bootloader/limine/)-based project by running `$ ck I limine-barebone`.
 
 ## License
 

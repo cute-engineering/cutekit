@@ -335,11 +335,11 @@ def cloneDir(url: str, path: str, dest: str) -> str:
     with tempfile.TemporaryDirectory() as tmp:
         mkdir(tmp)
         exec(
-            *["git", "clone", "-n", "--depth=1", "--filter=tree:0", url, tmp, "-q"],
+            *["git", "clone", "-n", "--depth=1", "--filter=tree:0", url, tmp],
             quiet=True,
         )
         exec(
-            *["git", "-C", tmp, "sparse-checkout", "set", "--no-cone", path, "-q"],
+            *["git", "-C", tmp, "sparse-checkout", "set", "--no-cone", path],
             quiet=True,
         )
         exec(*["git", "-C", tmp, "checkout", "-q", "--no-progress"], quiet=True)
