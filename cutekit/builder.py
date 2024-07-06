@@ -378,13 +378,18 @@ def _globalHeaderHook(scope: TargetScope):
         if c.type != model.Kind.LIB:
             continue
 
-        modPath = os.path.join(c.dirname(), "mod.h")
-        aliasPath = generatedDir / c.id
-        targetPath = f"{c.id}/{os.path.basename(modPath)}"
+        modPath = shell.either(
+            [
+                os.path.join(c.dirname(), "_mod.h"),
+                os.path.join(c.dirname(), "mod.h"),
+            ]
+        )
 
-        if (not os.path.exists(modPath)) or os.path.exists(aliasPath):
+        aliasPath = generatedDir / c.id
+        if modPath is None or os.path.exists(aliasPath):
             continue
 
+        targetPath = f"{c.id}/{os.path.basename(modPath)}"
         print(f"Generating alias <{c.id}> -> <{targetPath}>")
         # We can't generate an alias using symlinks because
         # because this will break #pragma once in some compilers.

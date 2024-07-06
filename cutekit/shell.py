@@ -113,6 +113,13 @@ def find(
     return sorted(result)
 
 
+def either(paths: list[str]) -> str | None:
+    for p in paths:
+        if os.path.exists(p):
+            return p
+    return None
+
+
 def mkdir(path: str) -> str:
     _logger.debug(f"Creating directory {path}")
 
