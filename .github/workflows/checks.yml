@@ -3,9 +3,6 @@ name: Checks
 on:
   pull_request:
   push:
-    branches:
-      - stable
-      - dev
 
 jobs:
   checks:
