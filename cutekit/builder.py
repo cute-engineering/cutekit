@@ -394,8 +394,9 @@ def _globalHeaderHook(scope: TargetScope):
         # We can't generate an alias using symlinks because
         # because this will break #pragma once in some compilers.
         with open(aliasPath, "w") as f:
+            header = os.path.relpath(str(Path(c.path).parent), str(generatedDir))
             f.write("#pragma once\n")
-            f.write(f"#include <{c.id}/{os.path.basename(modPath)}>\n")
+            f.write(f'#include "{header}/{os.path.basename(modPath)}"\n')
 
 
 def build(
