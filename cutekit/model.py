@@ -10,7 +10,7 @@ from dataclasses_json import DataClassJsonMixin
 
 from cutekit import const, shell
 
-from . import cli, jexpr, compat, utils, vt100
+from . import cli, jexpr, utils, vt100
 
 _logger = logging.getLogger(__name__)
 
@@ -30,6 +30,32 @@ class Kind(Enum):
 
 
 # --- Manifest --------------------------------------------------------------- #
+
+SUPPORTED_MANIFEST = [
+    "https://schemas.cute.engineering/stable/cutekit.manifest.component.v1",
+    "https://schemas.cute.engineering/stable/cutekit.manifest.project.v1",
+    "https://schemas.cute.engineering/stable/cutekit.manifest.target.v1",
+]
+
+
+def ensureSupportedManifest(manifest: Any, path: Path):
+    """
+    Ensure that a manifest is supported.
+
+    Args:
+        manifest: The manifest to check.
+
+    Raises:
+        RuntimeError: If the manifest is not supported.
+    """
+
+    if "$schema" not in manifest:
+        raise RuntimeError(f"Missing $schema in {path}")
+
+    if manifest["$schema"] not in SUPPORTED_MANIFEST:
+        raise RuntimeError(
+            f"Unsupported manifest schema {manifest['$schema']} in {path}"
+        )
 
 
 @dt.dataclass
@@ -62,7 +88,7 @@ class Manifest(DataClassJsonMixin):
         Returns:
             The parsed Manifest object.
         """
-        compat.ensureSupportedManifest(data, path)
+        ensureSupportedManifest(data, path)
         kind = Kind(data["type"])
         del data["$schema"]
         obj = KINDS[kind].from_dict(data)
