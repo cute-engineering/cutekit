@@ -252,7 +252,7 @@ def debug(cmd: list[str], debugger: str = "lldb", wait: bool = False):
         raise RuntimeError(f"Unknown debugger {debugger}")
 
 
-def _profileCpu(cmd: list[str], rate=1000):
+def _profileCpuLinux(cmd: list[str], rate=1000):
     mkdir(const.TMP_DIR)
     perfFile = f"{const.TMP_DIR}/cpu-profile.data"
     try:
@@ -285,7 +285,38 @@ def _profileCpu(cmd: list[str], rate=1000):
     rmrf(perfFile)
 
 
-def _profileMem(cmd: list[str]):
+def _profileCpuDarwin(cmd: list[str], rate=1000):
+    mkdir(const.TMP_DIR)
+    traceFile = f"{const.TMP_DIR}/cpu-profile.trace"
+    if rmrf(traceFile):
+        print("Removed trace file")
+
+    try:
+        exec(
+            "xcrun",
+            "xctrace",
+            "record",
+            "--template",
+            "Time Profiler",
+            "--output",
+            traceFile,
+            "--target-stdout",
+            "-",
+            "--launch",
+            "--",
+            *cmd,
+        )
+    except Exception as e:
+        if not os.path.exists(traceFile):
+            raise e
+
+    try:
+        exec("open", traceFile)
+    except Exception as e:
+        raise e
+
+
+def _profileMemLinux(cmd: list[str]):
     perfFile = f"{const.TMP_DIR}/mem-profile.data"
     exec("heaptrack", "-o", perfFile, *cmd)
 
@@ -295,9 +326,17 @@ def profile(cmd: list[str], rate=1000, what: str = "cpu"):
         raise RuntimeError("Only cpu and mem can be profile, not " + what)
 
     if what == "cpu":
-        _profileCpu(cmd, rate)
+        if platform.system() == "Linux":
+            _profileCpuLinux(cmd, rate)
+        elif platform.system() == "Darwin":
+            _profileCpuDarwin(cmd, rate)
+        else:
+            raise RuntimeError(f"Unsupported platform {platform.system()}")
     elif what == "mem":
-        _profileMem(cmd)
+        if platform.system() == "Linux":
+            _profileMemLinux(cmd)
+        else:
+            raise RuntimeError(f"Unsupported platform {platform.system()}")
     else:
         raise RuntimeError(f"Unknown profile type {what}")
 
