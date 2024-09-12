@@ -293,24 +293,24 @@ class Field:
             self.longName = name
 
     def isBool(self) -> bool:
-        return self._fieldType == bool
+        return self._fieldType is bool
 
     def isList(self) -> bool:
         return (
             isinstance(self._fieldType, GenericAlias)
-            and self._fieldType.__origin__ == list
+            and self._fieldType.__origin__ is list
         )
 
     def isDict(self) -> bool:
         return (
             isinstance(self._fieldType, GenericAlias)
-            and self._fieldType.__origin__ == dict
+            and self._fieldType.__origin__ is dict
         )
 
     def isUnion(self) -> bool:
         return (
             isinstance(self._fieldType, tp._SpecialForm)
-            and self._fieldType.__origin__ == tp.Union
+            and self._fieldType.__origin__ is tp.Union
         )
 
     def innerType(self) -> type:
@@ -336,11 +336,11 @@ class Field:
         if self.default is not None:
             return self.default
 
-        if self._fieldType == bool:
+        if self._fieldType is bool:
             return False
-        elif self._fieldType == int:
+        elif self._fieldType is int:
             return 0
-        elif self._fieldType == str:
+        elif self._fieldType is str:
             return ""
         elif self.isList():
             return []
@@ -410,6 +410,14 @@ def extra(longName: str = "", description: str = "") -> Any:
     return Field(FieldKind.EXTRA, None, longName, description)
 
 
+class HelpRequested(Exception):
+    pass
+
+
+class UsageRequested(Exception):
+    pass
+
+
 @dt.dataclass
 class Schema:
     typ: Optional[type] = None
@@ -443,7 +451,7 @@ class Schema:
 
         # now move to the base class
         for base in typ.__bases__:
-            if base == object:
+            if base is object:
                 continue
             baseSchema = Schema.extract(base)
             s.args.extend(baseSchema.args)
@@ -544,6 +552,12 @@ class Schema:
             while len(toks) > 0:
                 tok = toks.pop(0)
                 if isinstance(tok, ArgumentToken):
+                    if tok.key == "h" or tok.key == "help":
+                        raise HelpRequested()
+
+                    if tok.key == "u" or tok.key == "usage":
+                        raise UsageRequested()
+
                     arg = self._lookupArg(tok.key, tok.short)
                     if tok.short and not arg.isBool():
                         if len(stack) == 0:
@@ -675,24 +689,6 @@ class Command:
         cmd = args.pop(0)
         curr, rest = self._spliceArgs(args)
 
-        if "-h" in curr or "--help" in curr:
-            if len(self.path) == 1:
-                # HACK: This is a special case for the root command
-                #       it need to always be run because it might
-                #       load some plugins that will register subcommands
-                #       that need to be displayed in the help.
-                self.invoke([])
-            self.help()
-            return
-
-        if "-u" in curr or "--usage" in curr:
-            if len(self.path) == 1:
-                # HACK: Same as the help flag, the root command needs to be
-                #       always run to load plugins
-                self.invoke([])
-            print("Usage: " + cmd + self.usage(), end="\n\n")
-            return
-
         try:
             self.invoke(curr)
 
@@ -707,6 +703,28 @@ class Command:
                     return
             elif len(rest) > 0:
                 raise ValueError(f"Unknown operand '{rest[0]}'")
+
+        except HelpRequested:
+            if len(self.path) == 1:
+                # HACK: This is a special case for the root command
+                #       it need to always be run because it might
+                #       load some plugins that will register subcommands
+                #       that need to be displayed in the help.
+                self.invoke([])
+
+            self.help()
+            return
+
+        except UsageRequested:
+            if len(self.path) == 1:
+                # HACK: This is a special case for the root command
+                #       it need to always be run because it might
+                #       load some plugins that will register subcommands
+                #       that need to be displayed in the help.
+                self.invoke([])
+
+            print("Usage: " + cmd + self.usage(), end="\n\n")
+            return
 
         except ValueError as e:
             vt100.error(str(e))

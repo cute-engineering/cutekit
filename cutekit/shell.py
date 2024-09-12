@@ -493,7 +493,7 @@ class CommandArgs:
 
 
 class DebugArgs:
-    wait: bool = cli.arg(None, "wait", "Wait for the debugger to attach")
+    wait: bool = cli.arg("w", "wait", "Wait for the debugger to attach")
     debugger: str = cli.arg(None, "debugger", "The debugger to use", default="lldb")
 
 

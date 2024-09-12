@@ -472,7 +472,7 @@ class RunArgs(BuildArgs, shell.DebugArgs, shell.ProfileArgs):
     profile: bool = cli.arg("p", "profile", "Profile the execution")
     args: list[str] = cli.extra("args", "Arguments to pass to the component")
     restoreCwd: bool = cli.arg(
-        None, "restore-cwd", "Restore the current working directory", default=True
+        "c", "restore-cwd", "Restore the current working directory", default=True
     )
 
 
