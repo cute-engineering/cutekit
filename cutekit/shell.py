@@ -144,8 +144,6 @@ def rmrf(path: str) -> bool:
 
 
 def wget(url: str, path: Optional[str] = None) -> str:
-    import requests
-
     if path is None:
         path = os.path.join(
             const.CACHE_DIR, hashlib.sha256(url.encode("utf-8")).hexdigest()
@@ -157,13 +155,10 @@ def wget(url: str, path: Optional[str] = None) -> str:
 
     _logger.debug(f"Downloading {url} to {path}")
 
-    r = requests.get(url, stream=True)
-    r.raise_for_status()
+    from urllib import request
+
     mkdir(os.path.dirname(path))
-    with open(path, "wb") as f:
-        for chunk in r.iter_content(chunk_size=8192):
-            if chunk:
-                f.write(chunk)
+    request.urlretrieve(url, path)
 
     return path
 
