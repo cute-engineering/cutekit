@@ -11,7 +11,7 @@ if [ -z "$CUTEKIT_PYTHON" ]; then
 fi
 
 if [ -z "$CUTEKIT_VERSION" ]; then
-    export CUTEKIT_VERSION="0.7-dev"
+    export CUTEKIT_VERSION="0.7.5"
 fi
 
 if [ -n "$CUTEKIT_NOVENV" ]; then

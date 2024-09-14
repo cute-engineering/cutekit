@@ -14,7 +14,7 @@ class Uninitialized:
         raise Exception("Uninitialized constant")
 
 
-VERSION = (0, 7, 4)
+VERSION = (0, 7, 5)
 VERSION_STR = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}{'-' +  str(VERSION[-1]) if len(VERSION) > 3 else ''}"
 MODULE_DIR = os.path.dirname(os.path.realpath(__file__))
 
