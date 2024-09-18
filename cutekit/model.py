@@ -336,7 +336,7 @@ class Project(Manifest):
         """
         cwd = Path.cwd()
         topmost: Optional["Project"] = None
-        while str(cwd) != cwd.root:
+        while str(cwd) != cwd.anchor:
             projectManifest = Manifest.tryLoad(cwd / "project")
             if projectManifest is not None:
                 topmost = projectManifest.ensureType(Project)
