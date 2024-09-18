@@ -85,10 +85,23 @@ class ComponentScope(TargetScope):
     def genpath(self, path: str | Path) -> Path:
         return Path(const.GENERATED_DIR) / self.component.id / path
 
+    def useEnv(self):
+        os.environ["CK_TARGET"] = self.target.id
+        os.environ["CK_BUILDDIR"] = str(Path(self.target.builddir).resolve())
+        os.environ["CK_COMPONENT"] = self.component.id
+
 
 @dt.dataclass
 class ProductScope(ComponentScope):
     path: Path
+
+    def popen(self, *args):
+        self.useEnv()
+        return shell.popen(str(self.path), *args)
+
+    def exec(self, *args):
+        self.useEnv()
+        return shell.exec(str(self.path), *args)
 
 
 # --- Variables -------------------------------------------------------------- #
@@ -401,6 +414,7 @@ def _globalHeaderHook(scope: TargetScope):
 def build(
     scope: TargetScope,
     components: Union[list[model.Component], model.Component, Literal["all"]] = "all",
+    generateCompilationDb=False,
 ) -> list[ProductScope]:
     all = False
     shell.mkdir(scope.target.builddir)
@@ -431,7 +445,14 @@ def build(
 
     outs = list(map(lambda p: str(p.path), products))
 
-    shell.exec("ninja", "-f", ninjaPath, *(outs if not all else []))
+    ninjaCmd = ["ninja", "-f", ninjaPath, *(outs if not all else [])]
+
+    if generateCompilationDb:
+        database = shell.popen(*ninjaCmd, "-t", "compdb")
+        with open("compile_commands.json", "w") as f:
+            f.write(database)
+    else:
+        shell.exec(*ninjaCmd)
 
     return products
 
@@ -447,6 +468,11 @@ def _():
 class BuildArgs(model.TargetArgs):
     component: str = cli.operand("component", "Component to build", default="__main__")
     universe: bool = cli.arg(None, "universe", "Does it for all targets")
+    database: bool = cli.arg(
+        None,
+        "database",
+        "Generate compilation database (compile_commands.json)",
+    )
 
 
 @cli.command("b", "builder/build", "Build a component or all components")
@@ -458,13 +484,20 @@ def _(args: BuildArgs):
             component = None
             if args.component is not None:
                 component = scope.registry.lookup(args.component, model.Component)
-            build(scope, component if component is not None else "all")[0]
+            build(
+                scope,
+                component if component is not None else "all",
+            )[0]
     else:
         scope = TargetScope.use(args)
         component = None
         if args.component is not None:
             component = scope.registry.lookup(args.component, model.Component)
-        build(scope, component if component is not None else "all")[0]
+        build(
+            scope,
+            component if component is not None else "all",
+            args.database,
+        )[0]
 
 
 class RunArgs(BuildArgs, shell.DebugArgs, shell.ProfileArgs):
@@ -487,6 +520,9 @@ def runCmd(args: RunArgs):
 
     scope = TargetScope.use(args)
 
+    if args.component in scope.target.routing:
+        args.component = scope.target.routing[args.component]
+
     component = scope.registry.lookup(
         args.component, model.Component, includeProvides=True
     )
@@ -495,10 +531,7 @@ def runCmd(args: RunArgs):
 
     product = build(scope, component)[0]
 
-    os.environ["CK_TARGET"] = product.target.id
-    os.environ["CK_BUILDDIR"] = str(Path(product.target.builddir).resolve())
-    os.environ["CK_COMPONENT"] = product.component.id
-
+    product.useEnv()
     command = [str(product.path.resolve()), *args.args]
 
     if args.restoreCwd:

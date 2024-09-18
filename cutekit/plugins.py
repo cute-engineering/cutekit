@@ -24,7 +24,7 @@ def load(path: str):
         spec.loader.exec_module(module)
     except Exception as e:
         _logger.error(f"Failed to load plugin {path}: {e}")
-        vt100.warning(f"Plugin {path} loading skipped due to error")
+        vt100.warning(f"Plugin {path} loading skipped due to: {e}")
 
 
 def loadAll():
