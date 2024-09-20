@@ -260,6 +260,11 @@ class Extern(DataClassJsonMixin):
         """
 
         path = os.path.join(const.EXTERN_DIR, self.id)
+        globalPath = os.path.join(const.GLOBAL_EXTERN_DIR, self.id)
+
+        if os.path.exists(globalPath):
+            print(f"Using global extern {self.id} from {globalPath}")
+            path = globalPath
 
         if not os.path.exists(path):
             print(f"Installing {self.id}-{self.tag} from {self.git}...")
@@ -1078,3 +1083,31 @@ def _(args: TargetArgs):
         print(m.to_json(indent=2), end="")
         print(",")
     print("]")
+
+
+@cli.command("m", "model/mount", "Mount this project to the global extern directory")
+def _(args: TargetArgs):
+    """
+    Mount this project to the global extern directory
+    """
+    project = Project.use()
+    projectDir = os.path.abspath(project.dirname())
+    globalExternDir = os.path.join(const.GLOBAL_EXTERN_DIR, project.id)
+    if os.path.exists(globalExternDir):
+        shell.exec("rm", globalExternDir)
+    shell.mkdir(os.path.dirname(globalExternDir))
+    shell.exec("ln", "-s", projectDir, globalExternDir)
+    print(f"Mounted {projectDir} to {globalExternDir}")
+
+
+@cli.command(
+    "m", "model/unmount", "Unmount this project from the global extern directory"
+)
+def _(args: TargetArgs):
+    """
+    Unmount this project from the global extern directory
+    """
+    project = Project.use()
+    globalExternDir = os.path.join(const.GLOBAL_EXTERN_DIR, project.id)
+    shell.exec("rm", globalExternDir)
+    print(f"Unmounted {globalExternDir}")
