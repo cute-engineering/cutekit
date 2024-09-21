@@ -2,7 +2,8 @@ import logging
 import os
 import sys
 
-from . import cli, shell, model, const, vt100
+from . import cli, model, const, vt100, shell
+from pathlib import Path
 
 import importlib.util as importlib
 
@@ -31,24 +32,21 @@ def loadAll():
     _logger.info("Loading plugins...")
 
     project = model.Project.topmost()
-    if project is None:
-        _logger.info("Not in project, skipping plugin loading")
-        return
-    paths = list(
-        map(lambda e: os.path.join(const.EXTERN_DIR, e), project.extern.keys())
-    ) + ["."]
+    paths = list(Path(const.GLOBAL_PLUGIN_DIR).glob("*/"))
 
-    for dirname in paths:
-        pluginDir = os.path.join(project.dirname(), dirname, const.META_DIR, "plugins")
-        pluginDir = os.path.normpath(pluginDir)
-        initFile = os.path.join(pluginDir, "__init__.py")
+    if project:
+        paths += list(
+            map(
+                lambda e: Path(project.dirname()) / e / const.META_DIR / "plugins",
+                project.extern.keys(),
+            )
+        ) + [Path(project.dirname()) / const.META_DIR / "plugins"]
 
-        if os.path.isfile(initFile):
-            load(initFile)
+    for path in paths:
+        if (path / "__init__.py").exists():
+            load(str(path / "__init__.py"))
         else:
-            for files in shell.readdir(pluginDir):
-                if files.endswith(".py"):
-                    load(os.path.join(pluginDir, files))
+            map(lambda p: load(str(p)), path.glob("*.py"))
 
 
 class PluginsArgs:
@@ -59,3 +57,64 @@ def setup(args: PluginsArgs):
     if args.safemod:
         return
     loadAll()
+
+
+@cli.command("P", "plugins", "Manage plugins")
+def _():
+    pass
+
+
+class PluginsInstallArgs:
+    url: str = cli.arg(None, "url", "Git url of the plugin")
+    acknowledge: bool = cli.arg(
+        None, "acknowledge-risk", "Acknowledge the risk of installing a plugin"
+    )
+
+
+@cli.command("i", "plugins/install", "Install a plugin")
+def _(args: PluginsInstallArgs):
+    project = model.Project.topmost()
+
+    header = """Please read the following information carefully before proceeding:
+- Plugins are not sandboxed and can execute arbitrary code
+- Only install plugins from trusted sources
+- Cutekit is unable to verify the integrity, security, and safety of plugins
+
+Proceed with caution and at your own risk.
+Do you want to continue? [y/N] """
+
+    if not args.url and not project:
+        raise RuntimeError("No plugin source was specified")
+
+    choice = input(header)
+
+    if choice.lower() == "y":
+        if args.url:
+            shell.cloneDir(
+                args.url,
+                "meta/plugins",
+                os.path.join(const.GLOBAL_PLUGIN_DIR, args.url.split("/")[-1]),
+            )
+        elif project:
+            shell.cpTree(
+                str(Path(project.dirname()) / "meta" / "plugins"),
+                os.path.join(const.GLOBAL_PLUGIN_DIR, project.id),
+            )
+
+        if (
+            Path(const.GLOBAL_PLUGIN_DIR) / args.url.split("/")[-1] / "requirements.txt"
+        ).exists():
+            shell.exec(
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "-r",
+                str(
+                    Path(const.GLOBAL_PLUGIN_DIR)
+                    / args.url.split("/")[-1]
+                    / "requirements.txt"
+                ),
+            )
+    else:
+        raise RuntimeError("Plugin installation aborted")
