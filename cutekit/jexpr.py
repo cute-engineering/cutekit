@@ -125,7 +125,7 @@ def read(path: Path) -> Jexpr:
     Read a JSON or TOML file.
     """
     try:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf8") as f:
             if path.suffix == ".toml":
                 return _loadToml(f.read())
             else:
@@ -228,4 +228,3 @@ def _(args: EvalArgs):
     delaMs = (endTime - startTime).total_seconds() * 1000
 
     print(f"\nElapsed time: {delaMs:.2f}ms")
-
