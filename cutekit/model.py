@@ -316,6 +316,7 @@ class Project(Manifest):
     """
 
     description: str = dt.field(default="(No description)")
+    version: str = dt.field(default="0.0.1")
     """Description of the project."""
     extern: dict[str, Extern] = dt.field(default_factory=dict)
     """External dependencies of the project."""
