@@ -22,6 +22,7 @@ MODULE_DIR = os.path.dirname(os.path.realpath(__file__))
 ARGV0 = "cutekit"
 PROJECT_CK_DIR = ".cutekit"
 GLOBAL_CK_DIR = os.path.join(os.path.expanduser("~"), ".cutekit")
+GLOBAL_PLUGIN_DIR = os.path.join(GLOBAL_CK_DIR, "plugins")
 BUILD_DIR = os.path.join(PROJECT_CK_DIR, "build")
 CACHE_DIR = os.path.join(PROJECT_CK_DIR, "cache")
 EXTERN_DIR = os.path.join(PROJECT_CK_DIR, "extern")
