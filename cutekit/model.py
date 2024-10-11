@@ -1,6 +1,7 @@
 import os
 import logging
 import dataclasses as dt
+import json
 
 
 from enum import Enum
@@ -187,6 +188,74 @@ _project: Optional["Project"] = None
 
 
 @dt.dataclass
+class Lock(DataClassJsonMixin):
+    """
+    Represents a lock for a project.
+    """
+
+    commit: str = dt.field(default="")
+    """SHA of the lock."""
+    tag: str = dt.field(default="")
+    """Tag of the lock."""
+
+
+@dt.dataclass
+class ProjectLocks(DataClassJsonMixin):
+    """
+    Represents a lock file for a project.
+    """
+
+    locks: dict[str, Lock] = dt.field(default_factory=dict)
+    """Locks for the project."""
+    path: str = dt.field(default="")
+    """Path to the manifest file."""
+
+    @staticmethod
+    def load(path: Path) -> "ProjectLocks":
+        """
+        Try to load a lock file from a given path.
+
+        Args:
+            path: Path to the directory containing the lock file.
+
+        Returns:
+            The loaded ProjectLock object, or a new ProjectLock object if no lock file was found.
+        """
+
+        lockFile = path / "project.lock"
+        if not lockFile.exists():
+            lockObj = ProjectLocks()
+            lockObj.path = str(lockFile)
+            return lockObj
+
+        _logger.debug(f"Loading lock file from '{lockFile}'")
+        data = jexpr.include(lockFile)
+        if not isinstance(data, dict):
+            raise RuntimeError(f"Lock file '{lockFile}' should be a dictionary")
+
+        file = ProjectLocks.from_dict(data)
+        file.path = str(lockFile)
+        return file
+
+    def save(self):
+        """
+        Save the lock file.
+        """
+        lockFile = Path(self.path)
+        lockData = self.to_dict()
+        del lockData["path"]
+        lockFile.write_text(json.dumps(lockData, indent=2))
+
+    def unlink(self):
+        """
+        Remove the lock file.
+        """
+        lockFile = Path(self.path)
+        if lockFile.exists():
+            lockFile.unlink()
+
+
+@dt.dataclass
 class Extern(DataClassJsonMixin):
     """
     Represents an external dependency of a project.
@@ -251,7 +320,7 @@ class Extern(DataClassJsonMixin):
 
         return []
 
-    def _fetchGit(self) -> list[Manifest]:
+    def _fetchGit(self, locks: ProjectLocks) -> list[Manifest]:
         """
         Fetch an extern from a git repository.
 
@@ -266,22 +335,34 @@ class Extern(DataClassJsonMixin):
             print(f"Using global extern {self.id} from {globalPath}")
             path = globalPath
 
+        lock = Lock(commit="", tag=self.tag)
+        lock = locks.locks.get(self.id, lock)
         if not os.path.exists(path):
-            print(f"Installing {self.id}-{self.tag} from {self.git}...")
-            cmd = [
-                "git",
-                "clone",
-                "--quiet",
-                "--branch",
-                self.tag,
-                self.git,
-                path,
-            ]
+            print(f"Installing {self.id} ({self.tag}) from {self.git}...")
+
+            # Create the repository
+            shell.exec("git", "init", "--quiet", path, quiet=True)
+
+            # Add the remote
+            shell.exec(
+                "git", "-C", path, "remote", "add", "origin", self.git, quiet=True
+            )
+
+            # Fetch the remote
+            ref = lock.commit or self.tag
+            cmd = ["git", "-C", path, "fetch", "origin", ref]
 
             if self.shallow:
                 cmd += ["--depth", str(self.depth)]
 
             shell.exec(*cmd, quiet=True)
+
+            # Checkout the tag
+            shell.exec("git", "-C", path, "reset", "--hard", "FETCH_HEAD", quiet=True)
+
+        # Update the lock
+        lock.commit = shell.popen("git", "-C", path, "rev-parse", "FETCH_HEAD").strip()
+        locks.locks[self.id] = lock
 
         project = Project.at(Path(path))
         if project is None:
@@ -293,9 +374,9 @@ class Extern(DataClassJsonMixin):
                 return [manifest]
             _logger.warn("Extern project does not have a project or manifest")
             return []
-        return [cast(Manifest, project)] + project.fetchExterns()
+        return [cast(Manifest, project)] + project.fetchExterns(locks)
 
-    def fetch(self) -> list[Manifest]:
+    def fetch(self, locks: ProjectLocks) -> list[Manifest]:
         """
         Fetch the extern.
 
@@ -304,7 +385,7 @@ class Extern(DataClassJsonMixin):
         """
 
         if self.git:
-            return self._fetchGit()
+            return self._fetchGit(locks)
         else:
             return self._fetchLibrary()
 
@@ -331,6 +412,16 @@ class Project(Manifest):
         """
         res = map(lambda e: os.path.join(const.EXTERN_DIR, e), self.extern.keys())
         return list(res)
+
+    @property
+    def locks(self) -> ProjectLocks:
+        """
+        Returns the lock file for the project.
+
+        Returns:
+            The ProjectLock object.
+        """
+        return ProjectLocks.load(Path(self.dirname()))
 
     @staticmethod
     def topmost() -> Optional["Project"]:
@@ -385,7 +476,7 @@ class Project(Manifest):
             return None
         return projectManifest.ensureType(Project)
 
-    def fetchExterns(self) -> list[Manifest]:
+    def fetchExterns(self, locks: ProjectLocks) -> list[Manifest]:
         """
         Fetch all externs for the project.
 
@@ -396,7 +487,7 @@ class Project(Manifest):
         res = []
         for extSpec, ext in self.extern.items():
             ext.id = extSpec
-            res.extend(ext.fetch())
+            res.extend(ext.fetch(locks))
 
         return utils.uniq(res, lambda x: x.id)
 
@@ -422,13 +513,23 @@ def _():
     pass
 
 
+class InstallArgs:
+    force: bool = cli.arg("f", "force", "Force the installation")
+    update: bool = cli.arg("u", "update", "Update the lock file")
+
+
 @cli.command("i", "model/install", "Install required external packages")
-def _():
+def _(args: InstallArgs):
     """
     Install required external packages for the project.
     """
     project = Project.use()
-    project.fetchExterns()
+    locks = project.locks
+    if args.force:
+        shell.rmrf(const.EXTERN_DIR)
+    project.fetchExterns(locks)
+    if args.update:
+        locks.save()
 
 
 # --- Target ----------------------------------------------------------------- #
@@ -921,11 +1022,12 @@ class Registry(DataClassJsonMixin):
             return _registry
 
         project = Project.use()
-        _registry = Registry.load(project, args.mixins, args.props)
+        locks = project.locks
+        _registry = Registry.load(project, locks, args.mixins, args.props)
         return _registry
 
     @staticmethod
-    def _loadExterns(r: "Registry", p: Project):
+    def _loadExterns(r: "Registry", p: Project, locks: ProjectLocks):
         """
         Load all externs for the project.
 
@@ -933,7 +1035,7 @@ class Registry(DataClassJsonMixin):
             r: The registry to load the externs into.
             p: The project to load the externs for.
         """
-        r._extend(p.fetchExterns())
+        r._extend(p.fetchExterns(locks))
 
     @staticmethod
     def _loadManifests(r: "Registry"):
@@ -1024,7 +1126,9 @@ class Registry(DataClassJsonMixin):
                         tools[k].args += v.args
 
     @staticmethod
-    def load(project: Project, mixins: list[str], props: Props) -> "Registry":
+    def load(
+        project: Project, locks: ProjectLocks, mixins: list[str], props: Props
+    ) -> "Registry":
         """
         Load the model for a given project, applying mixins and props.
 
@@ -1041,7 +1145,7 @@ class Registry(DataClassJsonMixin):
         r = Registry(project)
         r._append(project)
 
-        Registry._loadExterns(r, project)
+        Registry._loadExterns(r, project, locks)
         Registry._loadManifests(r)
         Registry._loadDependencies(r, mixins, props)
 
