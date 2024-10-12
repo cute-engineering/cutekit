@@ -770,6 +770,10 @@ class Schema:
         return res
 
 
+class NoArgs:
+    pass
+
+
 @dt.dataclass
 class Command:
     """
@@ -887,6 +891,7 @@ class Command:
                 args = self.schema.parse(argv)
                 self.callable(args)
             else:
+                Schema.extract(NoArgs).parse(argv)
                 self.callable()
 
     def eval(self, args: list[str]):
