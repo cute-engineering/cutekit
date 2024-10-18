@@ -551,6 +551,7 @@ def _(args: RunArgs):
     # to run a special hook component named __tests__.
     args.component = "__tests__"
     args.restoreCwd = False
+    args.props |= {"unit_test": True}
     runCmd(args)
 
 
