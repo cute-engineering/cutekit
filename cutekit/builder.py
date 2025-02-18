@@ -265,30 +265,46 @@ def _(args: CxxModmapArgs):
         print(f"-fmodule-file={n}={os.path.join(args.dir, n).replace(':', '__')}.pcm")
 
 
+class CxxDyndepArgs:
+    dir: str = cli.arg("d", "dir", "Build directory")
+    deps: str = cli.arg("d", "deps", "Dependencies file")
+
+
 @cli.command(None, "tools/cxx-dyndep", "Generate a dynamic dependency file for C++")
-def _(args: CxxModmapArgs):
-    logicalName, needed = p1689Resolve(args.obj, args.deps)
+def _(args: CxxDyndepArgs):
+    with open(args.deps, "r") as f:
+        data = json.load(f)
+
     print("ninja_dyndep_version = 1.0")
     print()
 
-    record = f"build {args.obj}"
-    if logicalName is not None:
-        record += f" | {os.path.join(args.dir, logicalName).replace(':', '__')}.pcm"
+    for d in data:
+        for rule in d.get("rules", []):
+            record = f"build {rule['primary-output']}"
 
-    record += " : dyndep"
+            firstProvides = True
+            for p in rule.get("provides", []):
+                if firstProvides:
+                    record += " | "
+                    firstProvides = False
+                else:
+                    record += " "
+                record += f"{os.path.join(args.dir, p['logical-name']).replace(':', '__')}.pcm"
 
-    if len(needed) > 0:
-        record += " | "
+            record += " : dyndep"
 
-    first = True
-    for n in needed:
-        if not first:
-            record += " "
-        first = False
-        record += f"{os.path.join(args.dir, n).replace(':', '__')}.pcm"
+            firstRequires = True
+            for r in rule.get("requires", []):
+                if firstRequires:
+                    record += " | "
+                    firstRequires = False
+                else:
+                    record += " "
+                record += f"{os.path.join(args.dir, r['logical-name']).replace(':', '__')}.pcm"
 
-    print(record)
-    print("  restat = 1")
+            print(record)
+            print("  restat = 1")
+            print()
 
 
 def compileSrcs(
@@ -302,7 +318,7 @@ def compileSrcs(
         )
         obj = str(scope.buildpath(path="__obj__") / rel.with_suffix(rel.suffix + ".o"))
         modmap = str(dest) + ".modmap"
-        dyndep = str(dest) + ".dd"
+        dyndep = str(scope.up().buildpath("modules.dd"))
         t = scope.target.tools[rule.id]
 
         variables = {}
@@ -322,24 +338,11 @@ def compileSrcs(
                     modmap,
                     "cxx-modmap",
                     src,
-                    order_only=[str(scope.up().buildpath("all.dd"))],
+                    order_only=[str(scope.up().buildpath("modules.dd"))],
                     variables={
                         "ck_target": scope.target.id,
                         "ck_component": scope.component.id,
                         "obj": obj,
-                    },
-                )
-
-                w.build(
-                    dyndep,
-                    "cxx-dyndep",
-                    src,
-                    order_only=[str(scope.up().buildpath("all.dd"))],
-                    variables={
-                        "ck_target": scope.target.id,
-                        "ck_component": scope.component.id,
-                        "obj": obj,
-                        "restat": "1",
                     },
                 )
 
@@ -495,9 +498,20 @@ def all(w: ninja.Writer, scope: TargetScope) -> list[str]:
         ddis.extend(ddi)
         all.append(out)
 
-    collectedDdi = str(scope.buildpath("all.dd"))
-    w.build(collectedDdi, "cxx-collect", ddis)
-    all = [collectedDdi] + all
+    modulesDdi = str(scope.buildpath("modules.ddi"))
+    w.build(modulesDdi, "cxx-collect", ddis)
+
+    modulesDd = str(scope.buildpath("modules.dd"))
+    w.build(
+        modulesDd,
+        "cxx-dyndep",
+        modulesDdi,
+        variables={
+            "restat": "1",
+        },
+    )
+
+    all = [modulesDd] + all
 
     w.build("all", "phony", all)
     w.default("all")
@@ -586,7 +600,6 @@ def build(
 
     ninjaCmd = [
         "ninja",
-        "-v",
         *(["-j1"] if noParallel else []),
         "-f",
         ninjaPath,
