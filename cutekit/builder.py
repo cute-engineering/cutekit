@@ -577,7 +577,6 @@ def build(
     ninjaPath = os.path.join(scope.target.builddir, "build.ninja")
 
     with open(ninjaPath, "w") as f:
-        f.write("ninja_required_version = 1.12\n\n")
         gen(f, scope)
 
     if components == "all":
