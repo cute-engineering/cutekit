@@ -224,7 +224,9 @@ def p1689Resolve(obj: str, depFile: str) -> tuple[str | None, set[str]]:
                     for r in rule["requires"]:
                         queue.append(r["logical-name"])
                 if "provides" in rule:
-                    return rule["provides"][0]["logical-name"]
+                    provided = rule["provides"][0]
+                    if provided["is-interface"]:
+                        return provided["logical-name"]
             return None
 
         logicalName = p1689Query(data, queryLogicalName, obj)
@@ -284,12 +286,13 @@ def _(args: CxxDyndepArgs):
 
             firstProvides = True
             for p in rule.get("provides", []):
-                if firstProvides:
-                    record += " | "
-                    firstProvides = False
-                else:
-                    record += " "
-                record += f"{os.path.join(args.dir, p['logical-name']).replace(':', '__')}.pcm"
+                if p["is-interface"]:
+                    if firstProvides:
+                        record += " | "
+                        firstProvides = False
+                    else:
+                        record += " "
+                    record += f"{os.path.join(args.dir, p['logical-name']).replace(':', '__')}.pcm"
 
             record += " : dyndep"
 
@@ -604,12 +607,12 @@ def build(
         ninjaPath,
         *(outs if not all else []),
     ]
+    shell.exec(*ninjaCmd)
+
     if generateCompilationDb:
         database = shell.popen(*ninjaCmd, "-t", "compdb", "cc", "cxx")
         with open("compile_commands.json", "w") as f:
             f.write(database)
-    else:
-        shell.exec(*ninjaCmd)
 
     return products
 
