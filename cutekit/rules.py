@@ -34,7 +34,14 @@ rules: dict[str, Rule] = {
         ["*.cpp", "*.cc", "*.cxx"],
         "*.o",
         "-MD -MF $out.d $flags $cincs $cdefs @$modmap -c -o $out $in",
-        ["-std=gnu++2c", "-Wall", "-Wextra", "-Werror", "-fcolor-diagnostics"],
+        [
+            "-std=gnu++2c",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-fcolor-diagnostics",
+            "-fmodules-reduced-bmi",
+        ],
         ["$out.d"],
     ),
     "cxx-scan": Rule(
