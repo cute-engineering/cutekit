@@ -8,7 +8,7 @@ class FmtArgs:
 
 @cli.command(None, "fmt", "Format source code")
 def _(args: FmtArgs):
-    command = ["clang-format"]
+    command = [shell.latest("clang-format")]
 
     if args.fix:
         command.append("-i")
