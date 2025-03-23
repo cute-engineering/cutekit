@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools ~= 68.0"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "cutekit"
-description = "A build system and package manager for low-level software development"
+description = "The magical build system and package manager"
 authors = [
     { name = "Keyboard Slayer", email = "joda@cute.engineering" },
     { name = "Sleepy Monax", email = "nivb@cute.engineering" },
@@ -12,7 +12,7 @@ authors = [
     { name = "Cute Engineering", email = "contact@cute.engineering" },
 ]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { text = "MIT" }
 dynamic = ["version", "dependencies"]
 
