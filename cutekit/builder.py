@@ -607,12 +607,13 @@ def build(
         ninjaPath,
         *(outs if not all else []),
     ]
-    shell.exec(*ninjaCmd)
 
     if generateCompilationDb:
         database = shell.popen(*ninjaCmd, "-t", "compdb", "cc", "cxx")
         with open("compile_commands.json", "w") as f:
             f.write(database)
+    else:
+        shell.exec(*ninjaCmd)
 
     return products
 
