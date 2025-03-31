@@ -576,6 +576,9 @@ def build(
     noParallel: bool = False,
 ) -> list[ProductScope]:
     all = False
+    if generateCompilationDb:
+        scope.target.props["database"] = True
+
     shell.mkdir(scope.target.builddir)
     ninjaPath = os.path.join(scope.target.builddir, "build.ninja")
 
@@ -641,7 +644,7 @@ class BuildArgs(model.TargetArgs):
 @cli.command(None, "build", "Build a component or all components")
 @cli.command("b", "builder/build", "Build a component or all components")
 def _(args: BuildArgs):
-    if not args.noCache:
+    if not args.noCache and not args.database:
         args.mixins.append("cache")
 
     if args.universe:
