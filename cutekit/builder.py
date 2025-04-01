@@ -333,7 +333,9 @@ def compileSrcs(
         if rule.id == "cxx":
             implicit.append(modmap)
             orderOnly.append(dyndep)
-            variables["modmap"] = modmap
+
+            if not scope.target.props.get("database", False):
+                variables["modmap"] = "@" + modmap
 
         if w:
             if rule.id == "cxx":
