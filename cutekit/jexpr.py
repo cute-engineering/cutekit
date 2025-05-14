@@ -1,11 +1,9 @@
 import os
 import re
 import json
-import datetime
 
 from pathlib import Path
 from typing import Any, Callable, Optional
-from . import cli
 
 
 Jexpr = dict[str, "Jexpr"] | list["Jexpr"] | str | bool | float | int | None
@@ -214,23 +212,3 @@ expose("utils.union", _union)
 expose("utils.concat", lambda *args: "".join(args))
 expose("utils.first", lambda arg: arg[0] if arg else None)
 expose("utils.last", lambda arg: arg[-1] if arg else None)
-
-
-class EvalArgs:
-    path: str = cli.operand("path", "Path to the file to evaluate.")
-
-
-@cli.command(None, "jexpr", "Utilities for working with Jexpr files.")
-def _():
-    pass
-
-
-@cli.command(None, "jexpr/eval", "Evaluate a Jexpr file.")
-def _(args: EvalArgs):
-    startTime = datetime.datetime.now()
-    print(json.dumps(include(Path(args.path)), indent=2))
-    endTime = datetime.datetime.now()
-
-    delaMs = (endTime - startTime).total_seconds() * 1000
-
-    print(f"\nElapsed time: {delaMs:.2f}ms")

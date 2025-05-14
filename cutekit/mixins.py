@@ -13,12 +13,6 @@ def prefixToolCmd(tools: model.Tools, toolSpec: str, prefix: str):
     tools[toolSpec].cmd = prefix + " " + tools[toolSpec].cmd
 
 
-def mixinCache(target: model.Target, tools: model.Tools) -> model.Tools:
-    prefixToolCmd(tools, "cc", "ccache")
-    prefixToolCmd(tools, "cxx", "ccache")
-    return tools
-
-
 def makeMixinSan(san: str) -> Mixin:
     def mixinSan(target: model.Target, tools: model.Tools) -> model.Tools:
         patchToolArgs(tools, "cc", [f"-fsanitize={san}"])
@@ -66,12 +60,20 @@ def combineMixins(*mixins: Mixin) -> Mixin:
     return combined
 
 
+def mixinFuzz(target: model.Target, tools: model.Tools) -> model.Tools:
+    patchToolArgs(tools, "cc", ["-fsanitize=fuzzer-no-link"])
+    patchToolArgs(tools, "cxx", ["-fsanitize=fuzzer-no-link"])
+    patchToolArgs(tools, "ld", ["-fsanitize=fuzzer"])
+
+    return tools
+
+
 mixins: dict[str, Mixin] = {
-    "cache": mixinCache,
     "debug": mixinDebug,
     "asan": combineMixins(makeMixinSan("address"), makeMixinSan("leak")),
     "msan": makeMixinSan("memory"),
     "tsan": makeMixinSan("thread"),
+    "fuzz": mixinFuzz,
     "ubsan": makeMixinSan("undefined"),
     "lsan": makeMixinSan("leak"),
     "san": combineMixins(

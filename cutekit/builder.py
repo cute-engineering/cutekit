@@ -575,7 +575,6 @@ def build(
     scope: TargetScope,
     components: Union[list[model.Component], model.Component, Literal["all"]] = "all",
     generateCompilationDb: bool = False,
-    noParallel: bool = False,
 ) -> list[ProductScope]:
     all = False
     if generateCompilationDb:
@@ -607,7 +606,6 @@ def build(
 
     ninjaCmd = [
         "ninja",
-        *(["-j1"] if noParallel else []),
         "-f",
         ninjaPath,
         *(outs if not all else []),
@@ -639,16 +637,10 @@ class BuildArgs(model.TargetArgs):
         "database",
         "Generate compilation database (compile_commands.json)",
     )
-    noCache: bool = cli.arg(None, "no-cache", "Do not use cache")
-    noParallel: bool = cli.arg(None, "no-parallel", "Do not use parallel build")
 
 
 @cli.command(None, "build", "Build a component or all components")
-@cli.command("b", "builder/build", "Build a component or all components")
 def _(args: BuildArgs):
-    if not args.noCache and not args.database:
-        args.mixins.append("cache")
-
     if args.universe:
         registry = model.Registry.use(args)
         for target in registry.iter(model.Target):
@@ -669,7 +661,6 @@ def _(args: BuildArgs):
             scope,
             component if component is not None else "all",
             generateCompilationDb=args.database,
-            noParallel=args.noParallel,
         )[0]
 
 
@@ -683,7 +674,6 @@ class RunArgs(BuildArgs, shell.DebugArgs, shell.ProfileArgs):
 
 
 @cli.command(None, "run", "Run a component or __main__ if not specified")
-@cli.command("r", "builder/run", "Run a component or __main__ if not specified")
 def runCmd(args: RunArgs):
     if args.debug:
         args.mixins.append("debug")
@@ -694,9 +684,6 @@ def runCmd(args: RunArgs):
 
     if args.release:
         args.mixins.append("release")
-
-    if not args.noCache:
-        args.mixins.append("cache")
 
     scope = TargetScope.use(args)
 
@@ -734,7 +721,7 @@ def runCmd(args: RunArgs):
         shell.exec(*command)
 
 
-@cli.command("t", "builder/test", "Run all test targets")
+@cli.command(None, "test", "Run all test targets")
 def _(args: RunArgs):
     # This is just a wrapper around the `run` command that try
     # to run a special hook component named __tests__.
@@ -744,11 +731,12 @@ def _(args: RunArgs):
     runCmd(args)
 
 
-@cli.command("d", "builder/debug", "Debug a component")
+@cli.command(None, "fuzz", "Fuzz a component")
 def _(args: RunArgs):
-    # This is just a wrapper around the `run` command that
-    # always enable debug mode.
-    args.debug = True
+    args.restoreCwd = False
+    args.mixins.append("fuzz")
+    args.props |= {"fuzzing": "true"}
+    args.component = args.component + ".fuzz"
     runCmd(args)
 
 
@@ -761,20 +749,6 @@ class InstallArgs(model.TargetArgs):
 
 
 @cli.command(None, "clean", "Clean build files")
-@cli.command("c", "builder/clean", "Clean build files")
 def _():
     model.Project.use()
     shell.rmrf(const.BUILD_DIR)
-
-
-@cli.command("n", "builder/nuke", "Clean all build files and caches")
-def _():
-    model.Project.use()
-    shell.rmrf(const.PROJECT_CK_DIR)
-
-
-@cli.command("m", "builder/mixins", "List all available mixins")
-def _():
-    vt100.title("Mixins")
-    print(vt100.indent(vt100.wordwrap(", ".join(mixins.mixins.keys()))))
-    print()
