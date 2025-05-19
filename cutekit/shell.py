@@ -510,59 +510,11 @@ def restoreCwd():
     os.chdir(_cwd)
 
 
-# MARK: Commands ---------------------------------------------------------------
-
-
-@cli.command("s", "shell", "Shell like commands")
-def _():
-    pass
-
-
-class CommandArgs:
-    cmd: str = cli.operand("command", "The command to debug")
-    args: list[str] = cli.extra("args", "The arguments to pass to the command")
-
-    def fullCmd(self) -> list[str]:
-        return [self.cmd, *self.args]
-
-
-class DebugArgs:
-    wait: bool = cli.arg("w", "wait", "Wait for the debugger to attach")
-    debugger: str = cli.arg(None, "debugger", "The debugger to use", default="lldb")
-
-
-class _DebugArgs(DebugArgs, CommandArgs):
-    pass
-
-
-@cli.command("d", "shell/debug", "Debug a program")
-def _(args: _DebugArgs):
-    debug(args.fullCmd(), debugger=str(args.debugger), wait=args.wait)
-
-
 class ProfileArgs:
     rate: int = cli.arg(None, "rate", "The sampling rate", default=1000)
     what: str = cli.arg(None, "what", "What to profile (cpu or mem)", default="cpu")
 
 
-class _ProfileArgs(ProfileArgs, CommandArgs):
-    pass
-
-
-@cli.command("p", "shell/profile", "Profile a program")
-def _(args: _ProfileArgs):
-    profile(args.fullCmd(), rate=args.rate, what=args.what)
-
-
-class CompressFormatArg:
-    format: str = cli.arg(None, "format", "The compression format", default="zstd")
-
-
-class CompresseArgs(CompressFormatArg):
-    dest: Optional[str] = cli.arg(None, "dest", "The destination file or directory")
-    path: str = cli.operand("path", "The file or directory to compress")
-
-
-@cli.command("c", "shell/compress", "Compress a file or directory")
-def _(args: CompresseArgs):
-    compress(args.path, dest=args.dest, format=args.format)
+class DebugArgs:
+    wait: bool = cli.arg("w", "wait", "Wait for the debugger to attach")
+    debugger: str = cli.arg(None, "debugger", "The debugger to use", default="lldb")

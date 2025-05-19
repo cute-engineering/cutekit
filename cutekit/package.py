@@ -3,17 +3,14 @@ from . import cli, model, builder, shell
 import os
 
 
-class PackageArgs(model.TargetArgs):
+class InstallArgs(model.TargetArgs):
     component: str = cli.operand("component", "Component to package")
     prefix: str = cli.arg(None, "prefix", "Installation prefix")
     layout: str = cli.arg(None, "layout", "Installation layout")
-
-
-class InstallPackageArgs(PackageArgs):
     sysroot: str = cli.arg(None, "sysroot", "System root directory", "/")
 
 
-def install(args: InstallPackageArgs):
+def install(args: InstallArgs):
     args.prefix = args.prefix or "/"
     args.sysroot = os.path.abspath(args.sysroot or "/")
 
@@ -65,19 +62,6 @@ def install(args: InstallPackageArgs):
 # MARK: Commands ---------------------------------------------------------------
 
 
-@cli.command(None, "package", "Package the project")
-def _(): ...
-
-
-class BuildPackageArgs(PackageArgs):
-    format: str = cli.arg(None, "format", "Package format")
-
-
-@cli.command(None, "package/build", "Package the project")
-def _(args: BuildPackageArgs):
-    pass
-
-
-@cli.command(None, "package/install", "Package the project")
-def _(args: InstallPackageArgs):
+@cli.command("install", "Install a component to the system")
+def _(args: InstallArgs):
     install(args)

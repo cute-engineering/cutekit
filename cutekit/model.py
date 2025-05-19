@@ -414,7 +414,7 @@ class Project(Manifest):
         return _project
 
 
-@cli.command("m", "model", "Manage the model")
+@cli.command("model", "Manage the model")
 def _():
     """
     Manage the CuteKit model.
@@ -422,7 +422,7 @@ def _():
     pass
 
 
-@cli.command("i", "model/install", "Install required external packages")
+@cli.command("model/install", "Install required external packages")
 def _():
     """
     Install required external packages for the project.
@@ -1096,7 +1096,7 @@ class Registry(DataClassJsonMixin):
         return r
 
 
-@cli.command("l", "model/list", "List all components and targets")
+@cli.command("model/list", "List all components and targets")
 def _(args: TargetArgs):
     """
     List all components and targets in the model.
@@ -1121,7 +1121,7 @@ def _(args: TargetArgs):
     print()
 
 
-@cli.command("d", "model/dump", "Dump the model")
+@cli.command("model/dump", "Dump the model")
 def _(args: TargetArgs):
     """
     Dump the model as JSON.
@@ -1134,7 +1134,7 @@ def _(args: TargetArgs):
     print("]")
 
 
-@cli.command("m", "model/mount", "Mount this project to the global extern directory")
+@cli.command("model/mount", "Mount this project to the global extern directory")
 def _(args: TargetArgs):
     """
     Mount this project to the global extern directory
@@ -1149,9 +1149,7 @@ def _(args: TargetArgs):
     print(f"Mounted {projectDir} to {globalExternDir}")
 
 
-@cli.command(
-    "m", "model/unmount", "Unmount this project from the global extern directory"
-)
+@cli.command("model/unmount", "Unmount this project from the global extern directory")
 def _(args: TargetArgs):
     """
     Unmount this project from the global extern directory

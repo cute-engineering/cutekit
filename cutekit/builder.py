@@ -249,12 +249,12 @@ def p1689Resolve(obj: str, depFile: str) -> tuple[str | None, set[str]]:
         return logicalName, needed
 
 
-@cli.command(None, "tools", "Tools used by the build system")
+@cli.command("tools", "Tools used by the build system")
 def _():
     pass
 
 
-@cli.command(None, "tools/cxx-modmap", "Generate a module map for C++")
+@cli.command("tools/cxx-modmap", "Generate a module map for C++")
 def _(args: CxxModmapArgs):
     os.makedirs(args.dir, exist_ok=True)
     logicalName, needed = p1689Resolve(args.obj, args.deps)
@@ -272,7 +272,7 @@ class CxxDyndepArgs:
     deps: str = cli.arg("d", "deps", "Dependencies file")
 
 
-@cli.command(None, "tools/cxx-dyndep", "Generate a dynamic dependency file for C++")
+@cli.command("tools/cxx-dyndep", "Generate a dynamic dependency file for C++")
 def _(args: CxxDyndepArgs):
     with open(args.deps, "r") as f:
         data = json.load(f)
@@ -624,11 +624,6 @@ def build(
 # MARK: Commands ---------------------------------------------------------------
 
 
-@cli.command("b", "builder", "Build/Run/Clean a component or all components")
-def _():
-    pass
-
-
 class BuildArgs(model.TargetArgs):
     component: str = cli.operand("component", "Component to build", default="__main__")
     universe: bool = cli.arg(None, "universe", "Does it for all targets")
@@ -639,7 +634,7 @@ class BuildArgs(model.TargetArgs):
     )
 
 
-@cli.command(None, "build", "Build a component or all components")
+@cli.command("build", "Build a component or all components")
 def _(args: BuildArgs):
     if args.universe:
         registry = model.Registry.use(args)
@@ -673,7 +668,7 @@ class RunArgs(BuildArgs, shell.DebugArgs, shell.ProfileArgs):
     )
 
 
-@cli.command(None, "run", "Run a component or __main__ if not specified")
+@cli.command("run", "Run a component or __main__ if not specified")
 def runCmd(args: RunArgs):
     if args.debug:
         args.mixins.append("debug")
@@ -721,7 +716,7 @@ def runCmd(args: RunArgs):
         shell.exec(*command)
 
 
-@cli.command(None, "test", "Run all test targets")
+@cli.command("test", "Run all test targets")
 def _(args: RunArgs):
     # This is just a wrapper around the `run` command that try
     # to run a special hook component named __tests__.
@@ -731,7 +726,7 @@ def _(args: RunArgs):
     runCmd(args)
 
 
-@cli.command(None, "fuzz", "Fuzz a component")
+@cli.command("fuzz", "Fuzz a component")
 def _(args: RunArgs):
     args.restoreCwd = False
     args.mixins.append("fuzz")
@@ -748,7 +743,7 @@ class InstallArgs(model.TargetArgs):
     format: str = cli.arg("f", "format", "Installation format", default="unix")
 
 
-@cli.command(None, "clean", "Clean build files")
+@cli.command("clean", "Clean build files")
 def _():
     model.Project.use()
     shell.rmrf(const.BUILD_DIR)

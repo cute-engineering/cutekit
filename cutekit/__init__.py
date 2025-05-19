@@ -64,7 +64,7 @@ class RootArgs(
     pass
 
 
-@cli.command(None, "/", const.DESCRIPTION)
+@cli.command("/", const.DESCRIPTION)
 def _(args: RootArgs):
     shell.mkdir(const.GLOBAL_CK_DIR)
     const.setup()
@@ -72,12 +72,12 @@ def _(args: RootArgs):
     plugins.setup(args)
 
 
-@cli.command("u", "usage", "Show usage information")
+@cli.command("usage", "Show usage information")
 def _():
     cli.usage()
 
 
-@cli.command("v", "version", "Show current version")
+@cli.command("version", "Show current version")
 def _():
     print(f"CuteKit v{const.VERSION_STR}")
 

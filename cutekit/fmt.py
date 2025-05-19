@@ -6,7 +6,7 @@ class FmtArgs:
     fix: bool = cli.arg("f", "fix", "Fix formatting issues", False)
 
 
-@cli.command(None, "fmt", "Format source code")
+@cli.command("fmt", "Format source code")
 def _(args: FmtArgs):
     command = [shell.latest("clang-format")]
 
@@ -24,7 +24,7 @@ class LintArgs:
     fix: bool = cli.arg("f", "fix", "Fix linting issues", False)
 
 
-@cli.command(None, "lint", "Lint source code")
+@cli.command("lint", "Lint source code")
 def _(args: LintArgs):
     command = ["clang-tidy"]
     if Path("src/.clang-tidy").exists():

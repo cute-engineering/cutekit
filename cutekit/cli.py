@@ -776,7 +776,6 @@ class Command:
     Represents a command in the command-line interface.
     """
 
-    shortName: Optional[str]
     path: list[str] = dt.field(default_factory=list)
     description: str = ""
     epilog: Optional[str] = None
@@ -837,11 +836,7 @@ class Command:
         if any(self.subcommands):
             vt100.subtitle("Subcommands")
             for name, sub in self.subcommands.items():
-                print(
-                    vt100.indent(
-                        f"{vt100.GREEN}{sub.shortName or ' '}{vt100.RESET}  {name} - {sub.description}"
-                    )
-                )
+                print(vt100.indent(f"{vt100.RESET}{name} - {sub.description}"))
             print()
 
         if self.epilog:
@@ -875,9 +870,6 @@ class Command:
         """Looks up a subcommand by name."""
         if name in self.subcommands:
             return self.subcommands[name]
-        for sub in self.subcommands.values():
-            if sub.shortName == name:
-                return sub
         raise ValueError(f"Unknown subcommand '{name}'")
 
     def invoke(self, argv: list[str]):
@@ -937,7 +929,7 @@ class Command:
             return
 
 
-_root = Command(None, [const.ARGV0])
+_root = Command([const.ARGV0])
 
 
 def _splitPath(path: str) -> list[str]:
@@ -956,12 +948,12 @@ def _resolvePath(path: list[str]) -> Command:
     for name in path:
         visited.append(name)
         if name not in cmd.subcommands:
-            cmd.subcommands[name] = Command(None, visited)
+            cmd.subcommands[name] = Command(visited)
         cmd = cmd.subcommands[name]
     return cmd
 
 
-def command(shortName: Optional[str], longName: str, description: str = "") -> Callable:
+def command(longName: str, description: str = "") -> Callable:
     """
     Decorator for defining a command.
 
@@ -980,7 +972,6 @@ def command(shortName: Optional[str], longName: str, description: str = "") -> C
         if cmd.populated:
             raise ValueError(f"Command '{longName}' is already defined")
 
-        cmd.shortName = shortName
         cmd.description = description
         cmd.schema = schema
         cmd.callable = fn

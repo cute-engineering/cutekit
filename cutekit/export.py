@@ -48,7 +48,7 @@ def graph(
 
             g.node(
                 component.id,
-                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(descr, 40,newline='<BR/>')}>",
+                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(descr, 40, newline='<BR/>')}>",
                 shape=shape,
                 style="filled",
                 fillcolor=fillcolor,
@@ -72,7 +72,7 @@ def graph(
 
             g.node(
                 component.id,
-                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(descr, 40,newline='<BR/>')}<BR/><BR/><I>{vt100.wordwrap(str(component.resolved[target.id].reason), 40,newline='<BR/>')}</I>>",
+                f"<<B>{component.id}</B><BR/>{vt100.wordwrap(descr, 40, newline='<BR/>')}<BR/><BR/><I>{vt100.wordwrap(str(component.resolved[target.id].reason), 40, newline='<BR/>')}</I>>",
                 shape="plaintext",
                 style="filled",
                 fontcolor="#999999",
@@ -257,12 +257,12 @@ def compileFlags(
     return flags
 
 
-@cli.command("e", "export", "Export various artifacts")
+@cli.command("export", "Export various artifacts")
 def _():
     pass
 
 
-@cli.command("g", "export/graph", "Show the dependency graph")
+@cli.command("export/graph", "Show the dependency graph")
 def _(args: GraphArgs):
     registry = model.Registry.use(args)
     target = model.Target.use(args)
@@ -284,7 +284,7 @@ class WorkspaceArgs(model.RegistryArgs):
     )
 
 
-@cli.command("w", "export/code-workspace", "Generate a VSCode workspace file")
+@cli.command("export/code-workspace", "Generate a VSCode workspace file")
 def _(args: WorkspaceArgs):
     project = model.Project.use()
     projectName = project.id.split("/")[-1].lower()
@@ -303,22 +303,3 @@ def _(args: WorkspaceArgs):
 
     if args.open:
         os.system(f"code {projectName}.code-workspace")
-
-
-class CompileFlagsArgs(model.TargetArgs):
-    lang: str = cli.arg(None, "lang", "The language to generate flags for (c++ or c)")
-    write: bool = cli.arg(None, "write", "Write the flags to a file")
-
-
-@cli.command(
-    "c", "export/compile-flags", "Generate compile flags suitable for use with clangd"
-)
-def _(args: CompileFlagsArgs):
-    registry = model.Registry.use(args)
-    target = model.Target.use(args)
-
-    if args.write:
-        with open("compile-flags.txt", "w") as f:
-            f.write("\n".join(compileFlags(args.lang, registry, target)))
-    else:
-        print("\n".join(compileFlags(args.lang, registry, target)))
