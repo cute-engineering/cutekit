@@ -120,7 +120,7 @@ def codeWorkspace(
         return "📦"
 
     for proj in registry.iter(model.Project):
-        name = proj.id.split("/")[-1].replace("-", " ").capitalize()
+        name = proj.id
 
         folders.append(
             {
@@ -132,17 +132,19 @@ def codeWorkspace(
     if all:
         folders.append(
             {
-                "name": "⚙️ CuteKit (Project)",
+                "name": "⚙️ .cutekit (project)",
                 "path": const.PROJECT_CK_DIR,
             }
         )
 
         folders.append(
             {
-                "name": "⚙️ CuteKit (Global)",
+                "name": "⚙️ .cutekit (global)",
                 "path": const.GLOBAL_CK_DIR,
             }
         )
+
+    folders.sort(key=lambda x: x["name"].lower())
 
     tasks = workspace["tasks"]["tasks"]
 
@@ -155,7 +157,7 @@ def codeWorkspace(
                 "icon": {"id": "play", "color": "terminal.ansiBlue"},
                 "label": f"Run {comp.id}",
                 "type": "shell",
-                "command": f"ck builder run --mixins=release {comp.id}",
+                "command": f"ck run --mixins=release {comp.id}",
                 "problemMatcher": [],
                 "detail": comp.description,
             }
@@ -166,7 +168,7 @@ def codeWorkspace(
                 "icon": {"id": "debug", "color": "terminal.ansiGreen"},
                 "label": f"Debug {comp.id}",
                 "type": "shell",
-                "command": f"ck builder run --mixins=release,debug --debug {comp.id}",
+                "command": f"ck run --mixins=release,debug --debug {comp.id}",
                 "problemMatcher": [],
                 "detail": comp.description,
             }
@@ -177,7 +179,7 @@ def codeWorkspace(
             "icon": {"id": "gear", "color": "terminal.ansiYellow"},
             "label": "Build Workspace",
             "type": "shell",
-            "command": "cutekit builder build",
+            "command": "cutekit build",
             "group": {
                 "kind": "build",
                 "isDefault": True,
@@ -191,7 +193,7 @@ def codeWorkspace(
             "icon": {"id": "beaker", "color": "terminal.ansiCyan"},
             "label": "Run all tests",
             "type": "shell",
-            "command": "cutekit builder test",
+            "command": "cutekit test",
             "group": {
                 "kind": "build",
                 "isDefault": True,
@@ -227,7 +229,7 @@ def codeWorkspace(
             "icon": {"id": "trash", "color": "terminal.ansiRed"},
             "label": "Clean Workspace",
             "type": "shell",
-            "command": "cutekit builder clean",
+            "command": "cutekit clean",
             "problemMatcher": [],
             "detail": "Clean the workspace",
         }
@@ -238,7 +240,7 @@ def codeWorkspace(
             "icon": {"id": "trash", "color": "terminal.ansiRed"},
             "label": "Nuke Workspace",
             "type": "shell",
-            "command": "cutekit builder nuke",
+            "command": "cutekit nuke",
             "problemMatcher": [],
             "detail": "Nuke the workspace",
         }
