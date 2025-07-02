@@ -455,6 +455,7 @@ Tools = dict[str, Tool]
 
 DEFAULT_TOOLS: Tools = {
     "cp": Tool("cp"),
+    "ld-shared": Tool(shell.latest("clang++")),
     "cxx-scan": Tool(shell.latest("clang-scan-deps")),
     "cxx-collect": Tool("jq"),
     "cxx-modmap": Tool("ck --safemode tools cxx-modmap"),

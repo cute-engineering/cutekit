@@ -413,10 +413,27 @@ def compileRes(
 
 
 def outfile(scope: ComponentScope) -> str:
+    sharedExt = "so"
+    staticExt = "a"
+    exeExt = "out"
+    sysName = scope.target.props.get("sys", "unknown").lower()
+
+    if sysName == "windows":
+        sharedExt = "dll"
+        staticExt = "lib"
+        exeExt = "exe"
+    elif sysName == "darwin":
+        sharedExt = "dylib"
+        staticExt = "a"
+        exeExt = "out"
+
     if scope.component.type == model.Kind.LIB:
-        return str(scope.buildpath(f"__lib__/{scope.component.id}.a"))
+        if scope.component.props.get("shared", False):
+            return str(scope.buildpath(f"__lib__/{scope.component.id}.{sharedExt}"))
+        else:
+            return str(scope.buildpath(f"__lib__/{scope.component.id}.{staticExt}"))
     else:
-        return str(scope.buildpath(f"__bin__/{scope.component.id}.out"))
+        return str(scope.buildpath(f"__bin__/{scope.component.id}.{exeExt}"))
 
 
 def collectLibs(
@@ -463,17 +480,34 @@ def link(
 
     res = compileRes(w, scope)
     objs, ddi = compileObjs(w, scope)
+
     if scope.component.type == model.Kind.LIB:
-        w.build(
-            out,
-            "ar",
-            objs,
-            implicit=res,
-            variables={
-                "ck_target": scope.target.id,
-                "ck_component": scope.component.id,
-            },
-        )
+        if scope.component.props.get("shared", False):
+            injectedObjs = collectInjectedObjs(scope)
+            libs = collectLibs(scope)
+            w.build(
+                out,
+                "ld-shared",
+                objs + libs,
+                variables={
+                    "objs": " ".join(objs + injectedObjs),
+                    "libs": " ".join(libs),
+                    "ck_target": scope.target.id,
+                    "ck_component": scope.component.id,
+                },
+                implicit=res,
+            )
+        else:
+            w.build(
+                out,
+                "ar",
+                objs,
+                implicit=res,
+                variables={
+                    "ck_target": scope.target.id,
+                    "ck_component": scope.component.id,
+                },
+            )
     else:
         injectedObjs = collectInjectedObjs(scope)
         libs = collectLibs(scope)

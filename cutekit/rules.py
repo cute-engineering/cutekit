@@ -84,6 +84,12 @@ rules: dict[str, Rule] = {
         "*.out",
         "-o $out $objs $libs $flags",
     ),
+    "ld-shared": Rule(
+        "ld-shared",
+        ["*.o", "*.a"],
+        "*.so",
+        "-shared -o $out $objs $libs $flags",
+    ),
 }
 
 
