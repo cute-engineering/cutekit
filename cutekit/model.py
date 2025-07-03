@@ -224,7 +224,11 @@ class Extern(DataClassJsonMixin):
         c = Component(f"{self.id}-host", Kind.LIB)
         c.description = f"Host version of {self.id}"
         c.path = "src/_virtual"
-        c.enableIf = {"host": [True]}
+        c.enableIf = {
+            "host": [True],
+            "sys": [shell.uname().sysname.lower()],
+            "arch": [shell.uname().machine],
+        }
         c.provides = [self.id]
 
         def pkgExists(name: str) -> bool:
