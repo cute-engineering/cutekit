@@ -7,7 +7,7 @@ from pathlib import Path
 import platform
 from typing import Callable, Literal, TextIO, Union
 
-from . import cli, shell, rules, model, ninja, const, mixins, vt100
+from . import cli, shell, rules, model, ninja, const
 
 _logger = logging.getLogger(__name__)
 
