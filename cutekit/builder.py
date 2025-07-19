@@ -706,7 +706,7 @@ class RunArgs(BuildArgs, shell.DebugArgs, shell.ProfileArgs):
 def runCmd(args: RunArgs):
     if args.debug:
         args.mixins.append("debug")
-        args.props |= {"debug": True}
+        args.props |= {"debug": "true"}
 
     if args.component is None:
         args.component = "__main__"
