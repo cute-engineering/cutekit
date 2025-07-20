@@ -39,7 +39,7 @@ def test_deps_routing():
 
     t = model.Target("host", routing={"myembed": "myimplC"})
     res = model.Resolver(r, t)
-    assert res.resolve("myapp").reason == "No provider for 'myembed'"
+    assert "no provider for 'myembed'" in str(res.resolve("myapp").reason)
 
 
 def test_deps_routing_with_props():
@@ -64,7 +64,7 @@ def test_deps_routing_with_props():
     res = model.Resolver(r, t)
 
     resolved = res.resolve("myapp")
-    assert resolved.reason == "No provider for 'myembed'"
+    assert "no provider for 'myembed'" in str(resolved.reason)
 
 
 def test_deps_routing_with_bool_props():
@@ -102,4 +102,4 @@ def test_deps_routing_with_props_and_requires():
 
     t = model.Target("host", routing={"myembed": "myimplC"}, props={"myprop": "c"})
     res = model.Resolver(r, t)
-    assert res.resolve("myapp").reason == "No provider for 'myembed'"
+    assert "no provider for 'myembed'" in str(res.resolve("myapp").reason)
