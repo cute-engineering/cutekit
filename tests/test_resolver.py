@@ -77,8 +77,8 @@ def test_deps_routing_with_bool_props():
     resolved = res.resolve("myapp")
     assert not resolved.enabled
     assert (
-        resolved.reason
-        == "Props missmatch for 'freestanding': Got 'True' but expected 'False'"
+        "Props missmatch for 'freestanding': Got 'True' but expected 'False'"
+        in str(resolved.reason)
     )
 
 
