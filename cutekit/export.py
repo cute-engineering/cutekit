@@ -284,15 +284,15 @@ def ideaCustomTargets(
         externalTool += f"""
   <tool name="Cutekit Build {comp.id} ({target.id})" showInMainMenu="false" showInEditor="false" showInProject="false" showInSearchPopup="false" disabled="false" useConsole="true" showConsoleOnStdOut="false" showConsoleOnStdErr="false" synchronizeAfterRun="true">
     <exec>
-      <option name="COMMAND" value="$USER_HOME$/.pyenv/shims/cutekit" />
+      <option name="COMMAND" value="cutekit" />
       <option name="PARAMETERS" value="build --mixins={",".join(args.mixins)} {comp.id}" />
-      <option name="WORKING_DIRECTORY" value="$USER_HOME$/Workspace/Odoo/vaev" />
+      <option name="WORKING_DIRECTORY" value="{Path(registry.project.dirname()).absolute()}" />
     </exec>
   </tool>
     """
         configurations += f"""
-        <configuration name="{comp.id} ({target.id})" type="CLionExternalRunConfiguration" factoryName="Application" singleton="false" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="true" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="vaev" TARGET_NAME="Build {comp.id} ({target.id})" CONFIG_NAME="Build {comp.id} ({target.id})" RUN_PATH="{out}">
-        <envs>
+        <configuration name="{comp.id} ({target.id})" type="CLionExternalRunConfiguration" factoryName="Application" singleton="false" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="true" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="{Path(registry.project.dirname()).absolute().name}" TARGET_NAME="Build {comp.id} ({target.id})" CONFIG_NAME="Build {comp.id} ({target.id})" RUN_PATH="{out}">
+        <envs> 
             <env name="CK_BUILDDIR" value="{str(Path(target.builddir).resolve())}" />
             <env name="CK_COMPONENT" value="{comp.id}" />
         </envs>
@@ -302,12 +302,12 @@ def ideaCustomTargets(
         </configuration>
         """
 
-    externalTool += """
+    externalTool += f"""
 <tool name="Cutekit Clean" showInMainMenu="false" showInEditor="false" showInProject="false" showInSearchPopup="false" disabled="false" useConsole="true" showConsoleOnStdOut="false" showConsoleOnStdErr="false" synchronizeAfterRun="true">
 <exec>
-    <option name="COMMAND" value="$USER_HOME$/.pyenv/shims/cutekit" />
+    <option name="COMMAND" value="cutekit" />
     <option name="PARAMETERS" value="clean" />
-    <option name="WORKING_DIRECTORY" value="$USER_HOME$/Workspace/Odoo/vaev" />
+    <option name="WORKING_DIRECTORY" value="{registry.project.dirname()}" />
 </exec>
 </tool>
     """

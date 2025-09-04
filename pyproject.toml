@@ -19,7 +19,6 @@ dynamic = ["version", "dependencies"]
 [project.scripts]
 ck = "cutekit:main"
 cutekit = "cutekit:main"
-cute-engineering-cutekit = "cutekit:main"
 
 [tool.setuptools]
 packages = ["cutekit"]
