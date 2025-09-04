@@ -33,7 +33,11 @@ To install Cutekit, just run the following command:
 
 
 ```bash
-$ pip install git+https://github.com/cute-engineering/cutekit
+$ uv tool install cutekit
+```
+
+```bash
+$ pip install cutekit
 ```
 
 
