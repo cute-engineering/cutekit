@@ -1,7 +1,11 @@
+import io
 import os
 import json
+from pathlib import Path
 from typing import Any, Optional
-from . import model, cli, vt100, jexpr, const
+import uuid
+import re
+from . import model, cli, vt100, jexpr, const, builder
 
 
 def graph(
@@ -249,14 +253,116 @@ def codeWorkspace(
     return workspace
 
 
-def compileFlags(
-    lang: str, registry: model.Registry, target: model.Target
-) -> list[str]:
-    flags = []
-    if lang == "c++":
-        flags.append("-xc++")
+def ideaCustomTargets(
+    args: model.TargetArgs,
+    registry: model.Registry,
+    target: model.Target,
+):
+    externalTool = '<toolSet name="External Tools">'
+    customTargets = '<?xml version="1.0" encoding="UTF-8"?><project version="4"><component name="CLionExternalBuildManager">'
+    configurations = '<component name="RunManager">'
 
-    return flags
+    targetScope = builder.TargetScope(registry, target)
+    for comp in registry.iter(model.Component):
+        if comp.type != model.Kind.EXE:
+            continue
+        componentScope = targetScope.openComponentScope(comp)
+        out = builder.outfile(componentScope)
+
+        customTargets += f"""
+<target id="{uuid.uuid4()}" name="Build {comp.id} ({target.id})" defaultType="TOOL">
+<configuration id="{uuid.uuid4()}" name="Build {comp.id} ({target.id})">
+    <build type="TOOL">
+    <tool actionId="Tool_External Tools_Cutekit Build {comp.id} ({target.id})" />
+    </build>
+    <clean type="TOOL">
+    <tool actionId="Tool_External Tools_Cutekit Clean" />
+    </clean>
+</configuration>
+</target>
+        """
+        externalTool += f"""
+  <tool name="Cutekit Build {comp.id} ({target.id})" showInMainMenu="false" showInEditor="false" showInProject="false" showInSearchPopup="false" disabled="false" useConsole="true" showConsoleOnStdOut="false" showConsoleOnStdErr="false" synchronizeAfterRun="true">
+    <exec>
+      <option name="COMMAND" value="$USER_HOME$/.pyenv/shims/cutekit" />
+      <option name="PARAMETERS" value="build --mixins={",".join(args.mixins)} {comp.id}" />
+      <option name="WORKING_DIRECTORY" value="$USER_HOME$/Workspace/Odoo/vaev" />
+    </exec>
+  </tool>
+    """
+        configurations += f"""
+        <configuration name="{comp.id} ({target.id})" type="CLionExternalRunConfiguration" factoryName="Application" singleton="false" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="true" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="vaev" TARGET_NAME="Build {comp.id} ({target.id})" CONFIG_NAME="Build {comp.id} ({target.id})" RUN_PATH="{out}">
+        <envs>
+            <env name="CK_BUILDDIR" value="{str(Path(target.builddir).resolve())}" />
+            <env name="CK_COMPONENT" value="{comp.id}" />
+        </envs>
+        <method v="2">
+            <option name="CLION.EXTERNAL.BUILD" enabled="true" />
+        </method>
+        </configuration>
+        """
+
+    externalTool += """
+<tool name="Cutekit Clean" showInMainMenu="false" showInEditor="false" showInProject="false" showInSearchPopup="false" disabled="false" useConsole="true" showConsoleOnStdOut="false" showConsoleOnStdErr="false" synchronizeAfterRun="true">
+<exec>
+    <option name="COMMAND" value="$USER_HOME$/.pyenv/shims/cutekit" />
+    <option name="PARAMETERS" value="clean" />
+    <option name="WORKING_DIRECTORY" value="$USER_HOME$/Workspace/Odoo/vaev" />
+</exec>
+</tool>
+    """
+
+    configurations += "</component>"
+    externalTool += "</toolSet>"
+    customTargets += "</component></project>"
+    return externalTool, customTargets, configurations
+
+
+def patchWorkspace(workspace_path: str, new_runmanager_xml: str) -> None:
+    """
+    Replace the <component name="RunManager">...</component> block in a JetBrains workspace.xml
+    with the provided block. Indentation/formatting is not preserved.
+
+    Args:
+        workspace_path: Path to the workspace.xml file to patch.
+        new_runmanager_xml: A string containing the full replacement component, e.g.:
+
+            <component name="RunManager">
+              ...
+            </component>
+
+    Behavior:
+        - Reads the file.
+        - Replaces the first (and typically only) RunManager component block.
+        - Writes the result back to the same file.
+        - Raises RuntimeError if no RunManager component is found.
+    """
+    # Read file
+    with io.open(workspace_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Normalize line endings to improve matching robustness
+    content = content.replace("\r\n", "\n").replace("\r", "\n")
+    replacement = new_runmanager_xml.replace("\r\n", "\n").replace("\r", "\n").strip()
+
+    # Regex to capture exactly the RunManager component block (non-greedy, dot matches newlines)
+    pattern = re.compile(
+        r'<component\s+name="RunManager".*?>.*?</component>',
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+
+    # Verify we have a match
+    if not pattern.search(content):
+        raise RuntimeError(
+            'No <component name="RunManager">...</component> block found in the file.'
+        )
+
+    # Do the replacement
+    patched = pattern.sub(replacement, content, count=1)
+
+    # Write back
+    with io.open(workspace_path, "w", encoding="utf-8") as f:
+        f.write(patched)
 
 
 @cli.command("export", "Export various artifacts")
@@ -305,3 +411,21 @@ def _(args: WorkspaceArgs):
 
     if args.open:
         os.system(f"code {projectName}.code-workspace")
+
+
+@cli.command("export/idea-workspace", "Generate a Idea workspace file")
+def _(args: model.TargetArgs):
+    if args.release:
+        args.mixins += ["release"]
+    registry = model.Registry.use(args)
+    target = model.Target.use(args)
+    externalTool, customTargets, configurations = ideaCustomTargets(
+        args, registry, target
+    )
+    with open(".idea/tools/External Tools.xml", "w") as f:
+        f.write(externalTool)
+
+    with open(".idea/customTargets.xml", "w") as f:
+        f.write(customTargets)
+
+    patchWorkspace(".idea/workspace.xml", configurations)

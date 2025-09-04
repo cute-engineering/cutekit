@@ -615,6 +615,7 @@ class Component(Manifest):
     """List of subdirectories belonging to the component."""
     injects: list[str] = dt.field(default_factory=list)
     """List of component specs to inject into."""
+
     resolved: dict[str, Resolved] = dt.field(default_factory=dict)
     """Resolved dependencies of the component for each target."""
 
