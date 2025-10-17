@@ -1,4 +1,5 @@
 import os
+import json
 import logging
 import dataclasses as dt
 
@@ -181,6 +182,59 @@ class Manifest(DataClassJsonMixin):
         return cast(utils.T, self)
 
 
+# MARK: Lockfile ---------------------------------------------------------------
+
+
+@dt.dataclass
+class LockEntry(DataClassJsonMixin):
+    git: str
+    ref: str
+    commit: str
+
+
+@dt.dataclass
+class ProjectLock:
+    _data: dict[str, LockEntry] = dt.field(default_factory=dict)
+    _loaded: bool = dt.field(default=False)
+    _dir: Path = dt.field(default=Path(""))
+
+    def __init__(self, dir: Path):
+        self._dir = dir
+
+    def _file(self) -> Path:
+        root = Path(os.path.dirname(self._dir))
+        return root / "project.lock"
+
+    def load(self):
+        if self._loaded:
+            return
+        f = self._file()
+        if f.exists():
+            raw = jexpr.include(f)
+            if isinstance(raw, dict):
+                for k, v in raw.items():
+                    try:
+                        self._data[k] = LockEntry.from_dict(v)
+                    except Exception:
+                        _logger.warning(f"Invalid lock entry for '{k}' in {f}")
+        self._loaded = True
+
+    def save(self):
+        self.load()
+        f = self._file()
+        payload = {k: v.to_dict() for k, v in sorted(self._data.items())}
+        f.write_text(json.dumps(payload, indent=2) + "\n")
+
+    def get(self, extern_id: str) -> Optional[LockEntry]:
+        self.load()
+        return self._data.get(extern_id)
+
+    def set(self, extern_id: str, entry: LockEntry):
+        self.load()
+        self._data[extern_id] = entry
+        self.save()
+
+
 # MARK: Project ----------------------------------------------------------------
 
 _project: Optional["Project"] = None
@@ -255,14 +309,24 @@ class Extern(DataClassJsonMixin):
 
         return []
 
-    def _fetchGit(self) -> list[Manifest]:
-        """
-        Fetch an extern from a git repository.
+    # Lock-aware git fetch
+    def fetch(
+        self, project: "Project", dev: bool = False, updateLock: bool = False
+    ) -> list[Manifest]:
+        if self.git:
+            return self._fetchGit(project, dev=dev, updateLock=updateLock)
+        else:
+            return self._fetchLibrary()
 
-        Returns:
-            A list containing the manifest(s) found in the git repository.
-        """
+    def _git(self, *args: str, cwd: Optional[Path] = None) -> str:
+        return shell.popen("git", *args, cwd=cwd).strip()
 
+    def _fetchGit(
+        self, project: "Project", dev: bool, updateLock: bool
+    ) -> list[Manifest]:
+        """
+        Fetch an extern from a git repository, honoring project.lock and --dev.
+        """
         path = os.path.join(const.EXTERN_DIR, self.id)
         globalPath = os.path.join(const.GLOBAL_EXTERN_DIR, self.id)
 
@@ -270,47 +334,69 @@ class Extern(DataClassJsonMixin):
             print(f"Using global extern {self.id} from {globalPath}")
             path = globalPath
 
-        if not os.path.exists(path):
-            print(f"Installing {self.id}-{self.tag} from {self.git}...")
-            cmd = [
-                "git",
-                "clone",
-                "--quiet",
-                "--branch",
-                self.tag,
-                self.git,
-                path,
-            ]
+        # Decide ref and whether we're locking
+        ref_for_latest = "main" if dev else (self.tag or "main")
+        lock = project.lock()
+        entry = lock.get(self.id)
 
+        # Clone if missing
+        if not os.path.exists(path):
+            print(f"Installing {self.id} from {self.git}...")
+            cmd = ["git", "clone", "--quiet", "--no-checkout", self.git, path]
             if self.shallow:
                 cmd += ["--depth", str(self.depth)]
-
             shell.exec(*cmd, quiet=True)
 
-        project = Project.at(Path(path))
-        if project is None:
-            # Maybe it's a single manifest project.
-            # It's useful for externs that are simple self-contained libraries
-            # that don't need a full project structure
+        # Fetch updates
+        try:
+            shell.exec("git", "fetch", "--quiet", "origin", cwd=path)
+        except shell.ShellException:
+            pass
+
+        def checkout_commit(commit: str):
+            shell.exec("git", "checkout", "--quiet", "--detach", commit, cwd=path)
+
+        def latest_commit_for(ref: str) -> str:
+            try:
+                return self._git("rev-parse", f"origin/{ref}", cwd=Path(path))
+            except shell.ShellException:
+                return self._git("rev-parse", ref, cwd=Path(path))
+
+        if dev:
+            commit = latest_commit_for(ref_for_latest)
+            checkout_commit(commit)
+            # no lock writes in dev mode
+        else:
+            if updateLock:
+                latest = latest_commit_for(ref_for_latest)
+                checkout_commit(latest)
+                lock.set(
+                    self.id, LockEntry(git=self.git, ref=ref_for_latest, commit=latest)
+                )
+                print(f"Locked {self.id} @ {ref_for_latest} -> {latest[:12]}")
+            else:
+                if entry:
+                    checkout_commit(entry.commit)
+                else:
+                    latest = latest_commit_for(ref_for_latest)
+                    checkout_commit(latest)
+                    lock.set(
+                        self.id,
+                        LockEntry(git=self.git, ref=ref_for_latest, commit=latest),
+                    )
+                    print(f"Locked {self.id} @ {ref_for_latest} -> {latest[:12]}")
+
+        # Load manifests from the extern
+        projectObj = Project.at(Path(path))
+        if projectObj is None:
             manifest = Manifest.tryLoad(Path(path) / "manifest")
             if manifest is not None:
                 return [manifest]
             _logger.warn("Extern project does not have a project or manifest")
             return []
-        return [cast(Manifest, project)] + project.fetchExterns()
-
-    def fetch(self) -> list[Manifest]:
-        """
-        Fetch the extern.
-
-        Returns:
-            A list containing the manifest(s) representing the external dependency.
-        """
-
-        if self.git:
-            return self._fetchGit()
-        else:
-            return self._fetchLibrary()
+        return [cast(Manifest, projectObj)] + projectObj.fetchExterns(
+            dev=dev, updateLock=updateLock
+        )
 
 
 @dt.dataclass
@@ -335,6 +421,77 @@ class Project(Manifest):
         """
         res = map(lambda e: os.path.join(const.EXTERN_DIR, e), self.extern.keys())
         return list(res)
+
+    def lock(self) -> ProjectLock:
+        return ProjectLock(Path(self.path))
+
+    def _externCheckoutDir(self, ext_id: str) -> str:
+        local = os.path.join(const.EXTERN_DIR, ext_id)
+        global_path = os.path.join(const.GLOBAL_EXTERN_DIR, ext_id)
+        return global_path if os.path.exists(global_path) else local
+
+    def verifyExterns(self) -> int:
+        """
+        Verify extern checkouts match project.lock.
+        Returns number of errors found.
+        """
+        lock = self.lock()
+        lock.load()
+
+        externs: dict[str, Extern] = {}
+        for extId, ext in self.extern.items():
+            e = dt.replace(ext)
+            e.id = extId
+            externs[extId] = e
+
+        errors = 0
+
+        for extId, ext in externs.items():
+            entry = lock.get(extId)
+            path = self._externCheckoutDir(extId)
+
+            def err(msg: str):
+                nonlocal errors
+                errors += 1
+                print(f"[FAIL] {extId}: {msg}")
+
+            def warn(msg: str):
+                print(f"[WARN] {extId}: {msg}")
+
+            if entry is None:
+                err("no lock entry")
+                continue
+
+            if not os.path.exists(path):
+                err(f"checkout missing at {path}")
+                continue
+
+            ref = ext.tag or "main"
+            if entry.git != ext.git or entry.ref != ref:
+                warn(
+                    f"lock git/ref differs from manifest "
+                    f"(lock: {entry.git}@{entry.ref}, manifest: {ext.git}@{ref})"
+                )
+
+            try:
+                head = shell.popen("git", "rev-parse", "HEAD", cwd=Path(path)).strip()
+            except shell.ShellException as ex:
+                err(f"cannot read HEAD: {ex}")
+                continue
+
+            if head != entry.commit:
+                err(f"HEAD {head[:12]} != locked {entry.commit[:12]}")
+                continue
+
+            print(f"[OK]   {extId}: {head[:12]} matches lock")
+
+        lockedIds = set(lock._data.keys())
+        declaredIds = set(externs.keys())
+        extras = sorted(lockedIds - declaredIds)
+        for x in extras:
+            print(f"[WARN] lock entry '{x}' not referenced by project externs")
+
+        return errors
 
     @staticmethod
     def topmost() -> Optional["Project"]:
@@ -389,7 +546,9 @@ class Project(Manifest):
             return None
         return projectManifest.ensureType(Project)
 
-    def fetchExterns(self) -> list[Manifest]:
+    def fetchExterns(
+        self, dev: bool = False, updateLock: bool = False
+    ) -> list[Manifest]:
         """
         Fetch all externs for the project.
 
@@ -400,7 +559,7 @@ class Project(Manifest):
         res = []
         for extSpec, ext in self.extern.items():
             ext.id = extSpec
-            res.extend(ext.fetch())
+            res.extend(ext.fetch(self, dev=dev, updateLock=updateLock))
 
         return utils.uniq(res, lambda x: x.id)
 
@@ -427,12 +586,12 @@ def _():
 
 
 @cli.command("model/install", "Install required external packages")
-def _():
+def _(args: "RegistryArgs"):
     """
     Install required external packages for the project.
     """
     project = Project.use()
-    project.fetchExterns()
+    project.fetchExterns(dev=args.dev)
 
 
 # MARK: Target -----------------------------------------------------------------
@@ -479,6 +638,8 @@ class RegistryArgs:
     """Mixins to apply to the registry."""
     release: bool = cli.arg(None, "release", "Build in release mode")
     """Whether to build in release mode. Same as --mixins=release."""
+    dev: bool = cli.arg(None, "dev", "Always use latest from 'main' for externs")
+    """Dev mode bypasses lock and tracks latest from main."""
 
 
 class TargetArgs(RegistryArgs):
@@ -985,7 +1146,8 @@ class Registry(DataClassJsonMixin):
             r: The registry to load the externs into.
             p: The project to load the externs for.
         """
-        r._extend(p.fetchExterns())
+        # Respect lock/dev on initial load
+        r._extend(p.fetchExterns(dev=False, updateLock=False))
 
     @staticmethod
     def _loadManifests(r: "Registry"):
@@ -1164,3 +1326,28 @@ def _(args: TargetArgs):
     globalExternDir = os.path.join(const.GLOBAL_EXTERN_DIR, project.id)
     shell.exec("rm", globalExternDir)
     print(f"Unmounted {globalExternDir}")
+
+
+# MARK: Lock commands ----------------------------------------------------------
+
+
+@cli.command("model/update", "Update project.lock to latest commits and checkout")
+def _(args: RegistryArgs):
+    """
+    Update all externs to latest of their configured ref and write project.lock.
+    """
+    project = Project.use()
+    project.fetchExterns(dev=False, updateLock=True)
+    print("Updated project.lock and checked out latest commits.")
+
+
+@cli.command("model/verify", "Verify externs match project.lock")
+def _(args: RegistryArgs):
+    """
+    Verify that extern checkouts match the lockfile. Exits non-zero on mismatch.
+    """
+    project = Project.use()
+    n = project.verifyExterns()
+    if n > 0:
+        raise RuntimeError(f"lock verification failed with {n} error(s)")
+    print("All externs match the lock. Carry on.")
