@@ -223,7 +223,7 @@ class Extern(DataClassJsonMixin):
         """
         c = Component(f"{self.id}-host", Kind.LIB)
         c.description = f"Host version of {self.id}"
-        c.path = "src/_virtual"
+        c.path = "src/__nowhere__/manifest.json"
         c.enableIf = {
             "host": [True],
             "sys": [shell.uname().sysname.lower()],
