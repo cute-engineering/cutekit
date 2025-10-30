@@ -228,6 +228,7 @@ class Lockfile(DataClassJsonMixin):
                 f,
                 indent=4,
             )
+            f.write("\n")
 
     def lock(self, id: str):
         if id not in self.extern:
