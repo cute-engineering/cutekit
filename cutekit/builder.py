@@ -711,9 +711,6 @@ def runCmd(args: RunArgs):
     if args.component is None:
         args.component = "__main__"
 
-    if args.release:
-        args.mixins.append("release")
-
     scope = TargetScope.use(args)
 
     if args.component in scope.target.routing:
@@ -756,7 +753,6 @@ def _(args: RunArgs):
     # to run a special hook component named __tests__.
     args.component = "__tests__"
     args.restoreCwd = False
-    args.props |= {"testing": "true"}
     runCmd(args)
 
 
@@ -764,7 +760,6 @@ def _(args: RunArgs):
 def _(args: RunArgs):
     args.restoreCwd = False
     args.mixins.append("fuzz")
-    args.props |= {"fuzzing": "true"}
     args.component = args.component + ".fuzz"
     runCmd(args)
 

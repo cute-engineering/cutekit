@@ -82,3 +82,42 @@ def isNewer(path1: str, path2: str) -> bool:
     return not os.path.exists(path2) or os.path.getmtime(path1) > os.path.getmtime(
         path2
     )
+
+
+def stripNoneKeysRecursive(obj: dict) -> dict:
+    """
+    Recursively strip keys with None values from a dictionary.
+
+    Args:
+        obj: The dictionary to strip.
+
+    Returns:
+        The stripped dictionary.
+    """
+    res = {}
+    for k, v in obj.items():
+        if v is None:
+            continue
+        if isinstance(v, dict):
+            v = stripNoneKeysRecursive(v)
+        res[k] = v
+    return res
+
+
+def sortKeysRecursive(obj: dict) -> dict:
+    """
+    Recursively sort the keys of a dictionary.
+
+    Args:
+        obj: The dictionary to sort.
+
+    Returns:
+        The sorted dictionary.
+    """
+    res = {}
+    for k in sorted(obj.keys()):
+        v = obj[k]
+        if isinstance(v, dict):
+            v = sortKeysRecursive(v)
+        res[k] = v
+    return res

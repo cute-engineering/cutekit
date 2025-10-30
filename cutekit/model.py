@@ -1,3 +1,4 @@
+import json
 import os
 import logging
 import dataclasses as dt
@@ -181,6 +182,62 @@ class Manifest(DataClassJsonMixin):
         return cast(utils.T, self)
 
 
+# MARK: Lockfile ---------------------------------------------------------------
+
+
+@dt.dataclass
+class ExternLock(DataClassJsonMixin):
+    version: Optional[str] = dt.field(default=None)
+    git: Optional[str] = dt.field(default=None)
+    commit: Optional[str] = dt.field(default=None)
+    tag: Optional[str] = dt.field(default=None)
+
+
+@dt.dataclass
+class Lockfile(DataClassJsonMixin):
+    extern: dict[str, ExternLock] = dt.field(default_factory=dict)
+    """External dependencies of the project."""
+    path: str = dt.field(default="")
+    """Path to the lock file."""
+
+    @classmethod
+    def load(cls, dir: Path):
+        path = dir / "project.lock"
+        try:
+            json = jexpr.include(path)
+        except Exception:
+            return Lockfile(path=str(path))
+        lock = cls.from_dict(json)
+        lock.path = str(path)
+        return lock
+
+    def save(self):
+        with open(self.path, "w") as f:
+            data = self.to_dict()
+            del data["path"]
+            data = utils.sortKeysRecursive(data)
+            data = {
+                **{
+                    "$schema": "https://schemas.cute.engineering/stable/cutekit.lockfile.v1"
+                },
+                **data,
+            }
+            data = utils.stripNoneKeysRecursive(data)
+            json.dump(
+                data,
+                f,
+                indent=4,
+            )
+
+    def lock(self, id: str):
+        if id not in self.extern:
+            lock = ExternLock()
+            self.extern[id] = lock
+            return lock
+        else:
+            return self.extern[id]
+
+
 # MARK: Project ----------------------------------------------------------------
 
 _project: Optional["Project"] = None
@@ -202,10 +259,6 @@ class Extern(DataClassJsonMixin):
     """Git repository URL."""
     tag: str = dt.field(default="")
     """Git tag or branch to checkout."""
-    shallow: bool = dt.field(default=True)
-    """Whether to perform a shallow clone."""
-    depth: int = dt.field(default=1)
-    """Depth of the shallow clone."""
 
     # Name under which the extern is installed
     # might be the package name on linux or MacOS
@@ -255,9 +308,13 @@ class Extern(DataClassJsonMixin):
 
         return []
 
-    def _fetchGit(self) -> list[Manifest]:
+    def _fetchGit(self, lockfile: Lockfile, devel: bool) -> list[Manifest]:
         """
         Fetch an extern from a git repository.
+
+        Args:
+            lockfile: The lockfile to update.
+            devel: Fetch the latest version of all deps ignoring the lockfile.
 
         Returns:
             A list containing the manifest(s) found in the git repository.
@@ -270,22 +327,39 @@ class Extern(DataClassJsonMixin):
             print(f"Using global extern {self.id} from {globalPath}")
             path = globalPath
 
+        lock = lockfile.lock(self.id)
+        lock.git = lock.git or self.git
+        lock.tag = lock.tag or self.tag
+
         if not os.path.exists(path):
-            print(f"Installing {self.id}-{self.tag} from {self.git}...")
+            print(
+                f"Installing {self.id}@{'latest' if devel else self.tag} from {self.git}..."
+            )
+
             cmd = [
                 "git",
                 "clone",
                 "--quiet",
-                "--branch",
-                self.tag,
-                self.git,
+                *(("--branch", self.tag) if self.tag else ()),
+                lock.git,
                 path,
             ]
 
-            if self.shallow:
-                cmd += ["--depth", str(self.depth)]
-
             shell.exec(*cmd, quiet=True)
+
+            if lock.commit and not devel:
+                shell.exec(
+                    "git", "-C", path, "checkout", "--quiet", lock.commit, quiet=True
+                )
+
+        commit = shell.popen("git", "-C", path, "rev-parse", "HEAD").strip()
+        if not lock.commit:
+            lock.commit = commit
+
+        if commit != lock.commit:
+            vt100.warning(
+                f"Commit mismatch for extern {self.id}: expected {lock.commit}, got {commit}"
+            )
 
         project = Project.at(Path(path))
         if project is None:
@@ -297,9 +371,9 @@ class Extern(DataClassJsonMixin):
                 return [manifest]
             _logger.warn("Extern project does not have a project or manifest")
             return []
-        return [cast(Manifest, project)] + project.fetchExterns()
+        return [cast(Manifest, project)] + project.fetchExterns(lockfile, devel)
 
-    def fetch(self) -> list[Manifest]:
+    def fetch(self, lock: Lockfile, devel: bool) -> list[Manifest]:
         """
         Fetch the extern.
 
@@ -308,7 +382,7 @@ class Extern(DataClassJsonMixin):
         """
 
         if self.git:
-            return self._fetchGit()
+            return self._fetchGit(lock, devel)
         else:
             return self._fetchLibrary()
 
@@ -324,6 +398,7 @@ class Project(Manifest):
     """Description of the project."""
     extern: dict[str, Extern] = dt.field(default_factory=dict)
     """External dependencies of the project."""
+    lockfile: Optional[Lockfile] = dt.field(default=None)
 
     @property
     def externDirs(self) -> list[str]:
@@ -351,6 +426,10 @@ class Project(Manifest):
             if projectManifest is not None:
                 topmost = projectManifest.ensureType(Project)
             cwd = cwd.parent
+
+        if topmost:
+            topmost.lockfile = Lockfile.load(Path(topmost.dirname()))
+
         return topmost
 
     @staticmethod
@@ -389,7 +468,7 @@ class Project(Manifest):
             return None
         return projectManifest.ensureType(Project)
 
-    def fetchExterns(self) -> list[Manifest]:
+    def fetchExterns(self, lock: Lockfile, devel: bool) -> list[Manifest]:
         """
         Fetch all externs for the project.
 
@@ -400,7 +479,7 @@ class Project(Manifest):
         res = []
         for extSpec, ext in self.extern.items():
             ext.id = extSpec
-            res.extend(ext.fetch())
+            res.extend(ext.fetch(lock, devel))
 
         return utils.uniq(res, lambda x: x.id)
 
@@ -426,13 +505,26 @@ def _():
     pass
 
 
-@cli.command("model/install", "Install required external packages")
-def _():
+class InstallArgs:
+    """
+    Arguments for the install command.
+    """
+
+    devel: bool = cli.arg(
+        None, "devel", "Fetch the latest version of all externs ignoring the lockfile"
+    )
+    """Whether to fetch the latest version of all externs ignoring the lockfile."""
+
+
+@cli.command("install", "Install required external packages")
+def _(args: InstallArgs):
     """
     Install required external packages for the project.
     """
     project = Project.use()
-    project.fetchExterns()
+    assert project.lockfile is not None
+    project.fetchExterns(project.lockfile, args.devel)
+    project.lockfile.save()
 
 
 # MARK: Target -----------------------------------------------------------------
@@ -479,6 +571,7 @@ class RegistryArgs:
     """Mixins to apply to the registry."""
     release: bool = cli.arg(None, "release", "Build in release mode")
     """Whether to build in release mode. Same as --mixins=release."""
+    prefix: str = cli.arg(None, "prefix", "Installation prefix")
 
 
 class TargetArgs(RegistryArgs):
@@ -972,6 +1065,9 @@ class Registry(DataClassJsonMixin):
         if args.release:
             args.mixins += ["release"]
 
+        args.prefix = args.prefix or "/"
+        args.props["prefix"] = args.prefix
+
         project = Project.use()
         _registry = Registry.load(project, args.mixins, args.props)
         return _registry
@@ -985,7 +1081,9 @@ class Registry(DataClassJsonMixin):
             r: The registry to load the externs into.
             p: The project to load the externs for.
         """
-        r._extend(p.fetchExterns())
+        assert p.lockfile is not None
+        r._extend(p.fetchExterns(p.lockfile, False))
+        p.lockfile.save()
 
     @staticmethod
     def _loadManifests(r: "Registry"):
@@ -1141,7 +1239,7 @@ def _(args: TargetArgs):
 
 
 @cli.command("model/mount", "Mount this project to the global extern directory")
-def _(args: TargetArgs):
+def _():
     """
     Mount this project to the global extern directory
     """
@@ -1156,7 +1254,7 @@ def _(args: TargetArgs):
 
 
 @cli.command("model/unmount", "Unmount this project from the global extern directory")
-def _(args: TargetArgs):
+def _():
     """
     Unmount this project from the global extern directory
     """
