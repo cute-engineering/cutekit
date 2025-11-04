@@ -309,18 +309,23 @@ class Extern(DataClassJsonMixin):
 
         return []
 
-    def _fetchGit(self, lockfile: Lockfile, devel: bool) -> list[Manifest]:
+    def _fetchGit(
+        self,
+        lockfile: Lockfile,
+        update: bool,
+        _seenIds: set[str],
+        _seenPaths: set[str],
+    ) -> list[Manifest]:
         """
         Fetch an extern from a git repository.
 
         Args:
             lockfile: The lockfile to update.
-            devel: Fetch the latest version of all deps ignoring the lockfile.
+            update: If True, bring the repo up to date and refresh lock commit.
 
         Returns:
             A list containing the manifest(s) found in the git repository.
         """
-
         path = os.path.join(const.EXTERN_DIR, self.id)
         globalPath = os.path.join(const.GLOBAL_EXTERN_DIR, self.id)
 
@@ -328,13 +333,18 @@ class Extern(DataClassJsonMixin):
             print(f"Using global extern {self.id} from {globalPath}")
             path = globalPath
 
+        abspath = os.path.abspath(path)
+        if abspath in _seenPaths:
+            # Already fetched/updated this repo path in this run; skip to avoid duplicate pulls.
+            return []
+
         lock = lockfile.lock(self.id)
         lock.git = lock.git or self.git
         lock.tag = lock.tag or self.tag
 
         if not os.path.exists(path):
             print(
-                f"Installing {self.id}@{'latest' if devel else self.tag} from {self.git}..."
+                f"Installing {self.id}@{'latest' if update else self.tag} from {self.git}..."
             )
 
             cmd = [
@@ -348,13 +358,58 @@ class Extern(DataClassJsonMixin):
 
             shell.exec(*cmd, quiet=True)
 
-            if lock.commit and not devel:
+            if lock.commit and not update:
                 shell.exec(
                     "git", "-C", path, "checkout", "--quiet", lock.commit, quiet=True
                 )
 
+        if update:
+            try:
+                # Always fetch latest refs and tags
+                shell.exec("git", "-C", path, "fetch", "--tags", "--quiet", quiet=True)
+
+                if self.tag:
+                    # Checkout tag/branch; if branch, try fast-forward
+                    shell.exec(
+                        "git", "-C", path, "checkout", "--quiet", self.tag, quiet=True
+                    )
+                    try:
+                        shell.exec(
+                            "git",
+                            "-C",
+                            path,
+                            "pull",
+                            "--ff-only",
+                            "--quiet",
+                            quiet=True,
+                        )
+                    except shell.ShellException:
+                        # It's fine if it's an immutable tag
+                        pass
+                    print(f"Updated extern {self.id} to tag/branch {self.tag}")
+                else:
+                    # No tag specified: update current branch
+                    try:
+                        shell.exec(
+                            "git",
+                            "-C",
+                            path,
+                            "pull",
+                            "--ff-only",
+                            "--quiet",
+                            quiet=True,
+                        )
+                    except shell.ShellException:
+                        pass
+                    print(f"Updated extern {self.id} to latest commit")
+            except shell.ShellException as e:
+                vt100.warning(f"Could not update extern {self.id}: {e}")
+
         commit = shell.popen("git", "-C", path, "rev-parse", "HEAD").strip()
-        if not lock.commit:
+
+        if update:
+            lock.commit = commit
+        elif not lock.commit:
             lock.commit = commit
 
         if commit != lock.commit:
@@ -362,28 +417,44 @@ class Extern(DataClassJsonMixin):
                 f"Commit mismatch for extern {self.id}: expected {lock.commit}, got {commit}"
             )
 
+        # Mark this repo path as processed AFTER successful access
+        _seenPaths.add(abspath)
+
         project = Project.at(Path(path))
         if project is None:
-            # Maybe it's a single manifest project.
-            # It's useful for externs that are simple self-contained libraries
-            # that don't need a full project structure
+            # Maybe it's a single manifest project
             manifest = Manifest.tryLoad(Path(path) / "manifest")
             if manifest is not None:
                 return [manifest]
             _logger.warn("Extern project does not have a project or manifest")
             return []
-        return [cast(Manifest, project)] + project.fetchExterns(lockfile, devel)
 
-    def fetch(self, lock: Lockfile, devel: bool) -> list[Manifest]:
+        # Recurse into nested externs with the same visited context
+        return [cast(Manifest, project)] + project.fetchExterns(
+            lockfile, update, _seenIds, _seenPaths
+        )
+
+    def fetch(
+        self,
+        lock: Lockfile,
+        update: bool,
+        _seenIds: Optional[set[str]] = None,
+        _seenPaths: Optional[set[str]] = None,
+    ) -> list[Manifest]:
         """
         Fetch the extern.
+
+        Args:
+            lock: The lockfile to update.
+            update: If True, pull latest and refresh the lockfile commit.
 
         Returns:
             A list containing the manifest(s) representing the external dependency.
         """
-
         if self.git:
-            return self._fetchGit(lock, devel)
+            return self._fetchGit(
+                lock, update, _seenIds or set(), _seenPaths or set()
+            )
         else:
             return self._fetchLibrary()
 
@@ -469,18 +540,35 @@ class Project(Manifest):
             return None
         return projectManifest.ensureType(Project)
 
-    def fetchExterns(self, lock: Lockfile, devel: bool) -> list[Manifest]:
+    def fetchExterns(
+        self,
+        lock: Lockfile,
+        update: bool,
+        _seenIds: Optional[set[str]] = None,
+        _seenPaths: Optional[set[str]] = None,
+    ) -> list[Manifest]:
         """
         Fetch all externs for the project.
+
+        Args:
+            lock: The lockfile to update.
+            update: If True, pull latest and refresh the lockfile commit.
 
         Returns:
             A list of manifests representing the fetched external dependencies.
         """
+        if _seenIds is None:
+            _seenIds = set()
+        if _seenPaths is None:
+            _seenPaths = set()
 
-        res = []
+        res: list[Manifest] = []
         for extSpec, ext in self.extern.items():
             ext.id = extSpec
-            res.extend(ext.fetch(lock, devel))
+            if ext.id in _seenIds:
+                continue
+            _seenIds.add(ext.id)
+            res.extend(ext.fetch(lock, update, _seenIds, _seenPaths))
 
         return utils.uniq(res, lambda x: x.id)
 
@@ -511,10 +599,9 @@ class InstallArgs:
     Arguments for the install command.
     """
 
-    devel: bool = cli.arg(
-        None, "devel", "Fetch the latest version of all externs ignoring the lockfile"
+    update: bool = cli.arg(
+        None, "update", "Pull latest versions of externs and refresh the lockfile"
     )
-    """Whether to fetch the latest version of all externs ignoring the lockfile."""
 
 
 @cli.command("install", "Install required external packages")
@@ -524,7 +611,7 @@ def _(args: InstallArgs):
     """
     project = Project.use()
     assert project.lockfile is not None
-    project.fetchExterns(project.lockfile, args.devel)
+    project.fetchExterns(project.lockfile, args.update)
     project.lockfile.save()
 
 
