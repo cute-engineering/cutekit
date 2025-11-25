@@ -384,6 +384,16 @@ def cloneDir(url: str, path: str, dest: str) -> str:
 
 LATEST_CACHE: dict[str, str] = {}
 
+@jexpr.exposed("shell.env")
+def env(varname: str, default: Optional[str] = None) -> Optional[str]:
+    """
+    Get an environment variable
+
+    varname: The name of the variable
+    default: The default value if the variable is not set
+    """
+    return os.environ.get(varname, default)
+
 
 @jexpr.exposed("shell.latest")
 def latest(cmd: str) -> str:
