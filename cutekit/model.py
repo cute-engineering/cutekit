@@ -4,7 +4,7 @@ import logging
 import dataclasses as dt
 
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Generator, Optional, Type, cast
 from pathlib import Path
 from dataclasses_json import DataClassJsonMixin
@@ -18,7 +18,7 @@ _logger = logging.getLogger(__name__)
 Props = dict[str, Any]
 
 
-class Kind(Enum):
+class Kind(StrEnum):
     """
     Enum representing the different kinds of manifests.
     """

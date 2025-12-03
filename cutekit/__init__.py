@@ -7,6 +7,7 @@ from . import (
     fmt,  # noqa: F401 this is imported for side effects
     package,  # noqa: F401 this is imported for side effects
     cli,
+    project,
     const,
     model,
     plugins,
