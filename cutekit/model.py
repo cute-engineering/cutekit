@@ -452,9 +452,7 @@ class Extern(DataClassJsonMixin):
             A list containing the manifest(s) representing the external dependency.
         """
         if self.git:
-            return self._fetchGit(
-                lock, update, _seenIds or set(), _seenPaths or set()
-            )
+            return self._fetchGit(lock, update, _seenIds or set(), _seenPaths or set())
         else:
             return self._fetchLibrary()
 
@@ -659,6 +657,8 @@ class RegistryArgs:
     """Mixins to apply to the registry."""
     release: bool = cli.arg(None, "release", "Build in release mode")
     """Whether to build in release mode. Same as --mixins=release."""
+    debug: bool = cli.arg(None, "debug", "Build in debug mode")
+    """Whether to build in debug mode. Same as --mixins=debug."""
     prefix: str = cli.arg(None, "prefix", "Installation prefix")
 
 
@@ -1152,6 +1152,11 @@ class Registry(DataClassJsonMixin):
 
         if args.release:
             args.mixins += ["release"]
+            args.props |= {"release": "True"}
+
+        if args.debug:
+            args.mixins.append("debug")
+            args.props |= {"debug": "True"}
 
         args.prefix = args.prefix or "/"
         args.props["prefix"] = args.prefix

@@ -694,7 +694,6 @@ def _(args: BuildArgs):
 
 
 class RunArgs(BuildArgs, shell.DebugArgs, shell.ProfileArgs):
-    debug: bool = cli.arg("d", "debug", "Attach a debugger")
     profile: bool = cli.arg("p", "profile", "Profile the execution")
     args: list[str] = cli.extra("args", "Arguments to pass to the component")
     restoreCwd: bool = cli.arg(
@@ -704,10 +703,6 @@ class RunArgs(BuildArgs, shell.DebugArgs, shell.ProfileArgs):
 
 @cli.command("run", "Run a component or __main__ if not specified")
 def runCmd(args: RunArgs):
-    if args.debug:
-        args.mixins.append("debug")
-        args.props |= {"debug": "True"}
-
     if args.component is None:
         args.component = "__main__"
 

@@ -384,6 +384,7 @@ def cloneDir(url: str, path: str, dest: str) -> str:
 
 LATEST_CACHE: dict[str, str] = {}
 
+
 @jexpr.exposed("shell.env")
 def env(varname: str, default: Optional[str] = None) -> Optional[str]:
     """
@@ -527,4 +528,4 @@ class ProfileArgs:
 
 class DebugArgs:
     wait: bool = cli.arg("w", "wait", "Wait for the debugger to attach")
-    debugger: str = cli.arg(None, "debugger", "The debugger to use", default="lldb")
+    debugger: str = cli.arg(None, "debugger", "The debugger to use", default="gdb")

@@ -415,8 +415,6 @@ def _(args: WorkspaceArgs):
 
 @cli.command("export/idea-workspace", "Generate a Idea workspace file")
 def _(args: model.TargetArgs):
-    if args.release:
-        args.mixins += ["release"]
     registry = model.Registry.use(args)
     target = model.Target.use(args)
     externalTool, customTargets, configurations = ideaCustomTargets(
