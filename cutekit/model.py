@@ -1147,22 +1147,25 @@ class Registry(DataClassJsonMixin):
         """
         global _registry
 
+        props: Props = dict(args.props) if args.props else {}
+        mixins = list(args.mixins) if args.mixins else []
+
         if _registry is not None:
             return _registry
 
         if args.release:
-            args.mixins += ["release"]
-            args.props |= {"release": True}
+            mixins += ["release"]
+            props |= {"release": True}
 
         if args.debug:
-            args.mixins.append("debug")
-            args.props |= {"debug": True}
+            mixins.append("debug")
+            props |= {"debug": True}
 
         args.prefix = args.prefix or "/"
-        args.props["prefix"] = args.prefix
+        props["prefix"] = args.prefix
 
         project = Project.use()
-        _registry = Registry.load(project, args.mixins, args.props)
+        _registry = Registry.load(project, mixins, props)
         return _registry
 
     @staticmethod

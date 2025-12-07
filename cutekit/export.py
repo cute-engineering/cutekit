@@ -281,11 +281,25 @@ def ideaCustomTargets(
 </configuration>
 </target>
         """
+        cmd = ""
+        if args.mixins:
+            cmd += f"--mixins={','.join(args.mixins)} "
+
+        if args.props:
+            for k, v in args.props.items():
+                cmd += f'--props:{k}="{v}" '
+
+        if args.release:
+            cmd += "--release "
+
+        if args.debug:
+            cmd += "--debug "
+
         externalTool += f"""
   <tool name="Cutekit Build {comp.id} ({target.id})" showInMainMenu="false" showInEditor="false" showInProject="false" showInSearchPopup="false" disabled="false" useConsole="true" showConsoleOnStdOut="false" showConsoleOnStdErr="false" synchronizeAfterRun="true">
     <exec>
       <option name="COMMAND" value="cutekit" />
-      <option name="PARAMETERS" value="build --mixins={",".join(args.mixins)} {comp.id}" />
+      <option name="PARAMETERS" value="build {cmd}{comp.id}" />
       <option name="WORKING_DIRECTORY" value="{Path(registry.project.dirname()).absolute()}" />
     </exec>
   </tool>
