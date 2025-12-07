@@ -1152,11 +1152,11 @@ class Registry(DataClassJsonMixin):
 
         if args.release:
             args.mixins += ["release"]
-            args.props |= {"release": "True"}
+            args.props |= {"release": True}
 
         if args.debug:
             args.mixins.append("debug")
-            args.props |= {"debug": "True"}
+            args.props |= {"debug": True}
 
         args.prefix = args.prefix or "/"
         args.props["prefix"] = args.prefix
