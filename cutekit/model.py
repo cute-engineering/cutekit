@@ -1328,9 +1328,7 @@ def _(args: TargetArgs):
     """
     registry = Registry.use(args)
     print("[")
-    for m in registry.manifests.values():
-        print(m.to_json(indent=2), end="")
-        print(",")
+    print(",\n".join(m.to_json(indent=2) for m in registry.manifests.values()))
     print("]")
 
 
