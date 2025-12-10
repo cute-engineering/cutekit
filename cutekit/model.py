@@ -37,7 +37,9 @@ SUPPORTED_MANIFEST = [
     "https://schemas.cute.engineering/stable/cutekit.manifest.project.v1",
     "https://schemas.cute.engineering/stable/cutekit.manifest.target.v1",
 ]
-
+COMPONENT_SCHEMA = 0
+PROJECT_SCHEMA = 1
+TARGET_SCHEMA = 2
 
 def ensureSupportedManifest(manifest: Any, path: Path):
     """
