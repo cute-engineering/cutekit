@@ -31,13 +31,15 @@ class Kind(StrEnum):
 
 
 # MARK: Manifest ---------------------------------------------------------------
+COMPONENT_SCHEMA = "https://schemas.cute.engineering/stable/cutekit.manifest.component.v1"
+PROJECT_SCHEMA = "https://schemas.cute.engineering/stable/cutekit.manifest.project.v1"
+TARGET_SCHEMA = "https://schemas.cute.engineering/stable/cutekit.manifest.target.v1"
 
 SUPPORTED_MANIFEST = [
-    "https://schemas.cute.engineering/stable/cutekit.manifest.component.v1",
-    "https://schemas.cute.engineering/stable/cutekit.manifest.project.v1",
-    "https://schemas.cute.engineering/stable/cutekit.manifest.target.v1",
+    COMPONENT_SCHEMA,
+    PROJECT_SCHEMA,
+    TARGET_SCHEMA
 ]
-
 
 def ensureSupportedManifest(manifest: Any, path: Path):
     """
