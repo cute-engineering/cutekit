@@ -253,27 +253,92 @@ def codeWorkspace(
     return workspace
 
 
-def ideaCustomTargets(
-    args: model.TargetArgs,
-    registry: model.Registry,
-    target: model.Target,
-):
+def ideaCustomTargets(args: "IdeaWorkspaceArgs", project: model.Project):
     externalTool = '<toolSet name="External Tools">'
     customTargets = '<?xml version="1.0" encoding="UTF-8"?><project version="4"><component name="CLionExternalBuildManager">'
     configurations = '<component name="RunManager">'
 
-    targetScope = builder.TargetScope(registry, target)
-    for comp in registry.iter(model.Component):
-        if comp.type != model.Kind.EXE:
-            continue
-        componentScope = targetScope.openComponentScope(comp)
-        out = builder.outfile(componentScope)
+    baseMixins = list(args.mixins) if args.mixins else []
+    baseMixins = [m for m in baseMixins if m not in ("release", "debug")]
+    baseProps: dict[str, Any] = dict(args.props) if args.props else {}
+    prefix = args.prefix or "/"
+    if not baseProps.get("prefix"):
+        baseProps["prefix"] = prefix
+
+    componentSpec = args.component or "__main__"
+    projectRoot = Path(project.dirname()).absolute()
+    projectName = projectRoot.name
+
+    def unique(seq: list[str]) -> list[str]:
+        return list(dict.fromkeys(seq))
+
+    def resolveComponent(scope: builder.TargetScope) -> model.Component:
+        routed = componentSpec
+        if routed in scope.target.routing:
+            routed = scope.target.routing[routed]
+
+        component = scope.registry.lookup(routed, model.Component, includeProvides=True)
+        if component is None:
+            raise RuntimeError(f"Component {componentSpec} not found")
+
+        if component.type == model.Kind.LIB:
+            fallback = scope.registry.lookup(
+                routed + ".main", model.Component, includeProvides=True
+            )
+            if fallback is None:
+                raise RuntimeError(f"No entry point found for {componentSpec}")
+            component = fallback
+
+        if component.type != model.Kind.EXE:
+            raise RuntimeError(f"Component {component.id} is not executable")
+
+        resolved = component.resolved[scope.target.id]
+        if not resolved.enabled:
+            raise RuntimeError(
+                f"Component {component.id} is disabled: {resolved.reason}"
+            )
+
+        return component
+
+    variantDefs = [
+        ("Release", "--release", unique(baseMixins + ["release"]), {"release": True}),
+        ("Debug", "--debug", unique(baseMixins + ["debug"]), {"debug": True}),
+    ]
+
+    for label, flag, mixins, propUpdates in variantDefs:
+        props: dict[str, Any] = dict(baseProps)
+        props.pop("release", None)
+        props.pop("debug", None)
+        props.update(propUpdates)
+
+        registry = model.Registry.load(project, mixins, props)
+        target = registry.ensure(args.target, model.Target)
+        targetScope = builder.TargetScope(registry, target)
+        component = resolveComponent(targetScope)
+        componentScope = targetScope.openComponentScope(component)
+        runPath = builder.outfile(componentScope)
+        buildDir = str(Path(target.builddir).resolve())
+
+        targetName = f"Build {component.id} ({label})"
+        toolName = f"Cutekit Build {component.id} ({label})"
+
+        commandParts = ["build"]
+        if baseMixins:
+            commandParts.append(f"--mixins={','.join(baseMixins)}")
+        if args.props:
+            for k, v in args.props.items():
+                commandParts.append(f'--props:{k}="{v}"')
+        if args.prefix:
+            commandParts.append(f'--prefix="{args.prefix}"')
+        commandParts.append(flag)
+        commandParts.append(component.id)
+        parameters = " ".join(commandParts)
 
         customTargets += f"""
-<target id="{uuid.uuid4()}" name="Build {comp.id} ({target.id})" defaultType="TOOL">
-<configuration id="{uuid.uuid4()}" name="Build {comp.id} ({target.id})">
+<target id="{uuid.uuid4()}" name="{targetName}" defaultType="TOOL">
+<configuration id="{uuid.uuid4()}" name="{targetName}">
     <build type="TOOL">
-    <tool actionId="Tool_External Tools_Cutekit Build {comp.id} ({target.id})" />
+    <tool actionId="Tool_External Tools_{toolName}" />
     </build>
     <clean type="TOOL">
     <tool actionId="Tool_External Tools_Cutekit Clean" />
@@ -281,34 +346,22 @@ def ideaCustomTargets(
 </configuration>
 </target>
         """
-        cmd = ""
-        if args.mixins:
-            cmd += f"--mixins={','.join(args.mixins)} "
-
-        if args.props:
-            for k, v in args.props.items():
-                cmd += f'--props:{k}="{v}" '
-
-        if args.release:
-            cmd += "--release "
-
-        if args.debug:
-            cmd += "--debug "
 
         externalTool += f"""
-  <tool name="Cutekit Build {comp.id} ({target.id})" showInMainMenu="false" showInEditor="false" showInProject="false" showInSearchPopup="false" disabled="false" useConsole="true" showConsoleOnStdOut="false" showConsoleOnStdErr="false" synchronizeAfterRun="true">
+    <tool name="{toolName}" showInMainMenu="false" showInEditor="false" showInProject="false" showInSearchPopup="false" disabled="false" useConsole="true" showConsoleOnStdOut="false" showConsoleOnStdErr="false" synchronizeAfterRun="true">
     <exec>
       <option name="COMMAND" value="cutekit" />
-      <option name="PARAMETERS" value="build {cmd}{comp.id}" />
-      <option name="WORKING_DIRECTORY" value="{Path(registry.project.dirname()).absolute()}" />
+      <option name="PARAMETERS" value="{parameters}" />
+      <option name="WORKING_DIRECTORY" value="{projectRoot}" />
     </exec>
   </tool>
     """
+
         configurations += f"""
-        <configuration name="{comp.id} ({target.id})" type="CLionExternalRunConfiguration" factoryName="Application" singleton="false" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="true" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="{Path(registry.project.dirname()).absolute().name}" TARGET_NAME="Build {comp.id} ({target.id})" CONFIG_NAME="Build {comp.id} ({target.id})" RUN_PATH="{out}">
-        <envs> 
-            <env name="CK_BUILDDIR" value="{str(Path(target.builddir).resolve())}" />
-            <env name="CK_COMPONENT" value="{comp.id}" />
+        <configuration name="{component.id} ({label})" type="CLionExternalRunConfiguration" factoryName="Application" singleton="false" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="true" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="{projectName}" TARGET_NAME="{targetName}" CONFIG_NAME="{targetName}" RUN_PATH="{runPath}">
+        <envs>
+            <env name="CK_BUILDDIR" value="{buildDir}" />
+            <env name="CK_COMPONENT" value="{component.id}" />
         </envs>
         <method v="2">
             <option name="CLION.EXTERNAL.BUILD" enabled="true" />
@@ -321,7 +374,7 @@ def ideaCustomTargets(
 <exec>
     <option name="COMMAND" value="cutekit" />
     <option name="PARAMETERS" value="clean" />
-    <option name="WORKING_DIRECTORY" value="{registry.project.dirname()}" />
+    <option name="WORKING_DIRECTORY" value="{project.dirname()}" />
 </exec>
 </tool>
     """
@@ -406,6 +459,14 @@ class WorkspaceArgs(model.RegistryArgs):
     )
 
 
+class IdeaWorkspaceArgs(model.TargetArgs):
+    component: str = cli.operand(
+        "component",
+        "Component to generate CLion configurations for",
+        default="__main__",
+    )
+
+
 @cli.command("export/code-workspace", "Generate a VSCode workspace file")
 def _(args: WorkspaceArgs):
     project = model.Project.use()
@@ -428,12 +489,9 @@ def _(args: WorkspaceArgs):
 
 
 @cli.command("export/idea-workspace", "Generate a Idea workspace file")
-def _(args: model.TargetArgs):
-    registry = model.Registry.use(args)
-    target = model.Target.use(args)
-    externalTool, customTargets, configurations = ideaCustomTargets(
-        args, registry, target
-    )
+def _(args: IdeaWorkspaceArgs):
+    project = model.Project.use()
+    externalTool, customTargets, configurations = ideaCustomTargets(args, project)
     with open(".idea/tools/External Tools.xml", "w") as f:
         f.write(externalTool)
 
