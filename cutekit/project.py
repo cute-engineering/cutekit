@@ -11,8 +11,8 @@ class Suffix(StrEnum):
 
 
 class InitArgs:
-    name: str | None = cli.operand("name", "Set the name of your project")
-    description: str | None = cli.arg(
+    name: str = cli.operand("name", "Set the name of your project")
+    description: str = cli.arg(
         None, "desc", "Set the description of your project")
     kind: model.Kind = cli.arg(
         None, "kind", "Kind of the manifest", model.Kind.PROJECT)
