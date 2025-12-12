@@ -3,7 +3,7 @@ from cutekit import model, project, shell
 from typing import Optional
 from shutil import rmtree
 import os
-import pytest
+import pytest # type: ignore
 
 
 def check_tree(manifest_cwd: Path, args: project.InitArgs):

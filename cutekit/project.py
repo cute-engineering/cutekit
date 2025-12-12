@@ -1,8 +1,8 @@
 from . import cli, model, vt100, shell
 from typing import Optional
-import os
 from pathlib import Path
 from enum import StrEnum
+import os
 
 
 class Suffix(StrEnum):
@@ -11,9 +11,9 @@ class Suffix(StrEnum):
 
 
 class InitArgs:
-    name: str = cli.operand("name", "Set the name of your project")
-    description: str = cli.arg(
-        None, "desc", "Set the description of your project", None)
+    name: str | None = cli.operand("name", "Set the name of your project")
+    description: str | None = cli.arg(
+        None, "desc", "Set the description of your project")
     kind: model.Kind = cli.arg(
         None, "kind", "Kind of the manifest", model.Kind.PROJECT)
     format: Suffix = cli.arg(
@@ -29,8 +29,8 @@ def init_manifest(args: InitArgs):
         type=args.kind,
     )
     filename: str = "project"
+    schema: str = model.PROJECT_SCHEMA
     project: Optional[model.Project] = model.Project.topmost()
-    schema: str = None
 
     """ Each type of kind """
     match model.KINDS[args.kind]:
@@ -44,7 +44,6 @@ def init_manifest(args: InitArgs):
             if model.KINDS[args.kind] == model.Component:
                 schema = model.COMPONENT_SCHEMA
                 manifest = model.Component(
-                    description=args.description,
                     **manifest.__dict__
                 )
                 if args.description:
@@ -78,9 +77,6 @@ def init_manifest(args: InitArgs):
             if project is not None:
                 raise RuntimeError("can't create subproject.")
 
-            schema = model.PROJECT_SCHEMA
-            filename = "project"
-
             if Path.cwd().name != args.name:
                 os.chdir(shell.mkdir(args.name))
 
@@ -112,7 +108,7 @@ def init_manifest(args: InitArgs):
                     import json
                     json.dump(manifest_data, f, indent=4)
                 case Suffix.TOML:
-                    import tomli_w
+                    import tomli_w # type: ignore
                     f.write(tomli_w.dumps(manifest_data))
     except Exception as e:
         vt100.error(f"can't create the file: {str(e.args)}")
