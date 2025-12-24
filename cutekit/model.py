@@ -4,7 +4,7 @@ import logging
 import dataclasses as dt
 
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Generator, Optional, Type, cast
 from pathlib import Path
 from dataclasses_json import DataClassJsonMixin
@@ -18,7 +18,7 @@ _logger = logging.getLogger(__name__)
 Props = dict[str, Any]
 
 
-class Kind(Enum):
+class Kind(StrEnum):
     """
     Enum representing the different kinds of manifests.
     """
@@ -31,13 +31,15 @@ class Kind(Enum):
 
 
 # MARK: Manifest ---------------------------------------------------------------
+COMPONENT_SCHEMA = "https://schemas.cute.engineering/stable/cutekit.manifest.component.v1"
+PROJECT_SCHEMA = "https://schemas.cute.engineering/stable/cutekit.manifest.project.v1"
+TARGET_SCHEMA = "https://schemas.cute.engineering/stable/cutekit.manifest.target.v1"
 
 SUPPORTED_MANIFEST = [
-    "https://schemas.cute.engineering/stable/cutekit.manifest.component.v1",
-    "https://schemas.cute.engineering/stable/cutekit.manifest.project.v1",
-    "https://schemas.cute.engineering/stable/cutekit.manifest.target.v1",
+    COMPONENT_SCHEMA,
+    PROJECT_SCHEMA,
+    TARGET_SCHEMA
 ]
-
 
 def ensureSupportedManifest(manifest: Any, path: Path):
     """

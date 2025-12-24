@@ -6,6 +6,7 @@ from . import (
     export,  # noqa: F401 this is imported for side effects
     fmt,  # noqa: F401 this is imported for side effects
     package,  # noqa: F401 this is imported for side effects
+    project, # noqa: F401 this is imported for side effects
     cli,
     const,
     model,
