@@ -153,12 +153,8 @@ def _computeCinc(scope: TargetScope) -> list[str]:
     res.add(includeGenerated)
 
     for c in scope.registry.iterEnabled(scope.target):
-        if "cpp-root-include" in c.props:
-            res.add(c.dirname())
-        elif "cpp-excluded" in c.props:
-            pass
-        elif c.type == model.Kind.LIB:
-            res.add(str(Path(c.dirname()).parent))
+        if "export-headers" in c.props:
+            res.add(str(Path(c.dirname()) / c.props["export-headers"]))
 
     incs = sorted(map(lambda i: f"-I{i}", res))
     if scope.target.props["host"] and platform.system() == "Darwin":
