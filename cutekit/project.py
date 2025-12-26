@@ -97,10 +97,9 @@ def init_manifest(args: InitArgs):
     filename += f".{args.format}"
     try:
         # Filter empty variable, and protected variables from Manifest.
-        manifest_data = {
+        manifest_data = {"$schema": schema} | {
             k: v for k, v in manifest.__dict__.items() if not k.startswith("_") and v
         }
-        manifest_data["$schema"] = schema
 
         with open(filename, "w", encoding="utf-8") as f:
             match args.format:
