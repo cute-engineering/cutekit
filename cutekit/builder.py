@@ -153,12 +153,24 @@ def _computeCinc(scope: TargetScope) -> list[str]:
     res.add(includeGenerated)
 
     for c in scope.registry.iterEnabled(scope.target):
-        if "cpp-root-include" in c.props:
-            res.add(c.dirname())
+        if "export-headers" in c.props:
+            headerPath = Path(c.dirname()) / c.props["export-headers"]
+            if not headerPath.is_dir():
+                _logger.warning(
+                    f"Component {c.id} export-headers path '{headerPath}' is not a directory"
+                )
+                continue
+            res.add(str(headerPath))
+
+        # TODO: Remove when we get 1.0 (will probably be forgotten anyway :^) )
+        elif "cpp-root-include" in c.props:
+            _logger.warning(
+                f"Component {c.id} uses no longer supported 'cpp-root-include' property, use 'export-headers' instead"
+            )
         elif "cpp-excluded" in c.props:
-            pass
-        elif c.type == model.Kind.LIB:
-            res.add(str(Path(c.dirname()).parent))
+            _logger.warning(
+                f"Component {c.id} uses no longer supported 'cpp-excluded' that is no longer needed"
+            )
 
     incs = sorted(map(lambda i: f"-I{i}", res))
     if scope.target.props["host"] and platform.system() == "Darwin":
