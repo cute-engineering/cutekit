@@ -15,6 +15,7 @@ class Rule:
 
 rules: dict[str, Rule] = {
     "cp": Rule("cp", ["*"], "*", "$in $out"),
+    "ck-port": Rule("ck-port", ["*"], "*", "--component=$ck_component --out=$out --target=$ck_target"),
     "cc": Rule(
         "cc",
         ["*.c"],
