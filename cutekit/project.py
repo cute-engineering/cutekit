@@ -35,20 +35,20 @@ def init_manifest(args: InitArgs):
     """ Each type of kind """
     match model.KINDS[args.kind]:
         # Init a Component or a Target
-        case model.Component | model.Target:
+        case model.Component | model.Target | model.Port:
             if project is None:
                 raise RuntimeError(
                     f"can't create '{args.kind}' without a project")
 
             filename = "manifest"
-            if model.KINDS[args.kind] == model.Component:
+            if model.KINDS[args.kind] in [model.Component, model.Port]:
                 schema = model.COMPONENT_SCHEMA
                 manifest = model.Component(
                     **manifest.__dict__
                 )
                 if args.description:
                     manifest.description = args.description
-            else:
+            elif model.KINDS[args.kind] == model.Target:
                 schema = model.TARGET_SCHEMA
                 manifest = model.Target(
                     **manifest.__dict__
@@ -89,10 +89,22 @@ def init_manifest(args: InitArgs):
 
             if args.description:
                 manifest.description = args.description
+        case _:
+            raise RuntimeError(f"Unknown kind: {args.kind}")
 
     # Avoid having manifests in different format
     if model.Manifest.tryLoad(Path.cwd() / filename):
         raise RuntimeError("Your Manifest already exist.")
+
+    if model.KINDS[args.kind] == model.Port:
+        with open("build.py", "w", encoding="utf-8") as f:
+            f.writelines([
+                "import cutekit as ck\n\n",
+                "kind = \"lib\"",
+                "def prepare(scope: ck.model.PortScope):\n    ...\n\n"
+                "def build(scope: ck.model.PortScope):\n    ...\n\n",
+                "def package(scope: ck.model.PortScope):\n    ...\n"
+            ])
 
     filename += f".{args.format}"
     try:
