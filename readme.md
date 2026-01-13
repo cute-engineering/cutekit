@@ -23,9 +23,9 @@
 
 ## CuteKit in the wild
 
-- [SkiftOS](https://github.com/skift-org/skift) : A hobbyist operating system written in C++.
+- [SkiftOS](https://codeberg.org/skift/os) : A hobbyist operating system written in C++.
 - [WKHtmlToPdf](https://github.com/odoo/wkhtmltopdf) : [Odoo](https://github.com/odoo/odoo)'s fork of wkhtmltopdf which is a command line tools to render HTML into PDF and various image formats using the Qt WebKit rendering engine.
-- [vaev](https://github.com/skift-org/vaev) : 🌊 A lightning-fast, lightweight, and secure HTML/CSS engine.
+- [vaev](https://codeberg.org/skift/vaev) : 🌊 A lightning-fast, lightweight, and secure HTML/CSS engine.
 
 ## Installation
 

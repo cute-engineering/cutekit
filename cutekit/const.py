@@ -14,7 +14,7 @@ class Uninitialized:
         raise Exception("Uninitialized constant")
 
 
-VERSION = (0, 10, 7)
+VERSION = (0, 10, 8)
 VERSION_STR = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}{'-' + str(VERSION[-1]) if len(VERSION) > 3 else ''}"
 MODULE_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -32,7 +32,7 @@ SRC_DIR = "src"
 META_DIR = "meta"
 TARGETS_DIR = os.path.join(META_DIR, "targets")
 DEFAULT_REPO_TEMPLATES = "cute-engineering/cutekit-templates"
-DESCRIPTION = "A build system and package manager for low-level software development"
+DESCRIPTION = "A package manager and build system for low-level projects"
 PROJECT_LOG_FILE = os.path.join(PROJECT_CK_DIR, "cutekit.log")
 GLOBAL_LOG_FILE: str = os.path.join(os.path.expanduser("~"), ".cutekit", "cutekit.log")
 HOSTID: str | Uninitialized = Uninitialized()

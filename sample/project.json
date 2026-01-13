@@ -2,12 +2,12 @@
     "$schema": "https://schemas.cute.engineering/stable/cutekit.manifest.project.v1",
     "id": "cute-engineering/cutekit-sample",
     "type": "project",
-    "version": "v0.1.0",
+    "version": "v0.2.0",
     "description": "A sample cutekit project",
     "extern": {
         "cute-engineering/ce-targets": {
-            "git": "https://github.com/cute-engineering/ce-targets.git",
-            "tag": "v0.1.1"
+            "git": "https://codeberg.org/cute-engineering/ce-targets.git",
+            "tag": "v0.6.0"
         }
     }
 }
