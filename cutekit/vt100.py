@@ -64,11 +64,11 @@ def p(text: str):
 
 
 def error(msg: str) -> None:
-    print(f"{RED}Error:{RESET} {msg}\n", file=sys.stderr)
+    print(f"{RED}Error:{RESET} {msg}", file=sys.stderr)
 
 
 def warning(msg: str) -> None:
-    print(f"{YELLOW}Warning:{RESET} {msg}\n", file=sys.stderr)
+    print(f"{YELLOW}Warning:{RESET} {msg}", file=sys.stderr)
 
 
 def ask(msg: str, default: Optional[bool] = None) -> bool:
