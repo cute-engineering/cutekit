@@ -500,7 +500,7 @@ class Project(Manifest):
             cwd = cwd.parent
 
         if topmost:
-            topmost.lockfile = Lockfile.load(Path(topmost.dirname()))
+            topmost.lockfile = Lockfile.load(Path(topmost.dirname()).absolute())
 
         return topmost
 
