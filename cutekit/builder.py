@@ -5,7 +5,7 @@ import json
 
 from pathlib import Path
 import platform
-from typing import Callable, Literal, TextIO, Union
+from typing import Callable, cast, Literal, TextIO, Union
 
 from . import cli, shell, rules, model, ninja, const
 
@@ -323,6 +323,22 @@ def _(args: CxxDyndepArgs):
             print()
 
 
+# MARK: Port ------------------------------------------------------------------
+
+@cli.command("tools/port", "Execute and build port")
+def _(args: model.PortArgs):
+    registry = model.Registry.use(args)
+    scope = model.PortScope.use(args)
+
+    target = registry.lookup(args.target, model.Target)
+    assert target is not None, f"Target {args.target} not found."
+
+    scope.component.fetch()
+    scope.component.prepare(scope)
+    scope.component.build(scope)
+    scope.component.package(scope)
+
+
 def compileSrcs(
     w: ninja.Writer | None, scope: ComponentScope, rule: rules.Rule, srcs: list[str]
 ) -> list[str]:
@@ -384,12 +400,12 @@ def compileSrcs(
 def compileObjs(
     w: ninja.Writer | None, scope: ComponentScope
 ) -> tuple[list[str], list[str]]:
-    objs = []
-    ddi = []
+    objs: list[str] = []
+    ddi: list[str] = []
     for rule in rules.rules.values():
         if rule.id == "cxx-scan":
             ddi += compileSrcs(w, scope, rule, srcs=scope.wilcard(rule.fileIn))
-        elif rule.id not in ["cp", "ld", "ar", "cxx-collect", "cxx-modmap"]:
+        elif rule.id not in ["cp", "ld", "ar", "cxx-collect", "cxx-modmap", "ck-port"]:
             objs += compileSrcs(w, scope, rule, srcs=scope.wilcard(rule.fileIn))
     return objs, ddi
 
@@ -440,7 +456,9 @@ def outfile(scope: ComponentScope) -> str:
         staticExt = "a"
         exeExt = "out"
 
-    if scope.component.type == model.Kind.LIB:
+    if scope.component.type == model.Kind.LIB or \
+        (scope.component.type == model.Kind.PORT and \
+         cast(model.Port, scope.component).subtype == model.Kind.LIB):
         if scope.component.props.get("shared", False):
             return str(scope.buildpath(f"__lib__/{scope.component.id}.{sharedExt}"))
         else:
@@ -459,7 +477,8 @@ def collectLibs(
 
         if r == scope.component.id:
             continue
-        if not req.type == model.Kind.LIB:
+        if req.type != model.Kind.LIB and \
+            (not (isinstance(req, model.Port) and req.subtype == model.Kind.LIB)):
             raise RuntimeError(f"Component {r} is not a library")
         res.append(outfile(scope.openComponentScope(req)))
 
@@ -474,7 +493,8 @@ def collectInjectedObjs(scope: ComponentScope) -> list[str]:
 
         if r == scope.component.id:
             continue
-        if not req.type == model.Kind.LIB:
+        if req.type != model.Kind.LIB and \
+            (not (isinstance(req, model.Port) and req.subtype == model.Kind.LIB)):
             raise RuntimeError(f"Component {r} is not a library")
 
         objs, _ = compileObjs(None, scope.openComponentScope(req))
@@ -521,7 +541,7 @@ def link(
                     "ck_component": scope.component.id,
                 },
             )
-    else:
+    elif scope.component.type == model.Kind.EXE:
         injectedObjs = collectInjectedObjs(scope)
         libs = collectLibs(scope)
         w.build(
@@ -536,6 +556,16 @@ def link(
             },
             implicit=res,
         )
+    else:
+        w.build(
+            out,
+            "ck-port",
+            [],
+            variables={
+                "ck_target": scope.target.id,
+                "ck_component": scope.component.id,
+            }
+        )
     return out, ddi
 
 
@@ -545,10 +575,14 @@ def link(
 def all(w: ninja.Writer, scope: TargetScope) -> list[str]:
     all: list[str] = []
     ddis: list[str] = []
+    ports: list[str] = []
     for c in scope.registry.iterEnabled(scope.target):
         out, ddi = link(w, scope.openComponentScope(c))
         ddis.extend(ddi)
-        all.append(out)
+        if c.type == model.Kind.PORT:
+            ports.append(out)
+        else:
+            all.append(out)
 
     modulesDdi = str(scope.buildpath("modules.ddi"))
     w.build(modulesDdi, "cxx-collect", ddis)
@@ -565,6 +599,7 @@ def all(w: ninja.Writer, scope: TargetScope) -> list[str]:
 
     all = [modulesDd] + all
 
+    w.build("ports", "phony", ports)
     w.build("all", "phony", all)
     w.default("all")
     return all
@@ -647,9 +682,13 @@ def build(
         if not r.enabled:
             raise RuntimeError(f"Component {c.id} is disabled: {r.reason}")
 
-        products.append(s.openProductScope(Path(outfile(scope.openComponentScope(c)))))
+        product = s.openProductScope(Path(outfile(scope.openComponentScope(c))))
+        products.append(product)
 
     outs = list(map(lambda p: str(p.path), products))
+
+    # Build ports first
+    shell.popen("ninja", "-f", ninjaPath, "ports")
 
     ninjaCmd = [
         "ninja",

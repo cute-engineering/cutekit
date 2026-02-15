@@ -28,6 +28,7 @@ class Kind(StrEnum):
     TARGET = "target"
     LIB = "lib"
     EXE = "exe"
+    PORT = "port"
 
 
 # MARK: Manifest ---------------------------------------------------------------
@@ -586,34 +587,6 @@ class Project(Manifest):
         return _project
 
 
-@cli.command("model", "Manage the model")
-def _():
-    """
-    Manage the CuteKit model.
-    """
-    pass
-
-
-class InstallArgs:
-    """
-    Arguments for the install command.
-    """
-
-    update: bool = cli.arg(
-        None, "update", "Pull latest versions of externs and refresh the lockfile"
-    )
-
-
-@cli.command("install", "Install required external packages")
-def _(args: InstallArgs):
-    """
-    Install required external packages for the project.
-    """
-    project = Project.use()
-    assert project.lockfile is not None
-    project.fetchExterns(project.lockfile, args.update)
-    project.lockfile.save()
-
 
 # MARK: Target -----------------------------------------------------------------
 
@@ -644,6 +617,7 @@ DEFAULT_TOOLS: Tools = {
     "cxx-collect": Tool("jq"),
     "cxx-modmap": Tool("ck --safemode tools cxx-modmap"),
     "cxx-dyndep": Tool("ck --safemode tools cxx-dyndep"),
+    "ck-port": Tool("ck --safemode tools port"),
 }
 """Default tools available in all projects."""
 
@@ -835,11 +809,144 @@ class Component(Manifest):
         return True, ""
 
 
+# MARK: Port ------------------------------------------------------------------
+
+class PortArgs(TargetArgs):
+    component: str = cli.arg(None, "component", "Name of the component to port")
+    out: str = cli.arg(None, "out", "Output path")
+
+
+@dt.dataclass
+class Port(Component):
+    _subtype: Kind = dt.field(default=Kind.UNKNOWN)
+    ctx: Optional[dict[str, Any]] = dt.field(default=None)
+
+    @property
+    def subtype(self) -> Kind:
+        if self._subtype == Kind.UNKNOWN:
+            self.parseBuild()
+        return self._subtype
+
+    def parseBuild(self):
+        with self.subpath("build.py").open("r") as f:
+            globals: dict[str, Any] = {}
+            code = compile(f.read(), str(f"<PORT {self.id}"), "exec")
+
+        exec(code, globals)
+        del globals['__builtins__']
+
+        self.ctx = globals
+
+        assert 'kind' in self.ctx, "Port context must have a 'kind' field"
+        self._subtype = Kind(self.ctx['kind'])
+
+    def fetch(self):
+        if self.ctx is None:
+            self.parseBuild()
+
+        assert self.ctx is not None
+
+        srcDir = Path(Project.use().dirname()) / const.EXTERN_DIR / self.id
+        if srcDir.exists():
+            _logger.debug(f"Port {self.id} already fetched at {srcDir}")
+            return
+
+        if self.ctx.get('git_url') is not None:
+            print(f"Installing {self.id} from {self.ctx['git_url']}...")
+            _logger.info(f"Cloning {self.ctx['git_url']}...")
+            cmd = [
+                "git",
+                "clone",
+                "--quiet",
+                "--depth=1",
+                self.ctx['git_url'],
+                str(srcDir),
+            ]
+
+            if self.ctx.get('commit') is not None:
+                cmd.append(f"--revision={self.ctx.get('commit')}")
+
+            if self.ctx.get('branch') is not None:
+                cmd.append(f"--branch={self.ctx.get('branch')}")
+
+            shell.exec(*cmd, quiet=True)
+
+    def prepare(self, port: "PortScope"):
+        if self.ctx is None:
+            self.parseBuild()
+
+        assert self.ctx is not None
+
+        if 'patches' in self.ctx:
+            if not (port.srcDir / ".git").exists():
+                raise RuntimeError(f"Port {self.ctx['name']} is not a git repository, cannot apply patches.")
+
+            for patch in self.ctx['patches']:
+                try:
+                    shell.exec(
+                        *["git", "-C", str(port.srcDir), "apply", "--check", str(port.cwd / patch)],
+                        quiet=True
+                    )
+                    shell.exec(*["git", "-C", str(port.srcDir), "apply", str(port.cwd / patch)])
+                except Exception as e:
+                    _logger.warning(f"Could not apply patch {patch} to port {self.ctx['name']}: {e}")
+
+        if 'prepare' in self.ctx:
+            self.ctx['prepare'](port)
+
+    def build(self, port: "PortScope"):
+        assert self.ctx is not None
+
+        if 'build' in self.ctx:
+            self.ctx['build'](port)
+
+    def package(self, port: "PortScope"):
+        assert self.ctx is not None
+
+        if 'package' in self.ctx:
+            self.ctx['package'](port)
+
+        if not port.destFile.exists():
+            with open(port.destFile, "w") as f:
+                f.write("")
+
+
+@dt.dataclass
+class PortScope:
+    srcDir: Path
+    destDir: Path
+    destFile: Path
+    cwd: Path
+    target: Target
+    component: Port
+    includeDir: Path
+
+    @staticmethod
+    def use(args: PortArgs) -> "PortScope":
+        registry = Registry.use(args)
+        component = registry.ensure(args.component, Port)
+
+        assert isinstance(component, Port), "Component is not a Port"
+
+        return PortScope(
+            srcDir=Path(const.EXTERN_DIR) / args.component,
+            destDir=Path(args.out).parent,
+            destFile=Path(args.out),
+            cwd=Path(component.dirname()),
+            target=Target.use(args),
+            component=component,
+
+            #FIXME: this is a temporary hack for includes
+            includeDir=Path(const.GENERATED_DIR) / args.component
+        )
+
+
 KINDS: dict[Kind, Type[Manifest]] = {
     Kind.PROJECT: Project,
     Kind.TARGET: Target,
     Kind.LIB: Component,
     Kind.EXE: Component,
+    Kind.PORT: Port,
 }
 """Mapping of manifest kinds to their corresponding classes."""
 
@@ -1296,6 +1403,35 @@ class Registry(DataClassJsonMixin):
         Registry._loadDependencies(r, mixins, props)
 
         return r
+
+
+@cli.command("model", "Manage the model")
+def _():
+    """
+    Manage the CuteKit model.
+    """
+    pass
+
+
+class InstallArgs(RegistryArgs):
+    """
+    Arguments for the install command.
+    """
+
+    update: bool = cli.arg(
+        None, "update", "Pull latest versions of externs and refresh the lockfile"
+    )
+
+
+@cli.command("install", "Install required external packages")
+def _(args: InstallArgs):
+    """
+    Install required external packages for the project.
+    """
+    project = Project.use()
+    assert project.lockfile is not None
+    project.fetchExterns(project.lockfile, args.update)
+    project.lockfile.save()
 
 
 @cli.command("model/list", "List all components and targets")
