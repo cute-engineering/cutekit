@@ -337,7 +337,7 @@ def compileObjs(
     for rule in rules.rules.values():
         if rule.id == "cxx-scan":
             ddi += compileSrcs(w, scope, rule, srcs=scope.wilcard(rule.fileIn))
-        elif rule.id not in ["cp", "ld", "ar", "cxx-collect", "cxx-modmap"]:
+        elif rule.id not in ["cp", "ld", "ar", "cxx-collect"]:
             objs += compileSrcs(w, scope, rule, srcs=scope.wilcard(rule.fileIn))
     return objs, ddi
 

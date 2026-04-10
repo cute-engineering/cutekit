@@ -642,7 +642,6 @@ DEFAULT_TOOLS: Tools = {
     "ld-shared": Tool(shell.latest("clang++")),
     "cxx-scan": Tool(shell.latest("clang-scan-deps")),
     "cxx-collect": Tool("jq"),
-    "cxx-modmap": Tool("ck --safemode tools cxx-modmap"),
     "cxx-dyndep": Tool("ck --safemode tools cxx-dyndep"),
 }
 """Default tools available in all projects."""

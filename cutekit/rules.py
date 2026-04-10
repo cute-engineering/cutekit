@@ -60,14 +60,6 @@ rules: dict[str, Rule] = {
         [],
         [],
     ),
-    "cxx-modmap": Rule(
-        "cxx-modmap",
-        ["*.cpp"],
-        "*.dd",
-        "$obj --dir=$builddir --deps=$builddir/modules.ddi > $out.tmp && mv $out.tmp $out",
-        [],
-        [],
-    ),
     "cxx-dyndep": Rule(
         "cxx-dyndep",
         ["*.dd"],

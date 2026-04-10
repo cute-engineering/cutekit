@@ -850,7 +850,8 @@ class Command:
             res += self.schema.usage()
 
         if len(self.subcommands) == 1:
-            res += "[subcommand] [args...]"
+            name = next(iter(self.subcommands.keys()))
+            res += f"{name} [args...]"
 
         elif len(self.subcommands) > 0:
             res += "{"
@@ -891,10 +892,7 @@ class Command:
 
             if self.subcommands:
                 if len(rest) > 0:
-                    if not self.populated:
-                        raise ValueError("Expected subcommand")
-                    else:
-                        self.lookupSubcommand(rest[0]).eval(rest)
+                    self.lookupSubcommand(rest[0]).eval(rest)
                 else:
                     print("Usage: " + cmd + self.usage(), end="\n\n")
                     return
