@@ -205,81 +205,6 @@ def _computeCdef(scope: TargetScope) -> list[str]:
 
 # MARK: Compilation ------------------------------------------------------------
 
-
-class CxxModmapArgs:
-    obj: str = cli.operand("obj", "Object file")
-    dir: str = cli.arg("d", "dir", "Build directory")
-    deps: str = cli.arg("d", "deps", "Dependencies file")
-
-
-# https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p1689r5.html
-
-
-def p1689Query(data, query, *args):
-    for d in data:
-        for r in d["rules"]:
-            res = query(r, *args)
-            if res is not None:
-                return res
-    return None
-
-
-def p1689Resolve(obj: str, depFile: str) -> tuple[str | None, set[str]]:
-    with open(depFile, "r") as f:
-        data = json.load(f)
-
-        queue = []
-        needed: set[str] = set()
-
-        def queryLogicalName(rule: dict, output: str):
-            if rule["primary-output"] == output:
-                if "requires" in rule:
-                    for r in rule["requires"]:
-                        queue.append(r["logical-name"])
-                if "provides" in rule:
-                    provided = rule["provides"][0]
-                    if provided["is-interface"]:
-                        return provided["logical-name"]
-            return None
-
-        logicalName = p1689Query(data, queryLogicalName, obj)
-
-        while queue:
-            current = queue.pop(0)
-            if current in needed:
-                continue
-            needed.add(current)
-
-            def queryModuleMap(rule: dict, current: str):
-                if "provides" in rule:
-                    for r in rule["provides"]:
-                        if r["logical-name"] == current and "requires" in rule:
-                            for r in rule["requires"]:
-                                queue.append(r["logical-name"])
-
-            p1689Query(data, queryModuleMap, current)
-
-        return logicalName, needed
-
-
-@cli.command("tools", "Tools used by the build system")
-def _():
-    pass
-
-
-@cli.command("tools/cxx-modmap", "Generate a module map for C++")
-def _(args: CxxModmapArgs):
-    os.makedirs(args.dir, exist_ok=True)
-    logicalName, needed = p1689Resolve(args.obj, args.deps)
-    if logicalName is not None:
-        print("-x c++-module")
-        print(
-            f"-fmodule-output={os.path.join(args.dir, logicalName).replace(':', '__')}.pcm"
-        )
-    for n in needed:
-        print(f"-fmodule-file={n}={os.path.join(args.dir, n).replace(':', '__')}.pcm")
-
-
 class CxxDyndepArgs:
     dir: str = cli.arg("d", "dir", "Build directory")
     deps: str = cli.arg("d", "deps", "Dependencies file")
@@ -290,12 +215,53 @@ def _(args: CxxDyndepArgs):
     with open(args.deps, "r") as f:
         data = json.load(f)
 
+    # Pre-compute a map of logical-name -> rule to easily resolve recursive requirements
+    provides_map = {}
+    for d in data:
+        for rule in d.get("rules", []):
+            for p in rule.get("provides", []):
+                provides_map[p["logical-name"]] = rule
+
     print("ninja_dyndep_version = 1.0")
     print()
 
     for d in data:
         for rule in d.get("rules", []):
-            record = f"build {rule['primary-output']}"
+            obj = rule["primary-output"]
+            modmap_path = f"{obj}.modmap"
+
+            queue = []
+            logicalName = None
+
+            for r in rule.get("requires", []):
+                queue.append(r["logical-name"])
+
+            for p in rule.get("provides", []):
+                if p.get("is-interface"):
+                    logicalName = p["logical-name"]
+                    break
+
+            needed = set()
+            while queue:
+                current = queue.pop(0)
+                if current in needed:
+                    continue
+                needed.add(current)
+
+                if current in provides_map:
+                    prov_rule = provides_map[current]
+                    for r in prov_rule.get("requires", []):
+                        queue.append(r["logical-name"])
+
+            os.makedirs(os.path.dirname(modmap_path), exist_ok=True)
+            with open(modmap_path, "w") as modf:
+                if logicalName is not None:
+                    modf.write("-x c++-module\n")
+                    modf.write(f"-fmodule-output={os.path.join(args.dir, logicalName).replace(':', '__')}.pcm\n")
+                for n in needed:
+                    modf.write(f"-fmodule-file={n}={os.path.join(args.dir, n).replace(':', '__')}.pcm\n")
+
+            record = f"build {obj}"
 
             firstProvides = True
             for p in rule.get("provides", []):
@@ -322,7 +288,6 @@ def _(args: CxxDyndepArgs):
             print("  restat = 1")
             print()
 
-
 def compileSrcs(
     w: ninja.Writer | None, scope: ComponentScope, rule: rules.Rule, srcs: list[str]
 ) -> list[str]:
@@ -344,26 +309,10 @@ def compileSrcs(
         implicit = [*t.files]
         orderOnly = []
         if rule.id == "cxx":
-            implicit.append(modmap)
             orderOnly.append(dyndep)
-
-            if not scope.target.props.get("database", False):
-                variables["modmap"] = "@" + modmap
+            variables["modmap"] = "@" + modmap
 
         if w:
-            if rule.id == "cxx":
-                w.build(
-                    modmap,
-                    "cxx-modmap",
-                    src,
-                    order_only=[str(scope.up().buildpath("modules.dd"))],
-                    variables={
-                        "ck_target": scope.target.id,
-                        "ck_component": scope.component.id,
-                        "obj": obj,
-                    },
-                )
-
             w.build(
                 str(dest),
                 rule.id,
@@ -379,7 +328,6 @@ def compileSrcs(
             )
         res.append(str(dest))
     return res
-
 
 def compileObjs(
     w: ninja.Writer | None, scope: ComponentScope
