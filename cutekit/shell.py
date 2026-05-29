@@ -1,4 +1,5 @@
 import os
+import struct
 import sys
 import hashlib
 import errno
@@ -33,6 +34,7 @@ class Uname:
     release: str
     version: str
     machine: str
+    bits: str
 
 
 @jexpr.exposed("shell.uname")
@@ -51,6 +53,7 @@ def uname() -> Uname:
         un.release,
         un.version,
         un.machine,
+        str(struct.calcsize('P')*8),
     )
 
     match result.machine:
