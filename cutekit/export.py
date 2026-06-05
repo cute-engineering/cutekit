@@ -62,13 +62,11 @@ def graph(
                 g.edge(component.id, req)
 
             for req in component.provides:
-                isChosen = target.routing.get(req, None) == component.id
-
                 g.edge(
                     req,
                     component.id,
                     arrowhead="none",
-                    color=("blue" if isChosen else "black"),
+                    color="black",
                 )
         elif showDisabled:
             descr = component.description
@@ -273,17 +271,13 @@ def ideaCustomTargets(args: "IdeaWorkspaceArgs", project: model.Project):
         return list(dict.fromkeys(seq))
 
     def resolveComponent(scope: builder.TargetScope) -> model.Component:
-        routed = componentSpec
-        if routed in scope.target.routing:
-            routed = scope.target.routing[routed]
-
-        component = scope.registry.lookup(routed, model.Component, includeProvides=True)
+        component = scope.registry.lookup(componentSpec, model.Component, includeProvides=True)
         if component is None:
             raise RuntimeError(f"Component {componentSpec} not found")
 
         if component.type == model.Kind.LIB:
             fallback = scope.registry.lookup(
-                routed + ".main", model.Component, includeProvides=True
+                componentSpec + ".main", model.Component, includeProvides=True
             )
             if fallback is None:
                 raise RuntimeError(f"No entry point found for {componentSpec}")

@@ -568,7 +568,7 @@ def gen(out: TextIO, scope: TargetScope):
 
 def build(
     scope: TargetScope,
-    components: Union[list[model.Component], model.Component, Literal["all"]] = "all",
+    components: Union[list[model.Component | str], model.Component, Literal["all"]] = "all",
     generateCompilationDb: bool = False,
 ) -> list[ProductScope]:
     all = False
@@ -590,6 +590,10 @@ def build(
 
     products: list[ProductScope] = []
     for c in components:
+        if isinstance(c, str):
+            c = scope.registry.lookup(c, model.Component, includeProvides=True)
+            if c is None:
+                raise RuntimeError(f"Component {c} not found")
         s = scope.openComponentScope(c)
         r = c.resolved[scope.target.id]
         if not r.enabled:
@@ -668,9 +672,6 @@ def runCmd(args: RunArgs):
         args.component = "__main__"
 
     scope = TargetScope.use(args)
-
-    if args.component in scope.target.routing:
-        args.component = scope.target.routing[args.component]
 
     component = scope.registry.lookup(
         args.component, model.Component, includeProvides=True

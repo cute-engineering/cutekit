@@ -688,8 +688,6 @@ class Target(Manifest):
     """Properties of the target."""
     tools: Tools = dt.field(default_factory=dict)
     """Tools available for the target."""
-    routing: dict[str, str] = dt.field(default_factory=dict)
-    """Routing table for component specs."""
 
     _hashid: Optional[str] = None
     """Cached hash ID of the target."""
@@ -734,22 +732,6 @@ class Target(Manifest):
         """
         registry = Registry.use(args)
         return registry.ensure(args.target, Target)
-
-    def route(self, componentSpec: str):
-        """
-        Route a component spec to a target specific component spec.
-
-        Args:
-            componentSpec: The component spec to route.
-
-        Returns:
-            The routed component spec.
-        """
-        return (
-            self.routing[componentSpec]
-            if componentSpec in self.routing
-            else componentSpec
-        )
 
 
 # MARK: Component --------------------------------------------------------------
@@ -880,12 +862,6 @@ class Resolver:
                 if p not in self._mappings and [0]:
                     self._mappings[p] = []
                 self._mappings[p].append(c)
-
-        # Overide with target routing since it has priority
-        # over component provides and id
-        for k, v in self._target.routing.items():
-            component = self._registry.lookup(v, Component)
-            self._mappings[k] = [component] if component else []
 
         self._baked = True
 
@@ -1118,7 +1094,7 @@ class Registry(DataClassJsonMixin):
 
         return None
 
-    def ensure(self, name: str, type: Type[utils.T]) -> utils.T:
+    def ensure(self, name: str, type: Type[utils.T], includeProvides: bool = False) -> utils.T:
         """
         Ensure that a manifest of a given type exists
         and return it.
@@ -1126,6 +1102,7 @@ class Registry(DataClassJsonMixin):
         Args:
             name: The name of the manifest to ensure.
             type: The type of manifest to ensure.
+            includeProvides: Whether to include components that provide the given name.
 
         Returns:
             The manifest object.
@@ -1134,7 +1111,7 @@ class Registry(DataClassJsonMixin):
             RuntimeError: If no matching manifest was found.
         """
 
-        m = self.lookup(name, type)
+        m = self.lookup(name, type, includeProvides)
         if not m:
             raise RuntimeError(f"Could not find {type.__name__} '{name}'")
         return m

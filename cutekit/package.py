@@ -177,34 +177,26 @@ def curentDistro() -> Distro:
     raise RuntimeError("Unsupported distro")
 
 class PackageArgs(model.TargetArgs):
-    component: str = cli.operand("component", "Component to package")
+    component: str = cli.operand("component", "Component to package", default="__main__")
     layout: str = cli.arg(None, "layout", "Installation layout")
     sysroot: str = cli.arg(None, "sysroot", "System root directory", "/")
 
-class PackageForArgs(PackageArgs):    
+    distro : str = cli.arg(None, "distro", "Target distribution (e.g. debian-bookworm)", "auto")
     maintainer: str = cli.arg(None, "maintainer", "Package maintainer")
     out : str = cli.arg(None, "out", "Output package path")
 
 def package(args: PackageArgs):
     args.sysroot = os.path.abspath(args.sysroot or "/")
-
-    dest = Path(args.sysroot) / Path(args.prefix).relative_to("/")
-
     registry = model.Registry.use(args)
-    toInstall = registry.lookup(args.component, model.Component)
-    if not toInstall:
-        raise RuntimeError(f"Component {args.component} not found")
     target = model.Target.use(args)
     scope = builder.TargetScope(registry, target)
 
-    products = []
+    registry = model.Registry.use(args)
+    toInstall = registry.ensure(args.component, model.Component, includeProvides=True)
+    required = toInstall.resolved[target.id].required
+    products = builder.build(scope, [toInstall] + required)
 
-    for c in toInstall.resolved[target.id].required:
-        print(f"Building {c}...")
-        component = registry.lookup(c, model.Component)
-        assert component, f"Component {args.component} not found"
-        products += builder.build(scope, [component])
-
+    dest = Path(args.sysroot) / Path(args.prefix).relative_to("/")
     print(f"Installing to {dest}...")
     print(f"sysroot: {args.sysroot}")
     print(f"prefix: {args.prefix}")
@@ -237,7 +229,3 @@ def package(args: PackageArgs):
 @cli.command("package", "Package a component for installation")
 def _(args: PackageArgs):
     package(args)
-
-@cli.command("package-for", "Package a component for a specific distro")
-def _(args: PackageForArgs):
-    pass
