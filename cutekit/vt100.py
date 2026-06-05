@@ -71,6 +71,38 @@ def warning(msg: str) -> None:
     print(f"{YELLOW}Warning:{RESET} {msg}", file=sys.stderr)
 
 
+def formatSize(size: int) -> str:
+    units = ["B", "KiB", "MiB", "GiB", "TiB"]
+    value = float(size)
+
+    for unit in units:
+        if value < 1024 or unit == units[-1]:
+            if unit == "B":
+                return f"{int(value)} {unit}"
+            return f"{value:.1f} {unit}"
+        value /= 1024
+
+    return f"{size} B"
+
+
+def printProgress(label: str, current: int, total: int):
+    if total > 0:
+        percent = min(max(current / total, 0), 1)
+        message = (
+            f"\r{label}: {percent * 100:5.1f}% "
+            f"({formatSize(current)}/{formatSize(total)})"
+        )
+    else:
+        message = f"\r{label}: {formatSize(current)}"
+
+    print(message, end="", file=sys.stderr, flush=True)
+
+
+def finishProgress(label: str, current: int, total: int):
+    printProgress(label, current, total)
+    print(file=sys.stderr, flush=True)
+
+
 def ask(msg: str, default: Optional[bool] = None) -> bool:
     if default is None:
         msg = f"{msg} [y/n] "

@@ -668,6 +668,10 @@ class TargetArgs(RegistryArgs):
     Arguments for the Target class.
     """
 
+    toolchain: str = cli.arg(
+        None, "toolchain", "The toolchain to use", default="llvm"
+    )
+    """The toolchain to use."""
     target: str = cli.arg(
         None, "target", "The target to use", default="host-" + shell.uname().machine
     )
@@ -1162,6 +1166,9 @@ class Registry(DataClassJsonMixin):
             mixins.append("debug")
             props |= {"debug": True}
 
+        if hasattr(args, "toolchain") and args.toolchain:
+            props["toolchain"] = args.toolchain
+
         args.prefix = args.prefix or "/"
         props["prefix"] = args.prefix
 
@@ -1259,6 +1266,10 @@ class Registry(DataClassJsonMixin):
             for k, v in DEFAULT_TOOLS.items():
                 if k not in tools:
                     tools[k] = dt.replace(v)
+
+            from . import toolchain
+
+            toolchain.apply(target, tools)
 
             from . import mixins as mxs
 
