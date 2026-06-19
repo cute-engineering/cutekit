@@ -197,7 +197,7 @@ class ExternLock(DataClassJsonMixin):
 
 @dt.dataclass
 class Lockfile(DataClassJsonMixin):
-    extern: dict[str, ExternLock] = dt.field(default_factory=dict)
+    externs: dict[str, ExternLock] = dt.field(default_factory=dict)
     """External dependencies of the project."""
     path: str = dt.field(default="")
     """Path to the lock file."""
@@ -233,12 +233,12 @@ class Lockfile(DataClassJsonMixin):
             f.write("\n")
 
     def lock(self, id: str):
-        if id not in self.extern:
+        if id not in self.externs:
             lock = ExternLock()
-            self.extern[id] = lock
+            self.externs[id] = lock
             return lock
         else:
-            return self.extern[id]
+            return self.externs[id]
 
 
 # MARK: Project ----------------------------------------------------------------
@@ -468,7 +468,7 @@ class Project(Manifest):
     description: str = dt.field(default="(No description)")
     version: str = dt.field(default="0.0.1")
     """Description of the project."""
-    extern: dict[str, Extern] = dt.field(default_factory=dict)
+    externs: dict[str, Extern] = dt.field(default_factory=dict)
     """External dependencies of the project."""
     lockfile: Optional[Lockfile] = dt.field(default=None)
 
@@ -480,7 +480,7 @@ class Project(Manifest):
         Returns:
             A list of directories.
         """
-        res = map(lambda e: os.path.join(const.EXTERN_DIR, e), self.extern.keys())
+        res = map(lambda e: os.path.join(const.EXTERN_DIR, e), self.externs.keys())
         return list(res)
 
     @staticmethod
@@ -563,7 +563,7 @@ class Project(Manifest):
             _seenPaths = set()
 
         res: list[Manifest] = []
-        for extSpec, ext in self.extern.items():
+        for extSpec, ext in self.externs.items():
             ext.id = extSpec
             if ext.id in _seenIds:
                 continue
