@@ -32,7 +32,7 @@ class Kind(StrEnum):
 
 # MARK: Manifest ---------------------------------------------------------------
 COMPONENT_SCHEMA = "https://schemas.cute.engineering/stable/cutekit.manifest.component.v1"
-PROJECT_SCHEMA = "https://schemas.cute.engineering/stable/cutekit.manifest.project.v1"
+PROJECT_SCHEMA = "https://schemas.cute.engineering/stable/cutekit.manifest.project.v2"
 TARGET_SCHEMA = "https://schemas.cute.engineering/stable/cutekit.manifest.target.v1"
 
 SUPPORTED_MANIFEST = [
@@ -220,7 +220,7 @@ class Lockfile(DataClassJsonMixin):
             data = utils.sortKeysRecursive(data)
             data = {
                 **{
-                    "$schema": "https://schemas.cute.engineering/stable/cutekit.lockfile.v1"
+                    "$schema": "https://schemas.cute.engineering/stable/cutekit.lockfile.v2"
                 },
                 **data,
             }
