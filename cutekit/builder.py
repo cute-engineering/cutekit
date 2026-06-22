@@ -1,11 +1,21 @@
 import os
 import logging
 import dataclasses as dt
+import functools
 import json
 
 from pathlib import Path
 import platform
-from typing import Callable, Literal, TextIO, Union
+from typing import (
+    Any,
+    Callable,
+    Concatenate,
+    Literal,
+    ParamSpec,
+    TextIO,
+    TypeVar,
+    Union,
+)
 
 from . import cli, shell, rules, model, ninja, const
 
@@ -16,6 +26,13 @@ _logger = logging.getLogger(__name__)
 class Scope:
     registry: model.Registry
 
+    memo: dict[Any, Any] = dt.field(
+        default_factory=dict, kw_only=True, repr=False, compare=False
+    )
+    w: ninja.Writer | None = dt.field(
+        default=None, kw_only=True, repr=False, compare=False
+    )
+
     @staticmethod
     def use(args: model.RegistryArgs) -> "Scope":
         registry = model.Registry.use(args)
@@ -25,12 +42,17 @@ class Scope:
         return self.registry.project.id
 
     @property
+    def writer(self) -> ninja.Writer:
+        assert self.w is not None, "No ninja writer attached to this scope"
+        return self.w
+
+    @property
     def targets(self):
         for t in self.registry.iter(model.Target):
             yield self.openTargetScope(t)
 
     def openTargetScope(self, t: model.Target):
-        return TargetScope(self.registry, t)
+        return TargetScope(self.registry, t, memo=self.memo, w=self.w)
 
 
 @dt.dataclass
@@ -56,10 +78,10 @@ class TargetScope(Scope):
             yield self.openComponentScope(c)
 
     def openComponentScope(self, c: model.Component):
-        return ComponentScope(self.registry, self.target, c)
+        return ComponentScope(self.registry, self.target, c, memo=self.memo, w=self.w)
 
     def up(self):
-        return Scope(self.registry)
+        return Scope(self.registry, memo=self.memo, w=self.w)
 
 
 @dt.dataclass
@@ -70,10 +92,12 @@ class ComponentScope(TargetScope):
         return super().key() + "/" + self.component.id
 
     def openComponentScope(self, c: model.Component):
-        return ComponentScope(self.registry, self.target, c)
+        return ComponentScope(self.registry, self.target, c, memo=self.memo, w=self.w)
 
     def openProductScope(self, path: Path):
-        return ProductScope(self.registry, self.target, self.component, path)
+        return ProductScope(
+            self.registry, self.target, self.component, path, memo=self.memo, w=self.w
+        )
 
     def subdirs(self) -> list[str]:
         component = self.component
@@ -99,7 +123,7 @@ class ComponentScope(TargetScope):
         os.environ["CK_COMPONENT"] = self.component.id
 
     def up(self):
-        return TargetScope(self.registry, self.target)
+        return TargetScope(self.registry, self.target, memo=self.memo, w=self.w)
 
 
 @dt.dataclass
@@ -113,6 +137,77 @@ class ProductScope(ComponentScope):
     def exec(self, *args):
         self.useEnv()
         return shell.exec(str(self.path), *args)
+
+
+# MARK: Build graph ------------------------------------------------------------
+
+P = ParamSpec("P")
+R = TypeVar("R")
+ScopeT = TypeVar("ScopeT", bound=Scope)
+
+_nodes: dict[str, list[Callable[..., Any]]] = {}
+
+
+def invoke(scope: Scope, id: str, *args: Any, **kwargs: Any) -> Any:
+    """
+    Invoke the build graph node with the given id.
+
+    The result is memoized in the store shared by the whole scope tree, so
+    a node runs at most once per (id, scope, *args) tuple — this is what
+    guarantees that build edges are emitted exactly once in the ninja file,
+    no matter how many paths of the build graph reach them.
+
+    Several functions — including ones declared by plugins — may share the
+    same node id. In that case they all must return lists; contributors run
+    in a deterministic order and their outputs are concatenated and
+    deduplicated.
+    """
+    contributors = _nodes[id]
+    key = (id, scope.key(), args, tuple(sorted(kwargs.items())))
+    if key not in scope.memo:
+        if len(contributors) == 1:
+            scope.memo[key] = contributors[0](scope, *args, **kwargs)
+        else:
+            res: list[Any] = []
+            seen: set[Any] = set()
+            for f in sorted(
+                contributors, key=lambda f: (f.__module__, f.__qualname__)
+            ):
+                out = f(scope, *args, **kwargs)
+                if not isinstance(out, list):
+                    raise RuntimeError(
+                        f"Node '{id}' has multiple contributors, "
+                        f"so {f.__module__}.{f.__qualname__} must return a list"
+                    )
+                for item in out:
+                    if item not in seen:
+                        seen.add(item)
+                        res.append(item)
+            scope.memo[key] = res
+    return scope.memo[key]
+
+
+def node(
+    id: str,
+) -> Callable[
+    [Callable[Concatenate[ScopeT, P], R]], Callable[Concatenate[ScopeT, P], R]
+]:
+    """
+    Declare a function as a node of the build graph. See invoke().
+    """
+
+    def decorator(
+        func: Callable[Concatenate[ScopeT, P], R],
+    ) -> Callable[Concatenate[ScopeT, P], R]:
+        _nodes.setdefault(id, []).append(func)
+
+        @functools.wraps(func)
+        def wrapper(scope: ScopeT, *args: P.args, **kwargs: P.kwargs) -> R:
+            return invoke(scope, id, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 # MARK: Variables --------------------------------------------------------------
@@ -288,58 +383,88 @@ def _(args: CxxDyndepArgs):
             print("  restat = 1")
             print()
 
-def compileSrcs(
-    w: ninja.Writer | None, scope: ComponentScope, rule: rules.Rule, srcs: list[str]
-) -> list[str]:
-    res: list[str] = []
-    for src in srcs:
-        rel = Path(src).relative_to(scope.component.dirname())
-        dest = scope.buildpath(path="__obj__") / rel.with_suffix(
-            rel.suffix + rule.fileOut[1:]
-        )
-        obj = str(scope.buildpath(path="__obj__") / rel.with_suffix(rel.suffix + ".o"))
-        modmap = str(dest) + ".modmap"
-        dyndep = str(scope.up().buildpath("modules.dd"))
-        t = scope.target.tools[rule.id]
+_NON_SOURCE_RULES = ["cp", "ld", "ld-shared", "ar", "cxx-scan", "cxx-collect", "cxx-dyndep"]
+_sourceNodes: set[str] = set()
 
-        variables = {}
-        if rule.id == "cxx-scan":
-            variables["obj"] = obj
 
-        implicit = [*t.files]
-        orderOnly = []
-        if rule.id == "cxx":
-            orderOnly.append(dyndep)
-            variables["modmap"] = "@" + modmap
+def sources(scope: ComponentScope, ruleId: str) -> list[str]:
+    """
+    Invoke the per-language "source/<ruleId>" node.
 
-        if w:
-            w.build(
-                str(dest),
-                rule.id,
-                inputs=src,
-                implicit=implicit,
-                order_only=orderOnly,
-                dyndep=dyndep if rule.id == "cxx" else None,
-                variables={
-                    "ck_target": scope.target.id,
-                    "ck_component": scope.component.id,
-                    **variables,
-                },
-            )
-        res.append(str(dest))
-    return res
+    The default contributor wildcards the component directories. It is
+    declared on first use so that rules registered by plugins are picked
+    up too. Plugins can declare extra contributors on the same node to
+    inject generated sources into the compile pipeline.
+    """
+    if ruleId not in _sourceNodes:
+        _sourceNodes.add(ruleId)
 
-def compileObjs(
-    w: ninja.Writer | None, scope: ComponentScope
-) -> tuple[list[str], list[str]]:
-    objs = []
-    ddi = []
+        @node(f"source/{ruleId}")
+        def _(scope: ComponentScope) -> list[str]:
+            return scope.wilcard(rules.rules[ruleId].fileIn)
+
+    return invoke(scope, f"source/{ruleId}")
+
+
+@node("obj")
+def compileSrc(scope: ComponentScope, ruleId: str, src: str) -> str:
+    rule = rules.rules[ruleId]
+    srcPath = Path(src)
+    if srcPath.is_relative_to(scope.component.dirname()):
+        rel = srcPath.relative_to(scope.component.dirname())
+    else:
+        # Generated sources land under GENERATED_DIR instead of the
+        # component directory.
+        rel = srcPath.relative_to(const.GENERATED_DIR)
+    dest = scope.buildpath(path="__obj__") / rel.with_suffix(
+        rel.suffix + rule.fileOut[1:]
+    )
+    obj = str(scope.buildpath(path="__obj__") / rel.with_suffix(rel.suffix + ".o"))
+    modmap = str(dest) + ".modmap"
+    dyndep = str(scope.up().buildpath("modules.dd"))
+    t = scope.target.tools[rule.id]
+
+    variables = {}
+    if rule.id == "cxx-scan":
+        variables["obj"] = obj
+
+    implicit = [*t.files]
+    orderOnly = []
+    if rule.id == "cxx":
+        orderOnly.append(dyndep)
+        variables["modmap"] = "@" + modmap
+
+    scope.writer.build(
+        str(dest),
+        rule.id,
+        inputs=src,
+        implicit=implicit,
+        order_only=orderOnly,
+        dyndep=dyndep if rule.id == "cxx" else None,
+        variables={
+            "ck_target": scope.target.id,
+            "ck_component": scope.component.id,
+            **variables,
+        },
+    )
+    return str(dest)
+
+
+@node("objs")
+def compileObjs(scope: ComponentScope) -> list[str]:
+    objs: list[str] = []
     for rule in rules.rules.values():
-        if rule.id == "cxx-scan":
-            ddi += compileSrcs(w, scope, rule, srcs=scope.wilcard(rule.fileIn))
-        elif rule.id not in ["cp", "ld", "ar", "cxx-collect"]:
-            objs += compileSrcs(w, scope, rule, srcs=scope.wilcard(rule.fileIn))
-    return objs, ddi
+        if rule.id in _NON_SOURCE_RULES:
+            continue
+        objs += [compileSrc(scope, rule.id, src) for src in sources(scope, rule.id)]
+    return objs
+
+
+@node("ddi")
+def scanModules(scope: ComponentScope) -> list[str]:
+    # C++ modules need a scan pass over the same sources as the cxx rule
+    # to discover the import graph (see tools/cxx-dyndep).
+    return [compileSrc(scope, "cxx-scan", src) for src in sources(scope, "cxx")]
 
 
 # MARK: Ressources -------------------------------------------------------------
@@ -349,15 +474,13 @@ def listRes(component: model.Component) -> list[str]:
     return shell.find(str(component.subpath("res")))
 
 
-def compileRes(
-    w: ninja.Writer,
-    scope: ComponentScope,
-) -> list[str]:
+@node("res")
+def compileRes(scope: ComponentScope) -> list[str]:
     res: list[str] = []
     for r in listRes(scope.component):
         rel = Path(r).relative_to(scope.component.subpath("res"))
         dest = scope.buildpath("__res__") / rel
-        w.build(
+        scope.writer.build(
             str(dest),
             "cp",
             r,
@@ -373,6 +496,7 @@ def compileRes(
 # MARK: Linking ----------------------------------------------------------------
 
 
+@node("outfile")
 def outfile(scope: ComponentScope) -> str:
     sharedExt = "so"
     staticExt = "a"
@@ -397,9 +521,8 @@ def outfile(scope: ComponentScope) -> str:
         return str(scope.buildpath(f"__bin__/{scope.component.id}.{exeExt}"))
 
 
-def collectLibs(
-    scope: ComponentScope,
-) -> list[str]:
+@node("libs")
+def collectLibs(scope: ComponentScope) -> list[str]:
     res: list[str] = []
     for r in scope.component.resolved[scope.target.id].required:
         req = scope.registry.lookup(r, model.Component)
@@ -414,6 +537,7 @@ def collectLibs(
     return res
 
 
+@node("objs/injected")
 def collectInjectedObjs(scope: ComponentScope) -> list[str]:
     res: list[str] = []
     for r in scope.component.resolved[scope.target.id].injected:
@@ -425,22 +549,19 @@ def collectInjectedObjs(scope: ComponentScope) -> list[str]:
         if not req.type == model.Kind.LIB:
             raise RuntimeError(f"Component {r} is not a library")
 
-        objs, _ = compileObjs(None, scope.openComponentScope(req))
-
-        res.extend(objs)
+        res.extend(compileObjs(scope.openComponentScope(req)))
 
     return res
 
 
-def link(
-    w: ninja.Writer,
-    scope: ComponentScope,
-) -> tuple[str, list[str]]:
+@node("link")
+def link(scope: ComponentScope) -> str:
+    w = scope.writer
     w.newline()
     out = outfile(scope)
 
-    res = compileRes(w, scope)
-    objs, ddi = compileObjs(w, scope)
+    res = compileRes(scope)
+    objs = compileObjs(scope)
 
     if scope.component.type == model.Kind.LIB:
         if scope.component.props.get("shared", False):
@@ -484,19 +605,20 @@ def link(
             },
             implicit=res,
         )
-    return out, ddi
+    return out
 
 
 # MARK: Phony ------------------------------------------------------------------
 
 
-def all(w: ninja.Writer, scope: TargetScope) -> list[str]:
+def all(scope: TargetScope) -> list[str]:
+    w = scope.writer
     all: list[str] = []
     ddis: list[str] = []
     for c in scope.registry.iterEnabled(scope.target):
-        out, ddi = link(w, scope.openComponentScope(c))
-        ddis.extend(ddi)
-        all.append(out)
+        cs = scope.openComponentScope(c)
+        all.append(link(cs))
+        ddis.extend(scanModules(cs))
 
     modulesDdi = str(scope.buildpath("modules.ddi"))
     w.build(modulesDdi, "cxx-collect", ddis)
@@ -530,7 +652,11 @@ def applyExtraProps(scope: TargetScope, name: str, var: list[str]) -> list[str]:
 
 
 def gen(out: TextIO, scope: TargetScope):
-    w = ninja.Writer(out)
+    # Each generation pass gets its own writer and a fresh memo store,
+    # otherwise build edges cached by a previous pass would be missing
+    # from the newly generated file.
+    scope = dt.replace(scope, w=ninja.Writer(out), memo={})
+    w = scope.writer
 
     target: model.Target = scope.target
 
@@ -563,7 +689,7 @@ def gen(out: TextIO, scope: TargetScope):
 
     w.separator("Build")
 
-    all(w, scope)
+    all(scope)
 
 
 def build(
