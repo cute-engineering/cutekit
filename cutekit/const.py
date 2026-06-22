@@ -14,7 +14,7 @@ class Uninitialized:
         raise Exception("Uninitialized constant")
 
 
-VERSION = (0, 11, 4)
+VERSION = (0, 12, 0)
 VERSION_STR = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}{'-' + str(VERSION[-1]) if len(VERSION) > 3 else ''}"
 MODULE_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -24,8 +24,8 @@ PROJECT_CK_DIR = ".cutekit"
 GLOBAL_CK_DIR = os.path.join(os.path.expanduser("~"), ".cutekit")
 BUILD_DIR = os.path.join(PROJECT_CK_DIR, "build")
 CACHE_DIR = os.path.join(PROJECT_CK_DIR, "cache")
-EXTERN_DIR = os.path.join(PROJECT_CK_DIR, "extern")
-GLOBAL_EXTERN_DIR = os.path.join(GLOBAL_CK_DIR, "extern")
+EXTERNS_DIR = os.path.join(PROJECT_CK_DIR, "externs")
+GLOBAL_EXTERNS_DIR = os.path.join(GLOBAL_CK_DIR, "externs")
 GENERATED_DIR = os.path.join(PROJECT_CK_DIR, "generated")
 TMP_DIR = os.path.join(PROJECT_CK_DIR, "tmp")
 SRC_DIR = "src"

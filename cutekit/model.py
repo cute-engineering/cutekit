@@ -34,11 +34,13 @@ class Kind(StrEnum):
 COMPONENT_SCHEMA = "https://schemas.cute.engineering/stable/cutekit.manifest.component.v1"
 PROJECT_SCHEMA = "https://schemas.cute.engineering/stable/cutekit.manifest.project.v2"
 TARGET_SCHEMA = "https://schemas.cute.engineering/stable/cutekit.manifest.target.v1"
+LOCKFILE_SCHEMA = "https://schemas.cute.engineering/stable/cutekit.lockfile.v2"
 
 SUPPORTED_MANIFEST = [
     COMPONENT_SCHEMA,
     PROJECT_SCHEMA,
-    TARGET_SCHEMA
+    TARGET_SCHEMA,
+    LOCKFILE_SCHEMA
 ]
 
 def ensureSupportedManifest(manifest: Any, path: Path):
@@ -209,6 +211,7 @@ class Lockfile(DataClassJsonMixin):
             json = jexpr.include(path)
         except Exception:
             return Lockfile(path=str(path))
+        ensureSupportedManifest(json, path)
         lock = cls.from_dict(json)
         lock.path = str(path)
         return lock
@@ -220,7 +223,7 @@ class Lockfile(DataClassJsonMixin):
             data = utils.sortKeysRecursive(data)
             data = {
                 **{
-                    "$schema": "https://schemas.cute.engineering/stable/cutekit.lockfile.v2"
+                    "$schema": LOCKFILE_SCHEMA
                 },
                 **data,
             }
@@ -328,8 +331,8 @@ class Extern(DataClassJsonMixin):
         Returns:
             A list containing the manifest(s) found in the git repository.
         """
-        path = os.path.join(const.EXTERN_DIR, self.id)
-        globalPath = os.path.join(const.GLOBAL_EXTERN_DIR, self.id)
+        path = os.path.join(const.EXTERNS_DIR, self.id)
+        globalPath = os.path.join(const.GLOBAL_EXTERNS_DIR, self.id)
 
         if os.path.exists(globalPath):
             print(f"Using global extern {self.id} from {globalPath}")
@@ -480,7 +483,7 @@ class Project(Manifest):
         Returns:
             A list of directories.
         """
-        res = map(lambda e: os.path.join(const.EXTERN_DIR, e), self.externs.keys())
+        res = map(lambda e: os.path.join(const.EXTERNS_DIR, e), self.externs.keys())
         return list(res)
 
     @staticmethod
@@ -1340,7 +1343,7 @@ def _():
     """
     project = Project.use()
     projectDir = os.path.abspath(project.dirname())
-    globalExternDir = os.path.join(const.GLOBAL_EXTERN_DIR, project.id)
+    globalExternDir = os.path.join(const.GLOBAL_EXTERNS_DIR, project.id)
     if os.path.exists(globalExternDir):
         shell.exec("rm", globalExternDir)
     shell.mkdir(os.path.dirname(globalExternDir))
@@ -1354,6 +1357,6 @@ def _():
     Unmount this project from the global extern directory
     """
     project = Project.use()
-    globalExternDir = os.path.join(const.GLOBAL_EXTERN_DIR, project.id)
+    globalExternDir = os.path.join(const.GLOBAL_EXTERNS_DIR, project.id)
     shell.exec("rm", globalExternDir)
     print(f"Unmounted {globalExternDir}")

@@ -35,7 +35,7 @@ def loadAll():
         _logger.info("Not in project, skipping plugin loading")
         return
     paths = list(
-        map(lambda e: os.path.join(const.EXTERN_DIR, e), project.externs.keys())
+        map(lambda e: os.path.join(const.EXTERNS_DIR, e), project.externs.keys())
     ) + ["."]
 
     for dirname in paths:
