@@ -589,34 +589,6 @@ class Project(Manifest):
             _project = Project.ensure()
         return _project
 
-@cli.command("model", "Manage the model")
-def _():
-    """
-    Manage the CuteKit model.
-    """
-    pass
-
-
-class InstallArgs:
-    """
-    Arguments for the install command.
-    """
-
-    update: bool = cli.arg(
-        None, "update", "Pull latest versions of externs and refresh the lockfile"
-    )
-
-
-@cli.command("install", "Install required external packages")
-def _(args: InstallArgs):
-    """
-    Install required external packages for the project.
-    """
-    project = Project.use()
-    assert project.lockfile is not None
-    project.fetchExterns(project.lockfile, args.update)
-    project.lockfile.save()
-
 # MARK: Target -----------------------------------------------------------------
 
 
@@ -645,7 +617,7 @@ DEFAULT_TOOLS: Tools = {
     "cxx-scan": Tool(shell.latest("clang-scan-deps")),
     "cxx-collect": Tool("jq"),
     "cxx-dyndep": Tool("ck --safemode tools cxx-dyndep"),
-    "ck-port": Tool("ck --safemode tools port"),
+    "ck-port": Tool('CC="$cc" CXX="$cxx" ck --safemode tools port'),
 }
 """Default tools available in all projects."""
 
@@ -874,7 +846,7 @@ class Port(Component):
 
         assert self.ctx is not None
 
-        srcDir = Path(Project.use().dirname()) / const.EXTERN_DIR / self.id
+        srcDir = Path(Project.use().dirname()) / const.EXTERNS_DIR / self.id
         if srcDir.exists():
             _logger.debug(f"Port {self.id} already fetched at {srcDir}")
             return
@@ -957,7 +929,7 @@ class PortScope:
         assert isinstance(component, Port), "Component is not a Port"
 
         return PortScope(
-            srcDir=Path(const.EXTERN_DIR) / args.component,
+            srcDir=Path(const.EXTERNS_DIR) / args.component,
             destDir=Path(args.out).parent,
             destFile=Path(args.out),
             cwd=Path(component.dirname()),
