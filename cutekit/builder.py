@@ -258,7 +258,7 @@ def _computeCinc(scope: TargetScope) -> list[str]:
                 continue
             res.add(str(headerPath.resolve()))
 
-    incs = sorted(map(lambda i: f"-I{i}", res))
+    incs = sorted(map(lambda i: f"-I'{i}'", res))
     if scope.target.props["host"] and platform.system() == "Darwin":
         incs.insert(
             0,
