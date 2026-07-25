@@ -678,6 +678,7 @@ def build(
     scope: TargetScope,
     components: Union[list[model.Component], model.Component, Literal["all"]] = "all",
     generateCompilationDb: bool = False,
+    listOutputs: bool = False,
 ) -> list[ProductScope]:
     all = False
     if generateCompilationDb:
@@ -714,7 +715,10 @@ def build(
         *(outs if not all else []),
     ]
 
-    if generateCompilationDb:
+    if listOutputs:
+        for o in outs:
+            print(o)
+    elif generateCompilationDb:
         database = shell.popen(*ninjaCmd, "-t", "compdb", "cc", "cxx")
         with open("compile_commands.json", "w") as f:
             f.write(database)
@@ -735,6 +739,8 @@ class BuildArgs(model.TargetArgs):
         "database",
         "Generate compilation database (compile_commands.json)",
     )
+    listOutputs: bool = cli.arg(
+        None, "list-outputs", "List the outputs of the build", default=False)
 
 
 @cli.command("build", "Build a component or all components")
@@ -759,6 +765,7 @@ def _(args: BuildArgs):
             scope,
             component if component is not None else "all",
             generateCompilationDb=args.database,
+            listOutputs=args.listOutputs
         )[0]
 
 
