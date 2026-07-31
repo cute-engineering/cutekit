@@ -435,7 +435,7 @@ class Extern(DataClassJsonMixin):
             return []
 
         # Recurse into nested externs with the same visited context
-        return [cast(Manifest, project)] + project.fetchExterns(
+        return [cast(Manifest, project)] + project.syncExterns(
             lockfile, update, _seenIds, _seenPaths
         )
 
@@ -543,7 +543,7 @@ class Project(Manifest):
             return None
         return projectManifest.ensureType(Project)
 
-    def fetchExterns(
+    def syncExterns(
         self,
         lock: Lockfile,
         update: bool,
@@ -551,14 +551,14 @@ class Project(Manifest):
         _seenPaths: Optional[set[str]] = None,
     ) -> list[Manifest]:
         """
-        Fetch all externs for the project.
+        Sync all externs for the project.
 
         Args:
             lock: The lockfile to update.
             update: If True, pull latest and refresh the lockfile commit.
 
         Returns:
-            A list of manifests representing the fetched external dependencies.
+            A list of manifests representing the synced external dependencies.
         """
         if _seenIds is None:
             _seenIds = set()
@@ -597,9 +597,9 @@ def _():
     pass
 
 
-class InstallArgs:
+class SyncArgs:
     """
-    Arguments for the install command.
+    Arguments for the sync command.
     """
 
     update: bool = cli.arg(
@@ -607,14 +607,14 @@ class InstallArgs:
     )
 
 
-@cli.command("install", "Install required external packages")
-def _(args: InstallArgs):
+@cli.command("sync", "Sync external packages")
+def _(args: SyncArgs):
     """
-    Install required external packages for the project.
+    Sync required external packages for the project.
     """
     project = Project.use()
     assert project.lockfile is not None
-    project.fetchExterns(project.lockfile, args.update)
+    project.syncExterns(project.lockfile, args.update)
     project.lockfile.save()
 
 
@@ -663,7 +663,7 @@ class RegistryArgs:
     """Whether to build in release mode. Same as --mixins=release."""
     debug: bool = cli.arg(None, "debug", "Build in debug mode")
     """Whether to build in debug mode. Same as --mixins=debug."""
-    prefix: str = cli.arg(None, "prefix", "Installation prefix")
+    prefix: str = cli.arg(None, "prefix", "Installation prefix", "/")
 
 
 class TargetArgs(RegistryArgs):
@@ -1182,7 +1182,7 @@ class Registry(DataClassJsonMixin):
             p: The project to load the externs for.
         """
         assert p.lockfile is not None
-        r._extend(p.fetchExterns(p.lockfile, False))
+        r._extend(p.syncExterns(p.lockfile, False))
         p.lockfile.save()
 
     @staticmethod

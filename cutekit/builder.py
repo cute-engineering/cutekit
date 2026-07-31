@@ -258,7 +258,7 @@ def _computeCinc(scope: TargetScope) -> list[str]:
                 continue
             res.add(str(headerPath.resolve()))
 
-    incs = sorted(map(lambda i: f"-I{i}", res))
+    incs = sorted(map(lambda i: f"-I{ninja.escapePath(i)}", res))
     if scope.target.props["host"] and platform.system() == "Darwin":
         incs.insert(
             0,
@@ -410,9 +410,9 @@ def compileSrc(scope: ComponentScope, ruleId: str, src: str) -> str:
         rel.suffix + rule.fileOut[1:]
     )
     obj = str(scope.buildpath(path="__obj__") / rel.with_suffix(rel.suffix + ".o"))
+    t = scope.target.tools[rule.id]
     modmap = str(dest) + ".modmap"
     dyndep = str(scope.up().buildpath("modules.dd"))
-    t = scope.target.tools[rule.id]
 
     variables = {}
     if rule.id == "cxx-scan":
@@ -457,13 +457,11 @@ def scanModules(scope: ComponentScope) -> list[str]:
 
 # MARK: Ressources -------------------------------------------------------------
 
-
 def listRes(component: model.Component) -> list[str]:
     return shell.find(str(component.subpath("res")))
 
-
 @node("res")
-def compileRes(scope: ComponentScope) -> list[str]:
+def copyRes(scope: ComponentScope) -> list[str]:
     res: list[str] = []
     for r in listRes(scope.component):
         rel = Path(r).relative_to(scope.component.subpath("res"))
@@ -547,7 +545,7 @@ def link(scope: ComponentScope) -> str:
     w.newline()
     out = outfile(scope)
 
-    res = compileRes(scope)
+    res = copyRes(scope)
     objs = compileObjs(scope)
 
     if scope.component.type == model.Kind.LIB:
@@ -826,15 +824,6 @@ def _(args: RunArgs):
     args.mixins.append("fuzz")
     args.component = args.component + ".fuzz"
     runCmd(args)
-
-
-class InstallArgs(model.TargetArgs):
-    component: str = cli.operand("component", "Component to build", default="__main__")
-
-    prefix: str = cli.arg("p", "prefix", "Installation prefix", default="/usr/local")
-    sysroot: str = cli.arg("s", "sysroot", "Installation sysroot", default="")
-    format: str = cli.arg("f", "format", "Installation format", default="unix")
-
 
 @cli.command("clean", "Clean build files")
 def _():
