@@ -29,9 +29,18 @@ class Scope:
     memo: dict[Any, Any] = dt.field(
         default_factory=dict, kw_only=True, repr=False, compare=False
     )
+    implicits: dict[str, list[str]] = dt.field(
+        default_factory=dict, kw_only=True, repr=False, compare=False
+    )
     w: ninja.Writer | None = dt.field(
         default=None, kw_only=True, repr=False, compare=False
     )
+
+    def addImplicit(self, output: str, deps: "str | list[str]") -> None:
+        """Record extra implicit ninja deps for a generated `output`."""
+        if isinstance(deps, str):
+            deps = [deps]
+        self.implicits.setdefault(output, []).extend(deps)
 
     @staticmethod
     def use(args: model.RegistryArgs) -> "Scope":
@@ -52,7 +61,7 @@ class Scope:
             yield self.openTargetScope(t)
 
     def openTargetScope(self, t: model.Target):
-        return TargetScope(self.registry, t, memo=self.memo, w=self.w)
+        return TargetScope(self.registry, t, memo=self.memo, implicits=self.implicits, w=self.w)
 
 
 @dt.dataclass
@@ -78,10 +87,10 @@ class TargetScope(Scope):
             yield self.openComponentScope(c)
 
     def openComponentScope(self, c: model.Component):
-        return ComponentScope(self.registry, self.target, c, memo=self.memo, w=self.w)
+        return ComponentScope(self.registry, self.target, c, memo=self.memo, implicits=self.implicits, w=self.w)
 
     def up(self):
-        return Scope(self.registry, memo=self.memo, w=self.w)
+        return Scope(self.registry, memo=self.memo, implicits=self.implicits, w=self.w)
 
 
 @dt.dataclass
@@ -92,11 +101,11 @@ class ComponentScope(TargetScope):
         return super().key() + "/" + self.component.id
 
     def openComponentScope(self, c: model.Component):
-        return ComponentScope(self.registry, self.target, c, memo=self.memo, w=self.w)
+        return ComponentScope(self.registry, self.target, c, memo=self.memo, implicits=self.implicits, w=self.w)
 
     def openProductScope(self, path: Path):
         return ProductScope(
-            self.registry, self.target, self.component, path, memo=self.memo, w=self.w
+            self.registry, self.target, self.component, path, memo=self.memo, implicits=self.implicits, w=self.w
         )
 
     def subdirs(self) -> list[str]:
@@ -123,7 +132,7 @@ class ComponentScope(TargetScope):
         os.environ["CK_COMPONENT"] = self.component.id
 
     def up(self):
-        return TargetScope(self.registry, self.target, memo=self.memo, w=self.w)
+        return TargetScope(self.registry, self.target, memo=self.memo, implicits=self.implicits, w=self.w)
 
 
 @dt.dataclass
@@ -418,7 +427,7 @@ def compileSrc(scope: ComponentScope, ruleId: str, src: str) -> str:
     if rule.id == "cxx-scan":
         variables["obj"] = obj
 
-    implicit = [*t.files]
+    implicit = [*t.files, *scope.implicits.get(src, [])]
     orderOnly = []
     if rule.id == "cxx":
         orderOnly.append(dyndep)
