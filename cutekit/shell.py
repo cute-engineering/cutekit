@@ -204,13 +204,13 @@ def exec(*args: str, quiet: bool = False, cwd: Optional[str] = None) -> bool:
     return True
 
 
-def popen(*args: str) -> str:
+def popen(*args: str, cwd: Optional[str] = None) -> str:
     _logger.debug(f"Executing {args}...")
 
     cmdName = Path(args[0]).name
 
     try:
-        proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=sys.stderr)
+        proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=sys.stderr, cwd=cwd)
     except FileNotFoundError:
         raise RuntimeError(f"{cmdName}: Command not found")
 

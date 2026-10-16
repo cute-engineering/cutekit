@@ -258,7 +258,7 @@ def _computeCinc(scope: TargetScope) -> list[str]:
                 continue
             res.add(str(headerPath.resolve()))
 
-    incs = sorted(map(lambda i: f"-I'{i}'", res))
+    incs = sorted(map(lambda i: f"-I{ninja.escapePath(i)}", res))
     if scope.target.props["host"] and platform.system() == "Darwin":
         incs.insert(
             0,
@@ -410,9 +410,9 @@ def compileSrc(scope: ComponentScope, ruleId: str, src: str) -> str:
         rel.suffix + rule.fileOut[1:]
     )
     obj = str(scope.buildpath(path="__obj__") / rel.with_suffix(rel.suffix + ".o"))
+    t = scope.target.tools[rule.id]
     modmap = str(dest) + ".modmap"
     dyndep = str(scope.up().buildpath("modules.dd"))
-    t = scope.target.tools[rule.id]
 
     variables = {}
     if rule.id == "cxx-scan":
@@ -457,13 +457,11 @@ def scanModules(scope: ComponentScope) -> list[str]:
 
 # MARK: Ressources -------------------------------------------------------------
 
-
 def listRes(component: model.Component) -> list[str]:
     return shell.find(str(component.subpath("res")))
 
-
 @node("res")
-def compileRes(scope: ComponentScope) -> list[str]:
+def copyRes(scope: ComponentScope) -> list[str]:
     res: list[str] = []
     for r in listRes(scope.component):
         rel = Path(r).relative_to(scope.component.subpath("res"))
@@ -509,6 +507,15 @@ def outfile(scope: ComponentScope) -> str:
         return str(scope.buildpath(f"__bin__/{scope.component.id}.{exeExt}"))
 
 
+def wholeArchive(scope: ComponentScope, lib: str) -> list[str]:
+    sysName = scope.target.props.get("sys", "unknown").lower()
+    if sysName == "darwin":
+        return [f"-Wl,-force_load,{lib}"]
+    if sysName == "windows":
+        return [f"-Wl,/WHOLEARCHIVE:{lib}"]
+    return ["-Wl,--whole-archive", lib, "-Wl,--no-whole-archive"]
+
+
 @node("libs")
 def collectLibs(scope: ComponentScope) -> list[str]:
     res: list[str] = []
@@ -525,21 +532,18 @@ def collectLibs(scope: ComponentScope) -> list[str]:
     return res
 
 
-@node("objs")
-def collectInjectedObjs(scope: ComponentScope) -> list[str]:
-    res: list[str] = []
-    for r in scope.component.resolved[scope.target.id].injected:
+def libsArgs(scope: ComponentScope, libs: list[str]) -> str:
+    kept: set[str] = set()
+    for r in scope.component.resolved[scope.target.id].required:
         req = scope.registry.lookup(r, model.Component)
-        assert req is not None  # model.Resolver has already checked this
+        if req is not None and r != scope.component.id and req.isKept():
+            kept.add(outfile(scope.openComponentScope(req)))
 
-        if r == scope.component.id:
-            continue
-        if not req.type == model.Kind.LIB:
-            raise RuntimeError(f"Component {r} is not a library")
+    res: list[str] = []
+    for lib in libs:
+        res.extend(wholeArchive(scope, lib) if lib in kept else [lib])
+    return " ".join(res)
 
-        res.extend(compileObjs(scope.openComponentScope(req)))
-
-    return res
 
 @node("link")
 def link(scope: ComponentScope) -> str:
@@ -547,7 +551,7 @@ def link(scope: ComponentScope) -> str:
     w.newline()
     out = outfile(scope)
 
-    res = compileRes(scope)
+    res = copyRes(scope)
     objs = compileObjs(scope)
 
     if scope.component.type == model.Kind.LIB:
@@ -559,7 +563,7 @@ def link(scope: ComponentScope) -> str:
                 objs + libs,
                 variables={
                     "objs": " ".join(objs),
-                    "libs": " ".join(libs),
+                    "libs": libsArgs(scope, libs),
                     "ck_target": scope.target.id,
                     "ck_component": scope.component.id,
                 },
@@ -584,7 +588,7 @@ def link(scope: ComponentScope) -> str:
             objs + libs,
             variables={
                 "objs": " ".join(objs),
-                "libs": " ".join(libs),
+                "libs": libsArgs(scope, libs),
                 "ck_target": scope.target.id,
                 "ck_component": scope.component.id,
             },
@@ -826,15 +830,6 @@ def _(args: RunArgs):
     args.mixins.append("fuzz")
     args.component = args.component + ".fuzz"
     runCmd(args)
-
-
-class InstallArgs(model.TargetArgs):
-    component: str = cli.operand("component", "Component to build", default="__main__")
-
-    prefix: str = cli.arg("p", "prefix", "Installation prefix", default="/usr/local")
-    sysroot: str = cli.arg("s", "sysroot", "Installation sysroot", default="")
-    format: str = cli.arg("f", "format", "Installation format", default="unix")
-
 
 @cli.command("clean", "Clean build files")
 def _():

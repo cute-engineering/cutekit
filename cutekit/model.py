@@ -435,7 +435,7 @@ class Extern(DataClassJsonMixin):
             return []
 
         # Recurse into nested externs with the same visited context
-        return [cast(Manifest, project)] + project.fetchExterns(
+        return [cast(Manifest, project)] + project.syncExterns(
             lockfile, update, _seenIds, _seenPaths
         )
 
@@ -543,7 +543,7 @@ class Project(Manifest):
             return None
         return projectManifest.ensureType(Project)
 
-    def fetchExterns(
+    def syncExterns(
         self,
         lock: Lockfile,
         update: bool,
@@ -551,14 +551,14 @@ class Project(Manifest):
         _seenPaths: Optional[set[str]] = None,
     ) -> list[Manifest]:
         """
-        Fetch all externs for the project.
+        Sync all externs for the project.
 
         Args:
             lock: The lockfile to update.
             update: If True, pull latest and refresh the lockfile commit.
 
         Returns:
-            A list of manifests representing the fetched external dependencies.
+            A list of manifests representing the synced external dependencies.
         """
         if _seenIds is None:
             _seenIds = set()
@@ -597,9 +597,9 @@ def _():
     pass
 
 
-class InstallArgs:
+class SyncArgs:
     """
-    Arguments for the install command.
+    Arguments for the sync command.
     """
 
     update: bool = cli.arg(
@@ -607,14 +607,14 @@ class InstallArgs:
     )
 
 
-@cli.command("install", "Install required external packages")
-def _(args: InstallArgs):
+@cli.command("sync", "Sync external packages")
+def _(args: SyncArgs):
     """
-    Install required external packages for the project.
+    Sync required external packages for the project.
     """
     project = Project.use()
     assert project.lockfile is not None
-    project.fetchExterns(project.lockfile, args.update)
+    project.syncExterns(project.lockfile, args.update)
     project.lockfile.save()
 
 
@@ -663,7 +663,7 @@ class RegistryArgs:
     """Whether to build in release mode. Same as --mixins=release."""
     debug: bool = cli.arg(None, "debug", "Build in debug mode")
     """Whether to build in debug mode. Same as --mixins=debug."""
-    prefix: str = cli.arg(None, "prefix", "Installation prefix")
+    prefix: str = cli.arg(None, "prefix", "Installation prefix", "/")
 
 
 class TargetArgs(RegistryArgs):
@@ -835,6 +835,24 @@ class Component(Manifest):
                 )
 
         return True, ""
+
+    def isKept(self) -> bool:
+        """
+        Check if all the objects of the component must be linked, even the
+        unreferenced ones.
+
+        Returns:
+            True if the component is a static library that injects itself
+            into another component.
+        """
+        # NOTE: Nothing references the objects of a component that injects
+        #       itself somewhere, so the linker would drop them from a static
+        #       archive.
+        return (
+            self.type == Kind.LIB
+            and not self.props.get("shared", False)
+            and len(self.injects) > 0
+        )
 
 
 KINDS: dict[Kind, Type[Manifest]] = {
@@ -1182,7 +1200,7 @@ class Registry(DataClassJsonMixin):
             p: The project to load the externs for.
         """
         assert p.lockfile is not None
-        r._extend(p.fetchExterns(p.lockfile, False))
+        r._extend(p.syncExterns(p.lockfile, False))
         p.lockfile.save()
 
     @staticmethod
@@ -1254,6 +1272,32 @@ class Registry(DataClassJsonMixin):
                                 c.resolved[target.id].required
                                 + victim.resolved[target.id].required
                             )
+
+            # Propagate injects to dependents, components injected into a
+            # static library are linked by whatever ends up linking it.
+            for c in r.iter(Component):
+                resolved = c.resolved[target.id]
+                if not resolved.enabled:
+                    continue
+
+                seen: set[str] = set()
+                pending = list(resolved.required)
+                while pending:
+                    dep = r.lookup(pending.pop(0), Component)
+                    if not dep or dep.id in seen:
+                        continue
+                    seen.add(dep.id)
+
+                    for injected in dep.resolved[target.id].injected:
+                        injectedComponent = r.lookup(injected, Component)
+                        assert injectedComponent is not None
+                        injectedRequired = injectedComponent.resolved[
+                            target.id
+                        ].required
+                        resolved.required = utils.uniqPreserveOrder(
+                            resolved.required + injectedRequired
+                        )
+                        pending.extend(injectedRequired)
 
             # Resolve tooling
             tools: Tools = target.tools
