@@ -509,11 +509,14 @@ def outfile(scope: ComponentScope) -> str:
 
 def wholeArchive(scope: ComponentScope, lib: str) -> list[str]:
     sysName = scope.target.props.get("sys", "unknown").lower()
+    prefix = ""
+    if ("ld" not in scope.target.tools["ld"].cmd):
+        prefix = "-Wl,"
     if sysName == "darwin":
-        return [f"-Wl,-force_load,{lib}"]
-    if sysName == "windows":
-        return [f"-Wl,/WHOLEARCHIVE:{lib}"]
-    return ["-Wl,--whole-archive", lib, "-Wl,--no-whole-archive"]
+        return [f"{prefix}-force_load,{lib}"]
+    if sysName in ["windows", "efi"]:
+        return [f"{prefix}/WHOLEARCHIVE:{lib}"]
+    return [f"{prefix}--whole-archive", lib, f"{prefix}--no-whole-archive"]
 
 
 @node("libs")
